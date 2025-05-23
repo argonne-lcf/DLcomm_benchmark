@@ -1,0 +1,3 @@
+- package=ccl
+- algorithm=tree
+- backend=ccl

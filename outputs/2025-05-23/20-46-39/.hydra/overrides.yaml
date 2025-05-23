@@ -1,0 +1,3 @@
+- package=torch
+- algorithm=ring
+- backend=nccl

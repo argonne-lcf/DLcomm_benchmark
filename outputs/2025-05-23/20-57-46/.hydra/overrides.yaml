@@ -1,0 +1,3 @@
+- package=mpi
+- algorithm=ring
+- backend=mpi

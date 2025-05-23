@@ -1,0 +1,28 @@
+# config/config.yaml
+
+# communication package 
+package: torch            
+
+# collective op 
+collective: allreduce      
+
+# backend  
+backend: nccl           
+
+#algorithm  
+algorithm: ring          
+
+# buffer size 
+buffer_size: 1024
+
+#  Unitrace  
+use_unitrace: true
+
+# Total ranks  
+num_ranks: null
+
+# GPUs per node 
+gpus_per_node: null
+
+# Topology mode: HD ,  VD  , Hybrid
+mode: HD
