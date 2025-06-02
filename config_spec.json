@@ -1,0 +1,30 @@
+{
+    "framework": ["pytorch", "jax", "tensorflow"],
+    "backend": {
+      "torch": ["xccl", "mpi"],
+      "jax": ["xla"],
+      "tensorflow": ["xccl"]
+    },
+    "collective": ["allreduce", "broadcast", "gather", "scatter", "allgather", "reduce", "barrier"],
+    "op": {
+      "allreduce": ["sum", "max", "min", "prod"],
+      "reduce": ["sum", "max", "min", "prod"],
+      "broadcast": [null],
+      "gather": [null],
+      "scatter": [null],
+      "allgather": [null],
+      "barrier": [null]
+    },
+    "algo": {
+      "allreduce": ["ring", "tree", "recursive_doubling"],
+      "broadcast": ["binomial_tree", "pipeline"],
+      "gather": ["linear", "binomial_tree"],
+      "scatter": ["linear", "binomial_tree"],
+      "allgather": ["ring", "brucks"],
+      "reduce": ["tree", "ring"],
+      "barrier": ["dissemination"]
+    },
+    "dtype": ["float16", "float32", "float64", "int32", "int64"],
+    "topology": ["horizontal", "vertical", "ring", "mesh"]
+  }
+  

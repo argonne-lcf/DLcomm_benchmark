@@ -1,28 +1,28 @@
-# config/config.yaml
+framework: pytorch # tensorflow / jax
 
-# communication package 
-package: torch            
+collective:
+  name: allreduce # allgather / reducescatter / broadcast
+  op: sum # max / min 
+  algo: ring # tree 
 
-# collective op 
-collective: allreduce      
+payload:
+  size: 1MB # 10MB / 100MB
+  dtype: float32 # float64 / int32 / int64
 
-# backend  
-backend: nccl           
+ccl_backend: xccl # rccl / nccl
 
-#algorithm  
-algorithm: ring          
+horizontal: # Tensor Parallelism
+  num_gpus: 12
+  gpu_ids: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
 
-# buffer size 
-buffer_size: 1024
-
-#  Unitrace  
+vertical: # Data Parallelism
+  num_nodes: 12
+  gpu_ids: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+  
 use_unitrace: true
 
-# Total ranks  
-num_ranks: null
 
-# GPUs per node 
-gpus_per_node: null
 
-# Topology mode: HD ,  VD  , Hybrid
-mode: HD
+
+
+
