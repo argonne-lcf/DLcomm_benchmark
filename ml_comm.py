@@ -4,30 +4,26 @@
 import hydra
 from omegaconf import DictConfig
 import importlib
+import json
 
-from allreduce import (
-    allreduce_ccl_ring,
-    allreduce_ring_torch,
-    allreduce_tree_ccl,
-    allreduce_ring_mpi,
-)
 
 # ----------------------------------------------------------------------------
 
 # HELPER FUNCTIONS
 # ----------------------------------------------------------------------------
 
-def parse_buffer_size(size_str):
-     
-    size_str = size_str.strip().upper()
-    if size_str.endswith("MB"):
-        return int(float(size_str[:-2]) * 1024 * 1024)
-    elif size_str.endswith("KB"):
-        return int(float(size_str[:-2]) * 1024)
-    elif size_str.endswith("B"):
-        return int(float(size_str[:-1]))
+def parse_buffer_size(size_str: str) -> int:
+
+    s = size_str.strip().upper()
+    if s.endswith("MB"):
+        return int(float(s[:-2]) * 1024 * 1024)
+    elif s.endswith("KB"):
+        return int(float(s[:-2]) * 1024)
+    elif s.endswith("B"):
+        return int(float(s[:-1]))
     else:
-        raise ValueError(f"Unknown format: {size_str}")
+        raise ValueError(f"payload.size='{size_str}' has unknown format. Use '1MB', '512KB' etc")
+
 
 # ----------------------------------------------------------------------------
 
@@ -35,41 +31,75 @@ def parse_buffer_size(size_str):
 # ----------------------------------------------------------------------------
 # ----------------------------------------------------------------------------
 
+
 class ConfigValidator:
-    def __init__(self, spec):
+    def __init__(self, spec: dict):
         self.spec = spec
 
-    def validate(self, cfg):
+    def validate(self, cfg: DictConfig):
+ 
         errors = []
 
+        # framework
         framework = cfg.framework
         if framework not in self.spec["framework"]:
-            errors.append(f"Invalid framework '{framework}'. Valid options: {self.spec['framework']}")
+            errors.append(
+                f"Invalid framework '{framework}'. Valid options: {self.spec['framework']}"
+            )
 
+        # ccl_backend
         backend = getattr(cfg, "ccl_backend", None)
-        if backend not in self.spec["backend"].get(framework, []):
-            errors.append(f"Invalid backend '{backend}' for framework '{framework}'. Valid: {self.spec['backend'].get(framework, [])}")
+        valid_backends = self.spec["backend"].get(framework, [])
+        if backend not in valid_backends:
+            errors.append(
+                f"Invalid ccl_backend '{backend}' for framework '{framework}'. "
+                f"Valid: {valid_backends}"
+            )
 
+        # collective.name
         collective = cfg.collective.name
         if collective not in self.spec["collective"]:
-            errors.append(f"Invalid collective '{collective}'. Valid: {self.spec['collective']}")
+            errors.append(
+                f"Invalid collective '{collective}'. Valid: {self.spec['collective']}"
+            )
 
+        # collective.op
         op = cfg.collective.op
         valid_ops = self.spec["op"].get(collective, [])
         if op not in valid_ops:
-            errors.append(f"Invalid op '{op}' for collective '{collective}'. Valid: {valid_ops}")
+            errors.append(
+                f"Invalid op '{op}' for collective '{collective}'. Valid: {valid_ops}"
+            )
 
+        # collective.algo
         algo = cfg.collective.algo
         valid_algos = self.spec["algo"].get(collective, [])
         if algo not in valid_algos:
-            errors.append(f"Invalid algorithm '{algo}' for collective '{collective}'. Valid: {valid_algos}")
+            errors.append(
+                f"Invalid algo '{algo}' for collective '{collective}'. Valid: {valid_algos}"
+            )
 
-        dtype = cfg.payload.dtype
+        # dtype 
+        dtype = cfg.dtype
         if dtype not in self.spec["dtype"]:
-            errors.append(f"Invalid dtype '{dtype}'. Valid: {self.spec['dtype']}")
+            errors.append(
+                f"Invalid dtype '{dtype}'. Valid: {self.spec['dtype']}"
+            )
 
+        # buffer_size
+        try:
+            buffer_bytes = parse_buffer_size(cfg.buffer_size)
+        except ValueError as ve:
+            errors.append(str(ve))
+
+    
         if errors:
-            raise ValueError("CONFIG VALIDATION ERRORS:\n" + "\n".join(errors))
+            raise ValueError("ALl ERRORS:\n" + "\n".join(errors))
+
+     
+        return buffer_bytes
+
+
 
 # ----------------------------------------------------------------------------
 
@@ -101,14 +131,24 @@ def main(cfg: DictConfig):
         spec = json.load(f)
 
     validator = ConfigValidator(spec)
-    validator.validate(cfg)
-
-    cfg.buffer_size = parse_buffer_size(cfg.payload.size)
+    buffer_in_bytes = validator.validate(cfg)
 
 
-    print(cfg)
 
-    run_communication(cfg)
+
+    print("Final config:")
+    print(f"  • framework        = {cfg.framework}")
+    print(f"  • backend          = {cfg.ccl_backend}")
+    print(f"  • collective_name  = {cfg.collective}")
+    print(f"  • op               = {cfg.collective.op}")
+    print(f"  • algo             = {cfg.collective.algo}")
+    print(f"  • buffer_size      = {cfg.buffer_size} bytes")
+    print(f"  • dtype            = {cfg.dtype}")
+    print(f"  • horizontal.num_gpus = {cfg.horizontal.num_gpus}")
+    print(f"  • vertical.num_nodes  = {cfg.vertical.num_nodes}")
+    print(f"  • use_unitrace     = {cfg.use_unitrace}")
+
+    #run_communication(cfg)
 
 if __name__ == "__main__":
     main()

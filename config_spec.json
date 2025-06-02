@@ -1,7 +1,7 @@
 {
     "framework": ["pytorch", "jax", "tensorflow"],
     "backend": {
-      "torch": ["xccl", "mpi"],
+      "pytorch": ["xccl", "mpi"],
       "jax": ["xla"],
       "tensorflow": ["xccl"]
     },

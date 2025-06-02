@@ -5,9 +5,9 @@ collective:
   op: sum # max / min 
   algo: ring # tree 
 
-payload:
-  size: 1MB # 10MB / 100MB
-  dtype: float32 # float64 / int32 / int64
+buffer_size: 1MB # 10MB / 100MB
+
+dtype: float32 # float64 / int32 / int64
 
 ccl_backend: xccl # rccl / nccl
 
