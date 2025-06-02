@@ -5,7 +5,8 @@ import hydra
 from omegaconf import DictConfig
 import importlib
 import json
-
+import trace_utils
+from pathlib import Path
 
 # ----------------------------------------------------------------------------
 
@@ -106,7 +107,7 @@ class ConfigValidator:
 
 # ----------------------------------------------------------------------------
 
-def run_communication(cfg):
+"""def run_communication(cfg):
     if cfg.package == "ccl" and cfg.algorithm == "ring":
         allreduce_ccl_ring(cfg)
     elif cfg.package == "torch" and cfg.algorithm == "ring":
@@ -119,27 +120,24 @@ def run_communication(cfg):
         raise NotImplementedError(
             f"No implementation for (package={cfg.package}, algorithm={cfg.algorithm})"
         )
-
+"""
 # ----------------------------------------------------------------------------
 
 
 @hydra.main(config_path="config", config_name="config", version_base=None)
 def main(cfg: DictConfig):
     
-    config_spec_path="./config_spec.json"
+    config_spec_path="./config/config_spec.json"
     with open(config_spec_path, "r") as f:
         spec = json.load(f)
 
     validator = ConfigValidator(spec)
     buffer_in_bytes = validator.validate(cfg)
 
-
-
-
     print("Final config:")
     print(f"  • framework        = {cfg.framework}")
     print(f"  • backend          = {cfg.ccl_backend}")
-    print(f"  • collective_name  = {cfg.collective}")
+    print(f"  • collective_name  = {cfg.collective.name}")
     print(f"  • op               = {cfg.collective.op}")
     print(f"  • algo             = {cfg.collective.algo}")
     print(f"  • buffer_size      = {cfg.buffer_size} bytes")
@@ -148,7 +146,63 @@ def main(cfg: DictConfig):
     print(f"  • vertical.num_nodes  = {cfg.vertical.num_nodes}")
     print(f"  • use_unitrace     = {cfg.use_unitrace}")
 
-    #run_communication(cfg)
+    print(f"\n\n ------------------------------------------------------------------------- \n\n")
+
+    #dynamically we are creating the correspoding file name in profile apps
+    framework = cfg.framework        # "pytorch tensorflow jax etc
+    backend   = cfg.ccl_backend      # xccl" "xla" based on intel device or nvida
+
+
+
+    module_name = f"profile_apps.{framework}_{backend}"
+
+    # checking whether it exist or not
+    path_to_module_py = Path(__file__).parent / "profile_apps" / f"{framework}_{backend}.py"
+    if not path_to_module_py.exists():
+        raise RuntimeError(f"Cannot find {framework}_{backend}.py")
+
+
+
+
+    # Having MPI info and ranks
+    num_nodes = cfg.vertical.num_nodes
+    ranks_per_node = cfg.horizontal.num_gpus
+    total_ranks = num_nodes * ranks_per_node
+
+
+
+    #  trace directory  
+    trace_root = Path.cwd() / "trace"
+    trace_root.mkdir(parents=True, exist_ok=True)
+
+    #  environment variables for unitrace 
+    env_vars = {}
+    if cfg.use_unitrace:
+        env_vars["UNITRACE_LOG_LEVEL"] = "INFO"
+        # If using XCCL, turn on CCL logging; otherwise default
+        # env_vars["CCL_LOG_LEVEL"] = "DEBUG" if backend == "xccl" else "INFO"
+
+    
+    
+    #env_vars["CCL_ALLREDUCE"] = "topo",
+    #env_vars["CCL_ALLREDUCE_SCALEOUT"] = "rabenseifner",
+     
+
+
+    #How should we handle different ranks and cpu binding, we can generate
+    # cpu_bind str with a function
+
+    # launch MPI+UniTrace
+    trace_utils.run_mpiexec_and_unitrace(
+        python_module = module_name,
+        buf_size_bytes = buffer_in_bytes,
+        trace_dir = trace_root,
+        env_vars = env_vars,
+        np = total_ranks,
+        ppn = ranks_per_node,
+        cpu_bind = "list:4:9:14:19:20:25:56:61:66:71:74:79"   
+    )
+ 
 
 if __name__ == "__main__":
     main()
