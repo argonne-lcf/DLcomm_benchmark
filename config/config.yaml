@@ -1,15 +1,16 @@
 framework: pytorch # tensorflow / jax
 
+ccl_backend: xccl # rccl / nccl
+
 collective:
   name: allreduce # allgather / reducescatter / broadcast
   op: sum # max / min 
   algo: ring # tree 
+  iterations: 5
+  payload:
+    buffer_size: 1MB # 10MB / 100MB
+    dtype: float32 # float64 / int32 / int64
 
-buffer_size: 1MB # 10MB / 100MB
-
-dtype: float32 # float64 / int32 / int64
-
-ccl_backend: xccl # rccl / nccl
 
 horizontal: # Tensor Parallelism
   num_gpus: 12
@@ -17,9 +18,11 @@ horizontal: # Tensor Parallelism
 
 vertical: # Data Parallelism
   num_nodes: 1
-  node_ids: [0]
+  gpu_ids: [0]
 
-  
+flatview: false
+
+
 use_unitrace: true
 
 

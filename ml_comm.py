@@ -1,13 +1,13 @@
 # IMPORTINGS
 # ----------------------------------------------------------------------------
-
+import os
 import hydra
 from omegaconf import DictConfig
 import importlib
 import json
 import trace_utils
 from pathlib import Path
-
+import subprocess
 # ----------------------------------------------------------------------------
 
 # HELPER FUNCTIONS
@@ -81,7 +81,7 @@ class ConfigValidator:
             )
 
         # dtype 
-        dtype = cfg.dtype
+        dtype = cfg.collective.payload.dtype
         if dtype not in self.spec["dtype"]:
             errors.append(
                 f"Invalid dtype '{dtype}'. Valid: {self.spec['dtype']}"
@@ -89,7 +89,7 @@ class ConfigValidator:
 
         # buffer_size
         try:
-            buffer_bytes = parse_buffer_size(cfg.buffer_size)
+            buffer_bytes = parse_buffer_size(cfg.collective.payload.buffer_size)
         except ValueError as ve:
             errors.append(str(ve))
 
@@ -126,83 +126,78 @@ class ConfigValidator:
 
 @hydra.main(config_path="config", config_name="config", version_base=None)
 def main(cfg: DictConfig):
-    
-    config_spec_path="./config/config_spec.json"
+  
+    print("-------------------------------------------------------------------------")
+    print("[CONFIG] Loading schema and validating user YAML")
+   
+    config_spec_path = "./config/config_spec.json"
     with open(config_spec_path, "r") as f:
         spec = json.load(f)
-
     validator = ConfigValidator(spec)
     buffer_in_bytes = validator.validate(cfg)
 
-    print("Final config:")
-    print(f"  • framework        = {cfg.framework}")
-    print(f"  • backend          = {cfg.ccl_backend}")
-    print(f"  • collective_name  = {cfg.collective.name}")
-    print(f"  • op               = {cfg.collective.op}")
-    print(f"  • algo             = {cfg.collective.algo}")
-    print(f"  • buffer_size      = {cfg.buffer_size} bytes")
-    print(f"  • dtype            = {cfg.dtype}")
-    print(f"  • horizontal.num_gpus = {cfg.horizontal.num_gpus}")
-    print(f"  • vertical.num_nodes  = {cfg.vertical.num_nodes}")
-    print(f"  • use_unitrace     = {cfg.use_unitrace}")
-
-    print(f"\n\n ------------------------------------------------------------------------- \n\n")
-
-    #dynamically we are creating the correspoding file name in profile apps
-    framework = cfg.framework        # "pytorch tensorflow jax etc
-    backend   = cfg.ccl_backend      # xccl" "xla" based on intel device or nvida
-
-
-
+   
+ 
+    print("[CONFIG] Final validated settings\n")
+ 
+    print(f"  • framework           = {cfg.framework}")
+    print(f"  • backend             = {cfg.ccl_backend}")
+    print(f"  • collective_name     = {cfg.collective.name}")
+    print(f"  • op                  = {cfg.collective.op}")
+    print(f"  • algo                = {cfg.collective.algo}")
+    print(f"  • buffer_size         = {cfg.collective.payload.buffer_size} ({buffer_in_bytes} bytes)")
+    print(f"  • dtype               = {cfg.collective.payload.dtype}")
+    print(f"  • horizontal.num_gpus  = {cfg.horizontal.num_gpus}")
+    print(f"  • vertical.num_nodes   = {cfg.vertical.num_nodes}")
+    print(f"  • use_unitrace        = {cfg.use_unitrace}")
+ 
+  
+    print("-------------------------------------------------------------------------")
+    print("[MODULE] Determining Profiling Module Path")
+ 
+    framework = cfg.framework
+    backend = cfg.ccl_backend
     module_name = f"profile_apps.{framework}_{backend}"
-
-    # checking whether it exist or not
     path_to_module_py = Path(__file__).parent / "profile_apps" / f"{framework}_{backend}.py"
     if not path_to_module_py.exists():
-        raise RuntimeError(f"Cannot find {framework}_{backend}.py")
+        raise RuntimeError(f"Cannot find profiling module: '{framework}_{backend}.py'")
+    print(f"[MODULE] Will use: {module_name}  (file: {path_to_module_py})")
+    print("-------------------------------------------------------------------------")
 
-
-
-
-    # Having MPI info and ranks
+ 
+    print("[MPI] Computing rank counts")
+ 
     num_nodes = cfg.vertical.num_nodes
     ranks_per_node = cfg.horizontal.num_gpus
     total_ranks = num_nodes * ranks_per_node
-
-
-
-    #  trace directory  
-    trace_root = Path.cwd() / "trace"
-    trace_root.mkdir(parents=True, exist_ok=True)
-
-    #  environment variables for unitrace 
-    env_vars = {}
-    if cfg.use_unitrace:
-        env_vars["UNITRACE_LOG_LEVEL"] = "INFO"
-        # If using XCCL, turn on CCL logging; otherwise default
-        # env_vars["CCL_LOG_LEVEL"] = "DEBUG" if backend == "xccl" else "INFO"
-
-    
-    
-    #env_vars["CCL_ALLREDUCE"] = "topo",
-    #env_vars["CCL_ALLREDUCE_SCALEOUT"] = "rabenseifner",
-     
-
-
-    #How should we handle different ranks and cpu binding, we can generate
-    # cpu_bind str with a function
-
-    # launch MPI+UniTrace
-    trace_utils.run_mpiexec_and_unitrace(
-        python_module = module_name,
-        buf_size_bytes = buffer_in_bytes,
-        trace_dir = trace_root,
-        env_vars = env_vars,
-        np = total_ranks,
-        ppn = ranks_per_node,
-        cpu_bind = "list:4:9:14:19:20:25:56:61:66:71:74:79"   
-    )
+    print(f"[MPI] num_nodes       = {num_nodes}")
+    print(f"[MPI] ranks_per_node  = {ranks_per_node}")
+    print(f"[MPI] total_ranks     = {total_ranks}")
+    print(f"\n")
+    print("[MPI] Building mpiexec command")
  
+    mpi_cmd = [
+        "mpiexec",
+        "--env", "CCL_LOG_LEVEL=warn",
+        "--env", "TORCH_CPP_LOG_LEVEL=error",
+        "--env", "CCL_PROCESS_LAUNCHER=pmix",
+        "--np", str(total_ranks),
+        "-ppn", str(ranks_per_node),
+        "python3", "-m", module_name,
+        str(buffer_in_bytes),
+        str(cfg.collective.iterations),
+        cfg.collective.payload.dtype,
+    ]
+
+    print(f"[MPI] Command → {' '.join(mpi_cmd)}")
+    print(f"\n")
+    print("[MPI] Launching profiling job")
+  
+    subprocess.run(mpi_cmd, check=True)
+   
+    print("[MPI] Job complete")
+    print("-------------------------------------------------------------------------")
+
 
 if __name__ == "__main__":
     main()
