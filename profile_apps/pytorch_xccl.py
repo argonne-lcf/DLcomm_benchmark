@@ -5,33 +5,38 @@ from time import perf_counter
 import os
 from mpi4py import MPI
 import datetime
-
-t0 = perf_counter() 
-import intel_extension_for_pytorch   
-import torch.nn.parallel
-import torch.distributed as dist
-import oneccl_bindings_for_pytorch
-t1 = perf_counter() 
-import_timer = t1 - t0
+from collectives import COLLECTIVES, OPS_NEED_REDUCE, OP_MAP, DTYPES
+from timer import timer, print_all_times
 
 
+with timer("import time"):
+    import intel_extension_for_pytorch   
+    import torch.nn.parallel
+    import torch.distributed as dist
+    import oneccl_bindings_for_pytorch
+    
 
 
 
-DTYPES = {
-    "float16": (torch.float16, 2),
-    "float32": (torch.float32, 4),
-    "float64": (torch.float64, 8),
-    "int32":   (torch.int32,   4),
-    "int64":   (torch.int64,   8),
-}
+
+
 
 def main():
-
-    buf_bytes   = int(sys.argv[1])        
-    iters       = int(sys.argv[2])        
-    dtype_str   = sys.argv[3] 
+    #argv map
+    # ---------------------------------------------------------------------- #
+    framework   = sys.argv[1].lower()
+    coll_name   = sys.argv[2].lower()
+    op_name     = sys.argv[3].lower()
+    buf_bytes   = int(sys.argv[4])
+    iters       = int(sys.argv[5])
+    dtype_str   = sys.argv[6].lower()
+    # ----------------------------------------------------------------------- #
     torch_dtype, elem_size = DTYPES[dtype_str]
+
+    # look-ups  
+    collective_fn = COLLECTIVES[coll_name]
+    op_obj = OP_MAP[op_name] if coll_name in OPS_NEED_REDUCE else None
+
 
     mpi_rank = MPI.COMM_WORLD.Get_rank()
     mpi_size = MPI.COMM_WORLD.Get_size()
@@ -53,15 +58,9 @@ def main():
     os.environ["MASTER_PORT"] = str(MASTER_PORT)
 
     MPI.COMM_WORLD.Barrier()
-    t2 = perf_counter() 
-    dist.init_process_group(backend = "ccl", init_method = 'env://', world_size = mpi_size, rank = mpi_rank, timeout = datetime.timedelta(seconds=3600))
-    t3 = perf_counter() 
-    init_timer = t3 - t2
+    with timer("init time"):
+        dist.init_process_group(backend = "ccl", init_method = 'env://', world_size = mpi_size, rank = mpi_rank, timeout = datetime.timedelta(seconds=3600))
     MPI.COMM_WORLD.Barrier()
-
-    if mpi_rank == 0:
-        print(f"[TIMERS] import time  = {import_timer:.6f} s")
-        print(f"[TIMERS] init time    = {init_timer:.6f} s")
 
 
 
@@ -78,19 +77,34 @@ def main():
 
     device  = get_default_device(dist_my_rank)
     num_elems = buf_bytes // elem_size
-    # all‐reduce 
-    latencies = []
-    for _ in range(5):  
-        x = torch.ones(num_elems , dtype=torch_dtype).to(device, non_blocking=True)
-        t0 = perf_counter()
-        dist.all_reduce(x, op=dist.ReduceOp.SUM)
-        MPI.COMM_WORLD.Barrier()
-        t1 = perf_counter()
-        latencies.append(t1 - t0)
+   
 
     if mpi_rank == 0:
-        print(f"[TIMERS] Latencies (s): {latencies}")
-        print(f"[TIMERS] Bandwiths (bytes/sec): {buf_bytes/latencies[0]}")
+        print("\n[MPI][SETUP] ------------------------------------------------------")
+        print(f"[MPI][SETUP] Framework      : {framework}")
+        print(f"[MPI][SETUP] Collective     : {coll_name}")
+        print(f"[MPI][SETUP] Operation      : {op_name if op_obj else 'N/A'}")
+        print(f"[MPI][SETUP] DType          : {dtype_str}")
+        print(f"[MPI][SETUP] Buffer Size    : {buf_bytes}")
+        print(f"[MPI][SETUP] Iterations     : {iters}")
+        print(f"[MPI][SETUP] World Size     : {mpi_size}")
+        print("[MPI][SETUP] ------------------------------------------------------\n")
+
+     
+    for _ in range(5):  
+
+        x = torch.ones(num_elems , dtype=torch_dtype).to(device, non_blocking=True)
+       
+        with timer("Latencies (s)"):
+            collective_fn(x, op_obj)
+            MPI.COMM_WORLD.Barrier()
+        
+     
+    if mpi_rank == 0:
+        print_all_times()
 
 if __name__ == "__main__":
     main()
+
+
+

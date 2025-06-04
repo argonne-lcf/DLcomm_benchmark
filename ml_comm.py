@@ -5,7 +5,6 @@ import hydra
 from omegaconf import DictConfig
 import importlib
 import json
-import trace_utils
 from pathlib import Path
 import subprocess
 # ----------------------------------------------------------------------------
@@ -184,9 +183,14 @@ def main(cfg: DictConfig):
         "--np", str(total_ranks),
         "-ppn", str(ranks_per_node),
         "python3", "-m", module_name,
+
+        cfg.framework,
+        cfg.collective.name,
+        cfg.collective.op,
         str(buffer_in_bytes),
         str(cfg.collective.iterations),
         cfg.collective.payload.dtype,
+
     ]
 
     print(f"[MPI] Command → {' '.join(mpi_cmd)}")
