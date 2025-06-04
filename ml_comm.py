@@ -190,6 +190,9 @@ def main(cfg: DictConfig):
         str(buffer_in_bytes),
         str(cfg.collective.iterations),
         cfg.collective.payload.dtype,
+        str(cfg.horizontal.num_gpus),
+        str(cfg.vertical.num_nodes),
+        #cfg.horizontal.gpu_ids,
 
     ]
 
@@ -205,3 +208,5 @@ def main(cfg: DictConfig):
 
 if __name__ == "__main__":
     main()
+
+    

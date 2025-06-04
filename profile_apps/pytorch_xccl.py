@@ -24,19 +24,23 @@ with timer("import time"):
 def main():
     #argv map
     # ---------------------------------------------------------------------- #
-    framework   = sys.argv[1].lower()
-    coll_name   = sys.argv[2].lower()
-    op_name     = sys.argv[3].lower()
-    buf_bytes   = int(sys.argv[4])
-    iters       = int(sys.argv[5])
-    dtype_str   = sys.argv[6].lower()
+    framework  = sys.argv[1].lower()   
+    coll_name  = sys.argv[2].lower()   
+    op_name    = sys.argv[3].lower()    
+    buf_bytes  = int(sys.argv[4])      
+    iters      = int(sys.argv[5])       
+    dtype_str  = sys.argv[6].lower()   
+    tp_size    = int(sys.argv[7])      
+    dp_size    = int(sys.argv[8])  
+    #gpu_ids     = sys.argv[8]
+
+
     # ----------------------------------------------------------------------- #
     torch_dtype, elem_size = DTYPES[dtype_str]
 
     # look-ups  
-    collective_fn = COLLECTIVES[coll_name]
+    run_collective = COLLECTIVES[coll_name]
     op_obj = OP_MAP[op_name] if coll_name in OPS_NEED_REDUCE else None
-
 
     mpi_rank = MPI.COMM_WORLD.Get_rank()
     mpi_size = MPI.COMM_WORLD.Get_size()
@@ -61,6 +65,31 @@ def main():
     with timer("init time"):
         dist.init_process_group(backend = "ccl", init_method = 'env://', world_size = mpi_size, rank = mpi_rank, timeout = datetime.timedelta(seconds=3600))
     MPI.COMM_WORLD.Barrier()
+
+
+
+    # ----------------------------------------------------------------------
+    #  Build TP-DP groups
+    # ----------------------------------------------------------------------
+    tp_rank = mpi_rank % tp_size
+    dp_rank = mpi_rank // tp_size
+
+    # tensor-parallel group
+    tp_ranks = [n * tp_size + tp_rank for n in range(dp_size)]
+
+    # data-parallel group
+    dp_ranks = list(range(dp_rank * tp_size, (dp_rank + 1) * tp_size))
+
+    # Type of groups
+    tp_group    = dist.new_group(ranks=tp_ranks)
+    dp_group    = dist.new_group(ranks=dp_ranks)
+    world_group = dist.group.WORLD
+
+    # Benchmarking Group
+    comm_group = world_group
+
+
+
 
 
 
@@ -91,15 +120,12 @@ def main():
         print("[MPI][SETUP] ------------------------------------------------------\n")
 
      
-    for _ in range(5):  
-
+    for _ in range(iters):  
         x = torch.ones(num_elems , dtype=torch_dtype).to(device, non_blocking=True)
-       
         with timer("Latencies (s)"):
-            collective_fn(x, op_obj)
+            run_collective(x, op_obj, group=comm_group)
             MPI.COMM_WORLD.Barrier()
         
-     
     if mpi_rank == 0:
         print_all_times()
 

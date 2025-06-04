@@ -35,29 +35,30 @@ def register_collective(name: str, needs_op: bool = False):
 
     return decorator
 
-
 @register_collective("allreduce", needs_op=True)
-def _allreduce(tensor: torch.Tensor, op: dist.ReduceOp):
-    dist.all_reduce(tensor, op=op)
+def _allreduce(tensor, op, group=None):
+    dist.all_reduce(tensor, op=op, group=group)
 
 
 @register_collective("reduce", needs_op=True)
-def _reduce(tensor: torch.Tensor, op: dist.ReduceOp):
-    dist.reduce(tensor, dst=0, op=op)        
+def _reduce(tensor, op, group=None):
+    dist.reduce(tensor, dst=0, op=op, group=group)
 
 
-@register_collective("broadcast")
-def _broadcast(tensor: torch.Tensor, _op_unused=None):
-    dist.broadcast(tensor, src=0)
+@register_collective("broadcast")      
+def _broadcast(tensor, op=None, group=None):
+    dist.broadcast(tensor, src=0, group=group)
 
 
 @register_collective("allgather")
-def _allgather(tensor: torch.Tensor, _op_unused=None):
-    out = [torch.empty_like(tensor) for _ in range(dist.get_world_size())]
-    dist.all_gather(out, tensor)
+def _allgather(tensor, op=None, group=None):
+    world = dist.get_world_size(group)
+    out   = [torch.empty_like(tensor) for _ in range(world)]
+    dist.all_gather(out, tensor, group=group)
 
 
 @register_collective("reducescatter", needs_op=True)
-def _reduce_scatter(tensor: torch.Tensor, op: dist.ReduceOp):
-    dist.reduce_scatter(tensor, [tensor.clone() for _ in range(dist.get_world_size())], op=op)
-
+def _reduce_scatter(tensor, op, group=None):
+    world  = dist.get_world_size(group)
+    inbufs = [tensor.clone() for _ in range(world)]
+    dist.reduce_scatter(tensor, inbufs, op=op, group=group)
