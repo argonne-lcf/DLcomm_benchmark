@@ -6,7 +6,15 @@ import os
 from mpi4py import MPI
 import datetime
 from collectives import COLLECTIVES, OPS_NEED_REDUCE, OP_MAP, DTYPES
-from timer import timer, print_all_times
+from timer import timer, print_all_times, print_all_bandwidths
+from utils.utility import DLIOLogger, Profile
+
+log = DLIOLogger.get_instance()
+dlp = Profile("DL_COMM")     
+
+
+
+
 
 
 with timer("import time"):
@@ -32,10 +40,16 @@ def main():
     dtype_str  = sys.argv[6].lower()   
     tp_size    = int(sys.argv[7])      
     dp_size    = int(sys.argv[8])  
-    #gpu_ids     = sys.argv[8]
-
+    gpu_ids    = sys.argv[9]
+    flatview   = sys.argv[10].lower() == "true"
 
     # ----------------------------------------------------------------------- #
+    if MPI.COMM_WORLD.Get_size() != tp_size * dp_size:
+        raise RuntimeError("world_size mismatch")
+
+
+
+
     torch_dtype, elem_size = DTYPES[dtype_str]
 
     # look-ups  
@@ -69,27 +83,24 @@ def main():
 
 
     # ----------------------------------------------------------------------
-    #  Build TP-DP groups
+    #  building TP,DP groups
     # ----------------------------------------------------------------------
     tp_rank = mpi_rank % tp_size
     dp_rank = mpi_rank // tp_size
 
-    # tensor-parallel group
-    tp_ranks = [n * tp_size + tp_rank for n in range(dp_size)]
+    # tensor-parallel 
+    tp_ranks =  [n * tp_size + tp_rank for n in range(dp_size)]
 
-    # data-parallel group
-    dp_ranks = list(range(dp_rank * tp_size, (dp_rank + 1) * tp_size))
+    # data-parallel 
+    dp_ranks =  list(range(dp_rank * tp_size, (dp_rank + 1) * tp_size))
 
-    # Type of groups
+    # forming groups 
     tp_group    = dist.new_group(ranks=tp_ranks)
     dp_group    = dist.new_group(ranks=dp_ranks)
+     
+
+    # flatview
     world_group = dist.group.WORLD
-
-    # Benchmarking Group
-    comm_group = world_group
-
-
-
 
 
 
@@ -109,25 +120,42 @@ def main():
    
 
     if mpi_rank == 0:
-        print("\n[MPI][SETUP] ------------------------------------------------------")
-        print(f"[MPI][SETUP] Framework      : {framework}")
-        print(f"[MPI][SETUP] Collective     : {coll_name}")
-        print(f"[MPI][SETUP] Operation      : {op_name if op_obj else 'N/A'}")
-        print(f"[MPI][SETUP] DType          : {dtype_str}")
-        print(f"[MPI][SETUP] Buffer Size    : {buf_bytes}")
-        print(f"[MPI][SETUP] Iterations     : {iters}")
-        print(f"[MPI][SETUP] World Size     : {mpi_size}")
-        print("[MPI][SETUP] ------------------------------------------------------\n")
+        log.info("")   
+        log.info("[DL_COMM][MPI][SETUP] ------------------------------------------------------")
+        log.info(f"[DL_COMM][MPI][SETUP] Framework      : {framework}")
+        log.info(f"[DL_COMM][MPI][SETUP] Collective     : {coll_name}")
+        log.info(f"[DL_COMM][MPI][SETUP] Operation      : {op_name if op_obj else 'N/A'}")
+        log.info(f"[DL_COMM][MPI][SETUP] DType          : {dtype_str}")
+        log.info(f"[DL_COMM][MPI][SETUP] Buffer Size    : {buf_bytes}")
+        log.info(f"[DL_COMM][MPI][SETUP] Iterations     : {iters}")
+        log.info(f"[DL_COMM][MPI][SETUP] World Size     : {mpi_size}")
+        log.info("[DL_COMM][MPI][SETUP] ------------------------------------------------------")
+        log.info("")  
 
-     
     for _ in range(iters):  
         x = torch.ones(num_elems , dtype=torch_dtype).to(device, non_blocking=True)
-        with timer("Latencies (s)"):
-            run_collective(x, op_obj, group=comm_group)
-            MPI.COMM_WORLD.Barrier()
+
+        if not flatview:
+
+            with timer("Latencies (s) (TP)"):
+                run_collective(x, op_obj, group=tp_group)
+                MPI.COMM_WORLD.Barrier()
+
+            with timer("Latencies (s) (DP)"):
+                run_collective(x, op_obj, group=dp_group)
+                MPI.COMM_WORLD.Barrier()
+    
+        else:
+
+            with timer("Latencies (s) (Flatview)"):
+                run_collective(x, op_obj, group=world_group)
+                MPI.COMM_WORLD.Barrier()
         
     if mpi_rank == 0:
         print_all_times()
+        print_all_bandwidths(buf_bytes, coll_name)
+       
+
 
 if __name__ == "__main__":
     main()
