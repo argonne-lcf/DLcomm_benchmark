@@ -126,13 +126,14 @@ class ConfigValidator:
 # ----------------------------------------------------------------------------
 
 
-@hydra.main(config_path="config", config_name="config", version_base=None)
+@hydra.main(config_path="../config", config_name="config", version_base=None)
 def main(cfg: DictConfig):
   
     log.info("-------------------------------------------------------------------------")
     log.info("[CONFIG] Loading schema and validating user YAML")
    
-    config_spec_path = "./config/config_spec.json"
+    config_spec_path = Path(__file__).parent.parent / "config" / "config_spec.json"
+
     with open(config_spec_path, "r") as f:
         spec = json.load(f)
     validator = ConfigValidator(spec)
@@ -159,7 +160,7 @@ def main(cfg: DictConfig):
  
     framework = cfg.framework
     backend = cfg.ccl_backend
-    module_name = f"profile_apps.{framework}_{backend}"
+    module_name = f"dl_comm.profile_apps.{framework}_{backend}"
     path_to_module_py = Path(__file__).parent / "profile_apps" / f"{framework}_{backend}.py"
     if not path_to_module_py.exists():
         raise RuntimeError(f"Cannot find profiling module: '{framework}_{backend}.py'")

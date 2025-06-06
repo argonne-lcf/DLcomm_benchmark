@@ -2,7 +2,7 @@
 from contextlib import contextmanager
 from time import perf_counter
 from collections import defaultdict
-from utils.utility import DLIOLogger
+from dl_comm.utils.utility import DLIOLogger
 
 log = DLIOLogger.get_instance()
 TIMES = defaultdict(list)
