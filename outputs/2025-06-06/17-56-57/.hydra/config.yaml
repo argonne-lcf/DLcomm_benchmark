@@ -1,0 +1,31 @@
+framework: pytorch
+ccl_backend: xccl
+collective:
+  name: allreduce
+  op: sum
+  algo: ring
+  iterations: 5
+  payload:
+    buffer_size: 1MB
+    dtype: float32
+horizontal:
+  tp_degree: 12
+  gpu_ids:
+  - 1
+  - 2
+  - 3
+  - 4
+  - 5
+  - 6
+  - 7
+  - 8
+  - 9
+  - 10
+  - 11
+  - 12
+vertical:
+  dp_degree: 1
+  gpu_ids:
+  - 0
+flatview: false
+use_unitrace: true

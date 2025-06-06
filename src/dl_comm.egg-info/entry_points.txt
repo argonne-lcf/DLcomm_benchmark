@@ -1,0 +1,2 @@
+[console_scripts]
+dl_comm = dl_comm.ml_comm:main

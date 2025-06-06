@@ -13,13 +13,13 @@ collective:
 
 
 horizontal: # Tensor Parallelism
-  num_gpus: 12
-  gpu_ids: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+  tp_degree: 12
+  gpu_ids: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]   
 
 vertical: # Data Parallelism
-  num_nodes: 1
-  gpu_ids: [0]
-
+  dp_degree: 1
+  gpu_ids: [0] 
+  
 flatview: false
 
 
