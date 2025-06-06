@@ -127,7 +127,7 @@ class ConfigValidator:
 def main(cfg: DictConfig):
   
     print("-------------------------------------------------------------------------")
-    print("[CONFIG] Loading schema and validating user YAML")
+    print("[DL_COMM][CONFIG] Loading schema and validating user YAML")
    
     config_spec_path = "./config/config_spec.json"
     with open(config_spec_path, "r") as f:
@@ -137,7 +137,7 @@ def main(cfg: DictConfig):
 
    
  
-    print("[CONFIG] Final validated settings\n")
+    print("[DL_COMM][CONFIG] Final validated settings\n")
  
     print(f"  • framework           = {cfg.framework}")
     print(f"  • backend             = {cfg.ccl_backend}")
@@ -146,13 +146,13 @@ def main(cfg: DictConfig):
     print(f"  • algo                = {cfg.collective.algo}")
     print(f"  • buffer_size         = {cfg.collective.payload.buffer_size} ({buffer_in_bytes} bytes)")
     print(f"  • dtype               = {cfg.collective.payload.dtype}")
-    print(f"  • horizontal.num_gpus  = {cfg.horizontal.num_gpus}")
-    print(f"  • vertical.num_nodes   = {cfg.vertical.num_nodes}")
+    print(f"  • horizontal.num_gpus  = {cfg.horizontal.tp_degree}")
+    print(f"  • vertical.num_nodes   = {cfg.vertical.dp_degree}")
     print(f"  • use_unitrace        = {cfg.use_unitrace}")
  
   
     print("-------------------------------------------------------------------------")
-    print("[MODULE] Determining Profiling Module Path")
+    print("[DL_COMM][APP] Determining Profiling Module Path")
  
     framework = cfg.framework
     backend = cfg.ccl_backend
@@ -160,22 +160,23 @@ def main(cfg: DictConfig):
     path_to_module_py = Path(__file__).parent / "profile_apps" / f"{framework}_{backend}.py"
     if not path_to_module_py.exists():
         raise RuntimeError(f"Cannot find profiling module: '{framework}_{backend}.py'")
-    print(f"[MODULE] Will use: {module_name}  (file: {path_to_module_py})")
+    print(f"[DL_COMM][APP] Will use: {module_name}  (file: {path_to_module_py})")
     print("-------------------------------------------------------------------------")
 
  
-    print("[MPI] Computing rank counts")
+    print("[DL_COMM][MPI] Computing rank counts")
  
-    num_nodes = cfg.vertical.num_nodes
-    ranks_per_node = cfg.horizontal.num_gpus
+    num_nodes = cfg.vertical.dp_degree
+    ranks_per_node = cfg.horizontal.tp_degree
     total_ranks = num_nodes * ranks_per_node
-    print(f"[MPI] num_nodes       = {num_nodes}")
-    print(f"[MPI] ranks_per_node  = {ranks_per_node}")
-    print(f"[MPI] total_ranks     = {total_ranks}")
+    print(f"[DL_COMM][MPI] num_nodes       = {num_nodes}")
+    print(f"[DL_COMM][MPI] ranks_per_node  = {ranks_per_node}")
+    print(f"[DL_COMM][MPI] total_ranks     = {total_ranks}")
     print(f"\n")
-    print("[MPI] Building mpiexec command")
+    print("[DL_COMM][MPI] Building mpiexec command")
  
     mpi_cmd = [
+        
         "mpiexec",
         "--env", "CCL_LOG_LEVEL=warn",
         "--env", "TORCH_CPP_LOG_LEVEL=error",
@@ -190,19 +191,19 @@ def main(cfg: DictConfig):
         str(buffer_in_bytes),
         str(cfg.collective.iterations),
         cfg.collective.payload.dtype,
-        str(cfg.horizontal.num_gpus),
-        str(cfg.vertical.num_nodes),
-        #cfg.horizontal.gpu_ids,
-
+        str(cfg.horizontal.tp_degree),
+        str(cfg.vertical.dp_degree),
+        str(cfg.horizontal.gpu_ids),
+        str(cfg.flatview)
     ]
 
-    print(f"[MPI] Command → {' '.join(mpi_cmd)}")
+    print(f"[DL_COMM][MPI] Command → {' '.join(mpi_cmd)}")
     print(f"\n")
-    print("[MPI] Launching profiling job")
+    print("[DL_COMM][MPI] Launching profiling job")
   
     subprocess.run(mpi_cmd, check=True)
    
-    print("[MPI] Job complete")
+    print("[DL_COMM][MPI] Job complete")
     print("-------------------------------------------------------------------------")
 
 
