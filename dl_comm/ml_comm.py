@@ -10,6 +10,7 @@ import json
 from pathlib import Path
 import subprocess
 from dl_comm.utils.utility import DLIOLogger
+from dl_comm.helpers import run_and_split, report_ccl_selection
 
 log = DLIOLogger.get_instance()
 # ----------------------------------------------------------------------------
@@ -214,31 +215,18 @@ def main(cfg: DictConfig):
 
  
     ccl_log_path="ccl_info.log"
-    with open(ccl_log_path, "a") as ccl_log:
-        proc = subprocess.Popen(
-            mpi_cmd,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            text=True
-        )
-        for line in proc.stdout:
-            if "DL_COMM" in line:
-                print(line, end="")
-            else:
-                ccl_log.write(line)
-        ret = proc.wait()
-        if ret != 0:
-            raise subprocess.CalledProcessError(ret, mpi_cmd)
+    run_and_split(mpi_cmd, ccl_log_path=ccl_log_path)
 
-
-     
-   
-    
-
-   
+    log.info("-------------------------------------------------------------------------")
     log.info("[MPI] Job complete")
     log.info("-------------------------------------------------------------------------")
 
+    log.info("Parsing selection")
+    report_ccl_selection(ccl_log_path, cfg.collective.name, log)
+            
+    log.info("-------------------------------------------------------------------------")
+    log.info("[EXIT] All Done.")
+    log.info("-------------------------------------------------------------------------")
 
 if __name__ == "__main__":
     main()
