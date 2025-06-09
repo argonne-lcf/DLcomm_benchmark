@@ -1,9 +1,0 @@
-package: torch
-collective: allreduce
-backend: nccl
-algorithm: ring
-buffer_size: 1024
-use_unitrace: true
-num_ranks: null
-gpus_per_node: null
-mode: HD

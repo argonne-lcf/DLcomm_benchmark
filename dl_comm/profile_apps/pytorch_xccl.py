@@ -40,8 +40,7 @@ def main():
     dtype_str  = sys.argv[6].lower()   
     tp_size    = int(sys.argv[7])      
     dp_size    = int(sys.argv[8])  
-    gpu_ids    = sys.argv[9]
-    flatview   = sys.argv[10].lower() == "true"
+    flatview   = sys.argv[9].lower() == "true"
 
     # ----------------------------------------------------------------------- #
     if MPI.COMM_WORLD.Get_size() != tp_size * dp_size:
@@ -63,7 +62,7 @@ def main():
     if mpi_rank == 0:
         import socket
         MASTER_ADDR = socket.gethostname()
-        MASTER_PORT = 2345
+        MASTER_PORT = 2348
     else:
         MASTER_ADDR = None
         MASTER_PORT = None
@@ -159,6 +158,5 @@ def main():
 
 if __name__ == "__main__":
     main()
-
 
 

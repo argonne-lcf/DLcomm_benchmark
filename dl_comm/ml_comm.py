@@ -126,13 +126,13 @@ class ConfigValidator:
 # ----------------------------------------------------------------------------
 
 
-@hydra.main(config_path="../config", config_name="config", version_base=None)
+@hydra.main(config_path="config", config_name="config", version_base=None)
 def main(cfg: DictConfig):
   
     log.info("-------------------------------------------------------------------------")
     log.info("[CONFIG] Loading schema and validating user YAML")
    
-    config_spec_path = Path(__file__).parent.parent / "config" / "config_spec.json"
+    config_spec_path = Path(__file__).parent / "config" / "config_spec.json"
 
     with open(config_spec_path, "r") as f:
         spec = json.load(f)
@@ -197,7 +197,6 @@ def main(cfg: DictConfig):
         cfg.collective.payload.dtype,
         str(cfg.horizontal.tp_degree),
         str(cfg.vertical.dp_degree),
-        str(cfg.horizontal.gpu_ids),
         str(cfg.flatview)
     ]
 

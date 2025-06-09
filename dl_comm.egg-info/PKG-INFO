@@ -1,13 +1,10 @@
 Metadata-Version: 2.2
 Name: dl_comm
 Version: 0.1.0
-Summary: DL COMM: a lightweight benchmark for deep-learning communication patterns
+Summary: DL COMM: collective communication benchmark for dl workloads
 Author: Musa Cim
 Author-email: mcim@anl.gov
 License: Apache-2.0
-Classifier: Programming Language :: Python :: 3
-Classifier: License :: OSI Approved :: Apache Software License
-Classifier: Operating System :: OS Independent
 Requires-Python: >=3.8
 Description-Content-Type: text/markdown
 Requires-Dist: mpi4py>=3.0.0
@@ -15,7 +12,6 @@ Requires-Dist: torch>=1.13.0
 Requires-Dist: hydra-core>=1.1.0
 Dynamic: author
 Dynamic: author-email
-Dynamic: classifier
 Dynamic: description
 Dynamic: description-content-type
 Dynamic: license

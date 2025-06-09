@@ -1,10 +1,11 @@
 
-
-import sys
-from time import perf_counter
 import os
-from mpi4py import MPI
 import datetime
+import sys
+import socket
+import contextlib
+from mpi4py import MPI
+from time import perf_counter
 from dl_comm.collectives import COLLECTIVES, OPS_NEED_REDUCE, OP_MAP, DTYPES
 from dl_comm.timer import timer, print_all_times, print_all_bandwidths
 from dl_comm.utils.utility import DLIOLogger, Profile
@@ -27,8 +28,6 @@ with timer("import time"):
 
 
 
-
-
 def main():
     #argv map
     # ---------------------------------------------------------------------- #
@@ -40,8 +39,7 @@ def main():
     dtype_str  = sys.argv[6].lower()   
     tp_size    = int(sys.argv[7])      
     dp_size    = int(sys.argv[8])  
-    gpu_ids    = sys.argv[9]
-    flatview   = sys.argv[10].lower() == "true"
+    flatview   = sys.argv[9].lower() == "true"
 
     # ----------------------------------------------------------------------- #
     if MPI.COMM_WORLD.Get_size() != tp_size * dp_size:
@@ -59,25 +57,42 @@ def main():
     mpi_rank = MPI.COMM_WORLD.Get_rank()
     mpi_size = MPI.COMM_WORLD.Get_size()
 
-    # Broadcast HOST info for torch.distributed
+ 
+    MPI.COMM_WORLD.Barrier()
+
+ 
+
+    # WITH THIS:
     if mpi_rank == 0:
-        import socket
-        MASTER_ADDR = socket.gethostname()
-        MASTER_PORT = 2345
+        MASTER_ADDR = "10.115.33.166"
+        
+        # Find a free port dynamically
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.bind(('', 0))
+        MASTER_PORT = sock.getsockname()[1]
+        sock.close()
+        
+        print(f"[Rank 0] Broadcasting MASTER_ADDR: {MASTER_ADDR}, MASTER_PORT: {MASTER_PORT}", flush=True)
     else:
         MASTER_ADDR = None
         MASTER_PORT = None
 
+    # Broadcast the values to all ranks
     MASTER_ADDR = MPI.COMM_WORLD.bcast(MASTER_ADDR, root=0)
     MASTER_PORT = MPI.COMM_WORLD.bcast(MASTER_PORT, root=0)
 
-    import os
+    # NOW all ranks have the values, so we can set environment variables
     os.environ["MASTER_ADDR"] = MASTER_ADDR
     os.environ["MASTER_PORT"] = str(MASTER_PORT)
+    os.environ["RANK"] = str(mpi_rank)
+    os.environ["WORLD_SIZE"] = str(mpi_size)
 
+    #print(f"[Rank {mpi_rank}] Environment set: MASTER_ADDR={MASTER_ADDR}, MASTER_PORT={MASTER_PORT}", flush=True)
+
+    
     MPI.COMM_WORLD.Barrier()
     with timer("init time"):
-        dist.init_process_group(backend = "ccl", init_method = 'env://', world_size = mpi_size, rank = mpi_rank, timeout = datetime.timedelta(seconds=3600))
+        dist.init_process_group(backend = "ccl", init_method="env://", world_size = mpi_size, rank = mpi_rank, timeout = datetime.timedelta(seconds=3600))
     MPI.COMM_WORLD.Barrier()
 
 
@@ -87,18 +102,21 @@ def main():
     # ----------------------------------------------------------------------
     tp_rank = mpi_rank % tp_size
     dp_rank = mpi_rank // tp_size
-
+    
     # tensor-parallel 
-    tp_ranks =  [n * tp_size + tp_rank for n in range(dp_size)]
+    tp_ranks =  list(range(dp_rank * tp_size, (dp_rank + 1) * tp_size))
+   
 
     # data-parallel 
-    dp_ranks =  list(range(dp_rank * tp_size, (dp_rank + 1) * tp_size))
-
+    dp_ranks =  [n * tp_size + tp_rank for n in range(dp_size)]
+    
     # forming groups 
-    tp_group    = dist.new_group(ranks=tp_ranks)
-    dp_group    = dist.new_group(ranks=dp_ranks)
+    tp_group    = dist.new_group(ranks=tp_ranks,backend="ccl") 
+    dp_group    = dist.new_group(ranks=dp_ranks,backend="ccl") 
      
+ 
 
+ 
     # flatview
     world_group = dist.group.WORLD
 
@@ -117,8 +135,9 @@ def main():
 
     device  = get_default_device(dist_my_rank)
     num_elems = buf_bytes // elem_size
-   
 
+    hostname = socket.gethostname()
+ 
     if mpi_rank == 0:
         log.info("")   
         log.info("[MPI][SETUP] ------------------------------------------------------")
@@ -159,6 +178,8 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
 
 
 

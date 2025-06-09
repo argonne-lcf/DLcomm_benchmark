@@ -1,9 +1,0 @@
-package: mpi
-collective: allreduce
-backend: mpi
-algorithm: ring
-buffer_size: 1024
-use_unitrace: true
-num_ranks: null
-gpus_per_node: null
-mode: HD
