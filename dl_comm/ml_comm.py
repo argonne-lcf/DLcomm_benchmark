@@ -182,6 +182,8 @@ def main(cfg: DictConfig):
     mpi_cmd = [
         
         "mpiexec",
+        "--env", "CCL_ATL_TRANSPORT=mpi",
+        "--env", "CCL_ATL_SHM=0",
         "--env", "CCL_LOG_LEVEL=warn",
         "--env", "TORCH_CPP_LOG_LEVEL=error",
         "--env", "CCL_PROCESS_LAUNCHER=pmix",

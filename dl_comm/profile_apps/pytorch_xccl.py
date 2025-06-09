@@ -9,6 +9,7 @@ from dl_comm.collectives import COLLECTIVES, OPS_NEED_REDUCE, OP_MAP, DTYPES
 from dl_comm.timer import timer, print_all_times, print_all_bandwidths
 from dl_comm.utils.utility import DLIOLogger, Profile
 
+
 log = DLIOLogger.get_instance()
 dlp = Profile("DL_COMM")     
 
@@ -18,10 +19,10 @@ dlp = Profile("DL_COMM")
 
 
 with timer("import time"):
-    import intel_extension_for_pytorch   
+    import intel_extension_for_pytorch      
+    import oneccl_bindings_for_pytorch     
     import torch.nn.parallel
     import torch.distributed as dist
-    import oneccl_bindings_for_pytorch
     
 
 
@@ -70,7 +71,7 @@ def main():
     MASTER_ADDR = MPI.COMM_WORLD.bcast(MASTER_ADDR, root=0)
     MASTER_PORT = MPI.COMM_WORLD.bcast(MASTER_PORT, root=0)
 
-    import os
+  
     os.environ["MASTER_ADDR"] = MASTER_ADDR
     os.environ["MASTER_PORT"] = str(MASTER_PORT)
 
@@ -158,5 +159,4 @@ def main():
 
 if __name__ == "__main__":
     main()
-
 
