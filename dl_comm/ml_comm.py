@@ -1,6 +1,8 @@
 # IMPORTINGS
 # ----------------------------------------------------------------------------
 import os
+import re
+import subprocess
 import hydra
 from omegaconf import DictConfig
 import importlib
@@ -179,12 +181,14 @@ def main(cfg: DictConfig):
     log.info(f"\n")
     log.info("[MPI] Building mpiexec command")
  
+
+    
     mpi_cmd = [
         
         "mpiexec",
         "--env", "CCL_ATL_TRANSPORT=mpi",
         "--env", "CCL_ATL_SHM=0",
-        "--env", "CCL_LOG_LEVEL=warn",
+        "--env", "CCL_LOG_LEVEL=debug",
         "--env", "TORCH_CPP_LOG_LEVEL=error",
         "--env", "CCL_PROCESS_LAUNCHER=pmix",
         "--np", str(total_ranks),
@@ -202,11 +206,35 @@ def main(cfg: DictConfig):
         str(cfg.flatview)
     ]
 
+
     log.output(f"[MPI] Command → {' '.join(mpi_cmd)}")
     
     log.info("[MPI] Launching profiling job")
   
-    subprocess.run(mpi_cmd, check=True)
+
+ 
+    ccl_log_path="ccl_info.log"
+    with open(ccl_log_path, "a") as ccl_log:
+        proc = subprocess.Popen(
+            mpi_cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True
+        )
+        for line in proc.stdout:
+            if "DL_COMM" in line:
+                print(line, end="")
+            else:
+                ccl_log.write(line)
+        ret = proc.wait()
+        if ret != 0:
+            raise subprocess.CalledProcessError(ret, mpi_cmd)
+
+
+     
+   
+    
+
    
     log.info("[MPI] Job complete")
     log.info("-------------------------------------------------------------------------")

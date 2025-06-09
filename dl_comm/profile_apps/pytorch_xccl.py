@@ -16,8 +16,6 @@ dlp = Profile("DL_COMM")
 
 
 
-
-
 with timer("import time"):
     import intel_extension_for_pytorch      
     import oneccl_bindings_for_pytorch     
@@ -63,7 +61,7 @@ def main():
     if mpi_rank == 0:
         import socket
         MASTER_ADDR = socket.gethostname()
-        MASTER_PORT = 2348
+        MASTER_PORT = 2329
     else:
         MASTER_ADDR = None
         MASTER_PORT = None
@@ -159,4 +157,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
