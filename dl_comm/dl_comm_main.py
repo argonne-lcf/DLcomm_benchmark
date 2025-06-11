@@ -18,7 +18,7 @@ import torch
 from dl_comm.utils.utility import DLCOMMLogger, Profile
 from dl_comm.collectives import COLLECTIVES, OPS_NEED_REDUCE, OP_MAP, DTYPES
 from dl_comm.timer import timer, print_all_times, print_all_bandwidths
-from dl_comm.helpers import report_ccl_selection,filter_logs_post_run#, finalize_logs
+from dl_comm.helpers import report_ccl_selection
 
  
  
