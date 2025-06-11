@@ -320,7 +320,7 @@ def main(cfg: DictConfig):
     for _ in range(iters):
         x = torch.ones(num_elems, dtype=torch_dtype).to(device, non_blocking=True)
         
-        if cfg.collective.comm_group.mode.lower() !="flatview":
+        if comm_mode !="flatview":
             with timer("Latencies (s) (TP)"):
                 run_collective(x, op_obj, group=tp_group)
                 mpi_comm.Barrier()
@@ -348,7 +348,14 @@ def main(cfg: DictConfig):
 
         log.info("Querying Default Table selection")
 
-        #report_ccl_selection(ccl_log_path, cfg.collective.name, log)
+  
+        terminal_log_path = os.path.join(log_dir, "terminal_output.log")
+        if os.path.exists(terminal_log_path):
+            report_ccl_selection(terminal_log_path, cfg.collective.name, log)
+        else:
+            log.info(f"[SELECTION] Terminal output log not found: {terminal_log_path}")
+
+
         log.info("-------------------------------------------------------------------------")
         log.info("[EXIT] All Done.")
         log.info("-------------------------------------------------------------------------")
