@@ -144,8 +144,8 @@ def main(cfg: DictConfig):
     mpi_size = MPI.COMM_WORLD.Get_size()
 
    
+    # Always create timestamped log directory (rank 0 does this first)
     if mpi_rank == 0:
-        # Always create timestamped log directory
         if "DL_COMM_LOG_DIR" in os.environ:
             # Use directory provided by jobscript (already timestamped)
             log_dir = os.environ["DL_COMM_LOG_DIR"]
@@ -155,19 +155,25 @@ def main(cfg: DictConfig):
             log_dir = f"logs/run_{timestamp}"
         
         os.makedirs(log_dir, exist_ok=True)
-        log = DLCOMMLogger.get_instance(log_file="dlcomm.log", log_dir=log_dir)
-        log.info("-------------------------------------------------------------------------")
-      
-        log.info("[CONFIG] Loading schema and validating user YAML")
     else:
-         
-        class DummyLogger:
-            def info(self, msg): pass
-            def debug(self, msg): pass
-            def warning(self, msg): pass
-            def error(self, msg): pass
-            def output(self, msg): pass
-        log = DummyLogger()
+        # Non-rank-0 processes need to wait for the log directory to be created
+        if "DL_COMM_LOG_DIR" in os.environ:
+            log_dir = os.environ["DL_COMM_LOG_DIR"]
+        else:
+            log_dir = None
+    
+    # Broadcast log_dir from rank 0 to all other ranks
+    log_dir = MPI.COMM_WORLD.bcast(log_dir, root=0)
+    
+    # All ranks get a logger instance
+    log = DLCOMMLogger.get_instance(log_file="dlcomm.log", log_dir=log_dir)
+    
+    # Debug: All ranks should log this to verify logger is working
+    log.info(f"[RANK {mpi_rank}] Logger initialized and ready")
+    
+    if mpi_rank == 0:
+        log.info("-------------------------------------------------------------------------")
+        log.info("[CONFIG] Loading schema and validating user YAML")
 
     config_spec_path = Path(__file__).parent / "config" / "config_spec.json"
     with open(config_spec_path, "r") as f:
@@ -244,7 +250,7 @@ def main(cfg: DictConfig):
     if mpi_rank == 0:
         import socket
         MASTER_ADDR = socket.gethostname()
-        MASTER_PORT = 2314
+        MASTER_PORT = 2359  
     else:
         MASTER_ADDR = None
         MASTER_PORT = None
@@ -285,21 +291,41 @@ def main(cfg: DictConfig):
                 log.info(f"[GROUP CREATION] Within group {i}: ranks {within_group_ranks}")
         my_within_group = within_groups[across_rank]
         
-        # Create across groups (inter-node): [0,12], [1,13], [2,14], etc.
+        # Create across groups (inter-node) - only for ranks using GPUs in across_gpu_ids
         across_groups = []
+        my_across_group = None
+        
         for i in range(within_size):
-            across_group_ranks = list(range(i, mpi_size, within_size))
-            across_group = dist.new_group(across_group_ranks)
-            across_groups.append(across_group)
-            if mpi_rank == 0:  # Only rank 0 logs group creation to avoid duplicates
-                log.info(f"[GROUP CREATION] Across group {i}: ranks {across_group_ranks}")
-        my_across_group = across_groups[within_rank]
+            # Check if this within_rank position corresponds to a GPU in across_gpu_ids
+            device_id_for_position = within_gpu_ids[i % len(within_gpu_ids)]
+            if device_id_for_position in across_gpu_ids:
+                across_group_ranks = list(range(i, mpi_size, within_size))
+                across_group = dist.new_group(across_group_ranks)
+                across_groups.append(across_group)
+                if mpi_rank == 0:  # Only rank 0 logs group creation to avoid duplicates
+                    log.info(f"[GROUP CREATION] Across group {i}: ranks {across_group_ranks} (GPU {device_id_for_position})")
+                
+                # Set my_across_group if this rank belongs to this group
+                if within_rank == i:
+                    my_across_group = across_group
+            else:
+                if mpi_rank == 0:
+                    log.info(f"[GROUP CREATION] Skipping across group {i}: GPU {device_id_for_position} not in across_gpu_ids {across_gpu_ids}")
+                
+                # No across group for this rank
+                if within_rank == i:
+                    my_across_group = None
         
         within_group = my_within_group
         across_group = my_across_group
         
-        log.info(f"[RANK {mpi_rank}] within_rank={within_rank}, across_rank={across_rank}, my_within_group_id={across_rank}, my_across_group_id={within_rank}")
-        log.info(f"[RANK {mpi_rank}] within_group={within_group}, across_group={across_group}")
+        # Log detailed group assignment information for verification
+        device_id = within_gpu_ids[within_rank % len(within_gpu_ids)]
+        participates_in_across = device_id in across_gpu_ids
+        
+        log.info(f"[RANK {mpi_rank}] Group Assignment: within_rank={within_rank}, across_rank={across_rank}, device_id={device_id}")
+        log.info(f"[RANK {mpi_rank}] Within Group: assigned={within_group is not None}, group_id={across_rank}")
+        log.info(f"[RANK {mpi_rank}] Across Group: assigned={across_group is not None}, participates={participates_in_across}, group_id={within_rank if participates_in_across else 'None'}")
     elif comm_mode == "flatview":
         # For flatview mode, use world_group 
         world_group = dist.group.WORLD
@@ -308,19 +334,25 @@ def main(cfg: DictConfig):
     
     # Get device and prepare buffer
     if comm_mode == "hierarchical":
-        # For hierarchical mode, use across_node GPU IDs for device mapping
+        # For hierarchical mode, use within_node GPU IDs for device mapping
+        # Each rank gets assigned based on its within_rank position
+        within_gpu_ids = cfg.collective.comm_group.hierarchical.within_node.gpu_ids_per_node
         across_gpu_ids = cfg.collective.comm_group.hierarchical.across_node.gpu_ids_per_node
-        device_id = across_gpu_ids[within_rank % len(across_gpu_ids)]
+        
+        # Use within_rank to index into the within_node gpu_ids
+        device_id = within_gpu_ids[within_rank % len(within_gpu_ids)]
         device = torch.device(f"xpu:{device_id}") if torch.xpu.is_available() else torch.device('cpu')
-        log.info(f"[RANK {mpi_rank}] Device assignment: within_rank={within_rank}, device_id={device_id}, device={device}")
+        
     elif comm_mode == "flatview":
         device = get_default_device(mpi_rank)
-        log.info(f"[RANK {mpi_rank}] Flatview device assignment: device={device}")
     else:
         raise ValueError(f"Unknown comm_mode: '{comm_mode}'. Valid options: 'hierarchical', 'flatview'")
         
         
     num_elems = buffer_in_bytes // elem_size
+    
+    # Add barrier to ensure all ranks have completed group assignments
+    MPI.COMM_WORLD.Barrier()
     
     if mpi_rank == 0:
         log.info("")
@@ -332,6 +364,12 @@ def main(cfg: DictConfig):
         log.info(f"[MPI][SETUP] Buffer Size    : {buffer_in_bytes}")
         log.info(f"[MPI][SETUP] Iterations     : {iters}")
         log.info(f"[MPI][SETUP] World Size     : {mpi_size}")
+        log.info("")
+        log.info("[MPI][SETUP] GROUP SUMMARY:")
+        log.info(f"[MPI][SETUP] within_gpu_ids : {within_gpu_ids}")
+        log.info(f"[MPI][SETUP] across_gpu_ids : {across_gpu_ids}")
+        log.info(f"[MPI][SETUP] Ranks with across groups: GPUs {across_gpu_ids}")
+        log.info(f"[MPI][SETUP] Ranks without across groups: GPUs {[gpu for gpu in within_gpu_ids if gpu not in across_gpu_ids]}")
         log.info("[MPI][SETUP] ------------------------------------------------------")
         log.info("")
         log.info("[MPI] Launching profiling job")
@@ -341,13 +379,14 @@ def main(cfg: DictConfig):
         x = torch.ones(num_elems, dtype=torch_dtype).to(device, non_blocking=True)
         
         if comm_mode == "hierarchical":
-            with timer("Total i(Within→Across)"):
-                with timer("Latencies (s) (Within)"):
+            with timer("Total (Within→Across)"):
+                with timer("(Within)"):
                     run_collective(x, op_obj, group=within_group)
                     MPI.COMM_WORLD.Barrier()
                 
                 with timer("(Across)"):
-                    run_collective(x, op_obj, group=across_group)
+                    if across_group is not None:
+                        run_collective(x, op_obj, group=across_group)
                     MPI.COMM_WORLD.Barrier()
 
         elif comm_mode == "flatview":

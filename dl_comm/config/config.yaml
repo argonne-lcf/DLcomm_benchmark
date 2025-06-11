@@ -14,11 +14,11 @@ collective:
     dtype: float32 # float64 / int32 / int64
     buffer_size: 1MB # 10MB / 100MB
   comm_group:
-    mode: hierarchical # within_node, across_node, hierarchical
+    mode: hierarchical # within_node, across_node, hierarchical, flatview
     within_node: 
       num_nodes: 2 
       num_gpus: 12
-      gpu_ids_per_node: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]   
+      gpu_ids_per_node: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]   
     across_node: 
       num_nodes: 2
       num_gpus: 2
@@ -26,10 +26,10 @@ collective:
     hierarchical:
       within_node:
         num_gpus: 12
-        gpu_ids_per_node: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+        gpu_ids_per_node: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
       across_node:
         num_nodes: 2
-        gpu_ids_per_node: [0, 1]
+        gpu_ids_per_node: [0, 1, 2 ]
       
 
 
