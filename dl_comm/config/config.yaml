@@ -6,7 +6,7 @@ use_profiler: unitrace
 
 collective:
   name: allreduce # allgather / reducescatter / broadcast
-  op: sum # max / min 
+  op: prod # max / min 
   algo: ring # tree 
   iterations: 5
   payload:
@@ -14,16 +14,24 @@ collective:
     dtype: float32 # float64 / int32 / int64
     buffer_size: 1MB # 10MB / 100MB
   comm_group:
-    mode: flatview # across-node, flatview
+    mode: hierarchical # within_node, across_node, hierarchical
     within_node: 
-      num_nodes: 1 
-      num_gpus: 4
+      num_nodes: 2 
+      num_gpus: 12
       gpu_ids_per_node: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]   
     across_node: 
-      num_nodes: 1
+      num_nodes: 2
       num_gpus: 2
       gpu_ids_per_node: [0,1] 
+    hierarchical:
+      within_node:
+        num_gpus: 12
+        gpu_ids_per_node: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+      across_node:
+        num_nodes: 2
+        gpu_ids_per_node: [0, 1]
       
+
 
 
 

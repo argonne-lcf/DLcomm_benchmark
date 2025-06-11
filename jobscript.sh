@@ -1,7 +1,7 @@
 #!/bin/bash -x
 #PBS -A datascience_collab
 #PBS -k doe
-#PBS -l select=1:ncpus=208
+#PBS -l select=2:ncpus=208
 #PBS -q debug
 #PBS -l walltime=00:05:00
 #PBS -l filesystems=flare
@@ -23,7 +23,7 @@ NNODES=`wc -l < $PBS_NODEFILE`
 
 
  
-RANKS_PER_NODE=4
+RANKS_PER_NODE=12
 NRANKS=$(( NNODES * RANKS_PER_NODE ))
 
  
