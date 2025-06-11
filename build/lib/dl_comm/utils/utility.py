@@ -32,7 +32,9 @@ import psutil
 import socket
 import importlib.util
 # UTC timestamp format with microsecond precision
-from dlio_benchmark.common.enumerations import LoggerType, MPIState
+from dl_comm.utils.enumerations import LoggerType, MPIState
+
+
 try:
     from dftracer.logger import dftracer as PerfTrace, dft_fn as Profile, DFTRACER_ENABLE as DFTRACER_ENABLE
 except:

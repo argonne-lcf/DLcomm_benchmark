@@ -15,13 +15,13 @@ from mpi4py import MPI
 
 import torch
 
-from dl_comm.utils.utility import DLIOLogger, Profile
+from dl_comm.utils.utility import DLCOMMLogger, Profile
 from dl_comm.collectives import COLLECTIVES, OPS_NEED_REDUCE, OP_MAP, DTYPES
 from dl_comm.timer import timer, print_all_times, print_all_bandwidths
 from dl_comm.helpers import report_ccl_selection,filter_logs_post_run#, finalize_logs
 
-log = DLIOLogger.get_instance()
-dlp = Profile("DL_COMM")
+ 
+ 
 
 # ----------------------------------------------------------------------------
 # HELPER FUNCTIONS
@@ -116,15 +116,17 @@ def setup_environment(cfg: DictConfig):
     # CCL environment variables
     os.environ["CCL_ATL_TRANSPORT"] = "mpi"
     os.environ["CCL_ATL_SHM"] = "0"
-    os.environ["CCL_LOG_LEVEL"] = "warn"
+    os.environ["CCL_LOG_LEVEL"] = "debug"
     os.environ["CCL_PROCESS_LAUNCHER"] = "pmix"
     os.environ["TORCH_CPP_LOG_LEVEL"] = "error"
     os.environ["FI_MR_CACHE_MONITOR"] = "userfaultfd"
-    
-def get_default_device(rank: int):
-   
+
+def get_default_device(rank: int, gpu_ids: list = None):
     if torch.xpu.is_available():
-        return torch.device(f"xpu:{rank % torch.xpu.device_count()}")
+        if gpu_ids and rank < len(gpu_ids):
+            return torch.device(f"xpu:{gpu_ids[rank]}")
+        else:
+            return torch.device(f"xpu:{rank % torch.xpu.device_count()}")
     else:
         return torch.device("cpu")
 
@@ -142,10 +144,30 @@ def main(cfg: DictConfig):
 
    
     if mpi_rank == 0:
+        # Always create timestamped log directory
+        if "DL_COMM_LOG_DIR" in os.environ:
+            # Use directory provided by jobscript (already timestamped)
+            log_dir = os.environ["DL_COMM_LOG_DIR"]
+        else:
+            # Create timestamped directory for manual runs
+            timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+            log_dir = f"logs/run_{timestamp}"
+        
+        os.makedirs(log_dir, exist_ok=True)
+        log = DLCOMMLogger.get_instance(log_file="dlcomm.log", log_dir=log_dir)
         log.info("-------------------------------------------------------------------------")
+      
         log.info("[CONFIG] Loading schema and validating user YAML")
-    
-    # Load and validate config spec
+    else:
+         
+        class DummyLogger:
+            def info(self, msg): pass
+            def debug(self, msg): pass
+            def warning(self, msg): pass
+            def error(self, msg): pass
+            def output(self, msg): pass
+        log = DummyLogger()
+
     config_spec_path = Path(__file__).parent / "config" / "config_spec.json"
     with open(config_spec_path, "r") as f:
         spec = json.load(f)
@@ -170,10 +192,31 @@ def main(cfg: DictConfig):
     op_name     = cfg.collective.op
     dtype_str   = cfg.collective.payload.dtype
     iters       = cfg.collective.iterations
-    tp_size     = cfg.horizontal.tp_degree
-    dp_size     = cfg.vertical.dp_degree
-    flatview    = cfg.get("flatview", False)
+
+    # NEW: Extract comm_group configuration
+    comm_mode = cfg.collective.comm_group.mode
     
+
+    if comm_mode == "within-node":
+        num_nodes = cfg.collective.comm_group.within_node.num_nodes
+        num_gpus = cfg.collective.comm_group.within_node.num_gpus
+        gpu_ids = cfg.collective.comm_group.within_node.gpu_ids_per_node
+        tp_size = num_gpus  # All GPUs on single node
+        dp_size = 1
+    elif comm_mode == "across-node":
+        num_nodes = cfg.collective.comm_group.across_node.num_nodes
+        num_gpus = cfg.collective.comm_group.across_node.num_gpus
+        gpu_ids = cfg.collective.comm_group.across_node.gpu_ids_per_node
+        tp_size = num_gpus  # GPUs per node
+        dp_size = num_nodes
+    else:  # flatview
+        
+        tp_size = mpi_size
+        dp_size = 1
+        num_nodes = 1  # ADD THIS
+        num_gpus = mpi_size  # ADD THIS
+        gpu_ids = list(range(mpi_size)) 
+        
     # Verify world size matches config
     expected_world_size = tp_size * dp_size
     """    if mpi_size != expected_world_size:
@@ -192,29 +235,19 @@ def main(cfg: DictConfig):
         log.info(f"  • buffer_size         = {cfg.collective.payload.buffer_size} ({buffer_in_bytes} bytes)")
         log.info(f"  • dtype               = {dtype_str}")
         log.info(f"  • count               = {cfg.collective.payload.count}")
-        log.info(f"  • horizontal.num_gpus = {tp_size}")
-        log.info(f"  • vertical.num_nodes  = {dp_size}")
-        log.info(f"  • use_unitrace        = {cfg.get('use_unitrace', False)}")
+        log.info(f"  • comm_mode           = {comm_mode}")
+        log.info(f"  • num_nodes           = {num_nodes}")
+        log.info(f"  • num_gpus            = {num_gpus}")
+        log.info(f"  • gpu_ids_per_node    = {gpu_ids}")
+        log.info(f"  • use_profiler        = {cfg.get('use_profiler', 'none')}")
         log.info("-------------------------------------------------------------------------")
     
-   
     torch_dtype, elem_size = DTYPES[dtype_str]
     run_collective = COLLECTIVES[coll_name]
     #run_collective=dist.allreduce()
     op_obj = OP_MAP[op_name] if coll_name in OPS_NEED_REDUCE else None
 
-
-    if mpi_rank == 0:
-        log.info("[MPI] Computing rank counts")
-    
-        num_nodes = cfg.vertical.dp_degree
-        ranks_per_node = cfg.horizontal.tp_degree
-        total_ranks = num_nodes * ranks_per_node
-        log.info(f"[MPI] num_nodes       = {num_nodes}")
-        log.info(f"[MPI] ranks_per_node  = {ranks_per_node}")
-        log.info(f"[MPI] total_ranks     = {total_ranks}")
-        log.info(f"\n")
-
+ 
     if mpi_rank == 0:
         import socket
         MASTER_ADDR = socket.gethostname()
@@ -245,20 +278,28 @@ def main(cfg: DictConfig):
     # Build TP and DP groups
     tp_rank = mpi_rank % tp_size
     dp_rank = mpi_rank // tp_size
-    
-    # Tensor-parallel ranks
-    tp_ranks = [n * tp_size + tp_rank for n in range(dp_size)]
-    
-    # Data-parallel ranks
-    dp_ranks = list(range(dp_rank * tp_size, (dp_rank + 1) * tp_size))
-    
-    
-    tp_group = dist.new_group(ranks=tp_ranks)
-    dp_group = dist.new_group(ranks=dp_ranks)
     world_group = dist.group.WORLD
     
+    # For single-node case (dp_size=1), use world_group for both TP and DP
+    if dp_size == 1:
+        tp_group = world_group
+        dp_group = world_group
+    else:
+        # Tensor-parallel ranks
+        tp_ranks = [n * tp_size + tp_rank for n in range(dp_size)]
+        
+        # Data-parallel ranks
+        dp_ranks = list(range(dp_rank * tp_size, (dp_rank + 1) * tp_size))
+        
+        tp_group = dist.new_group(ranks=tp_ranks)
+        dp_group = dist.new_group(ranks=dp_ranks)
+    
     # Get device and prepare buffer
-    device = get_default_device(mpi_rank)
+    if comm_mode in ["within-node", "across-node"]:
+        local_rank = mpi_rank % len(gpu_ids)
+        device = get_default_device(local_rank, gpu_ids)
+    else:
+        device = get_default_device(mpi_rank)
     num_elems = buffer_in_bytes // elem_size
     
     if mpi_rank == 0:
@@ -279,7 +320,7 @@ def main(cfg: DictConfig):
     for _ in range(iters):
         x = torch.ones(num_elems, dtype=torch_dtype).to(device, non_blocking=True)
         
-        if not flatview:
+        if cfg.collective.comm_group.mode.lower() !="flatview":
             with timer("Latencies (s) (TP)"):
                 run_collective(x, op_obj, group=tp_group)
                 mpi_comm.Barrier()
@@ -294,8 +335,8 @@ def main(cfg: DictConfig):
     
  
     if mpi_rank == 0:
-        print_all_times()
-        print_all_bandwidths(buffer_in_bytes, coll_name)
+        print_all_times(log)
+        print_all_bandwidths(log, buffer_in_bytes, coll_name)
         
       
         log.info("-------------------------------------------------------------------------")
@@ -303,10 +344,9 @@ def main(cfg: DictConfig):
         log.info("-------------------------------------------------------------------------")
         
          
-        log.info("[LOG_FILTER] Starting log separation...")
-        #ccl_log_path, terminal_log_path, output_dir = filter_logs_post_run(log)
+       
 
-        log.info("Parsing selection")
+        log.info("Querying Default Table selection")
 
         #report_ccl_selection(ccl_log_path, cfg.collective.name, log)
         log.info("-------------------------------------------------------------------------")
@@ -317,10 +357,10 @@ def main(cfg: DictConfig):
 
   
         
-        #sys.stdout.flush()
-        #sys.stderr.flush()
-        
-        
+    
+        DLCOMMLogger.flush()
+        DLCOMMLogger.reset()
+            
        
         #time.sleep(0.5)
         

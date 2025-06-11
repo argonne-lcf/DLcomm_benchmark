@@ -2,9 +2,9 @@
 from contextlib import contextmanager
 from time import perf_counter
 from collections import defaultdict
-from dl_comm.utils.utility import DLIOLogger
+from dl_comm.utils.utility import DLCOMMLogger
 
-log = DLIOLogger.get_instance()
+
 TIMES = defaultdict(list)
 
 
@@ -16,15 +16,17 @@ def timer(label: str):
     TIMES[label].append(perf_counter() - start)
 
 
-def print_all_times(title="[TIMERS]"):
-    log.output(f"{title} -------------------------------------------")
+def print_all_times(logger, title="[TIMERS]"):
+    logger.output(f"{title} -------------------------------------------")
     for label, vals in TIMES.items():
         if len(vals) == 1:
-            log.output(f"{title} {label:<15}= {vals[0]:.6f} s")
+            logger.output(f"{title} {label:<15}= {vals[0]:.6f} s")
+             
         else:
             joined = ", ".join(f"{v:.6f}" for v in vals)
-            log.output(f"{title} {label:<15}= [{joined}] s")
-    log.output(f"{title} -------------------------------------------\n")
+            logger.output(f"{title} {label:<15}= [{joined}] s")
+            
+    logger.output(f"{title} -------------------------------------------\n")
 
 
 def bytes_per_rank(coll_name, buf_bytes):
@@ -47,13 +49,13 @@ def bytes_per_coll(coll_name, buf_bytes):
     return buf_bytes
 
 
-def print_all_bandwidths(buf_bytes, coll_name):
+def print_all_bandwidths(logger, buf_bytes, coll_name):
     title = "[BANDWIDTH]"
-    log.output(f"{title} -------------------------------------------")
+    logger.output(f"{title} -------------------------------------------")
     for label, vals in TIMES.items():
         if not label.startswith("Latencies"):
             continue
         avg = sum(vals) / len(vals)
         bw = bytes_per_coll(coll_name, buf_bytes) / avg
-        log.output(f"{title} {label:<22}= {bw:,.1f} bytes/sec")
-    log.output(f"{title} -------------------------------------------\n")
+        logger.output(f"{title} {label:<22}= {bw:,.1f} bytes/sec")
+    logger.output(f"{title} -------------------------------------------\n")

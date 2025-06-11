@@ -50,8 +50,8 @@ def _broadcast(tensor, op=None, group=None):
     dist.broadcast(tensor, src=0, group=group)
 
 
-@register_collective("allgather")
-def _allgather(tensor, op=None, group=None):
+@register_collective("allgather",needs_op=False)
+def _allgather(tensor_list, tensor, op=None, group=None):
     world = dist.get_world_size(group)
     out   = [torch.empty_like(tensor) for _ in range(world)]
     dist.all_gather(out, tensor, group=group)
@@ -62,3 +62,5 @@ def _reduce_scatter(tensor, op, group=None):
     world  = dist.get_world_size(group)
     inbufs = [tensor.clone() for _ in range(world)]
     dist.reduce_scatter(tensor, inbufs, op=op, group=group)
+
+ 

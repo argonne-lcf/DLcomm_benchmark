@@ -21,9 +21,11 @@ def print_all_times(title="[TIMERS]"):
     for label, vals in TIMES.items():
         if len(vals) == 1:
             log.output(f"{title} {label:<15}= {vals[0]:.6f} s")
+             
         else:
             joined = ", ".join(f"{v:.6f}" for v in vals)
             log.output(f"{title} {label:<15}= [{joined}] s")
+            
     log.output(f"{title} -------------------------------------------\n")
 
 

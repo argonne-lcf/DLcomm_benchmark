@@ -1,6 +1,8 @@
-framework: pytorch # tensorflow / jax
+framework: pytorch # tensorflow / jax / titan / monarch
 
 ccl_backend: xccl # rccl / nccl
+
+use_profiler: unitrace
 
 collective:
   name: allreduce # allgather / reducescatter / broadcast
@@ -8,23 +10,24 @@ collective:
   algo: ring # tree 
   iterations: 5
   payload:
-    buffer_size: 1KB # 10MB / 100MB
+    count: 16
     dtype: float32 # float64 / int32 / int64
+    buffer_size: 1MB # 10MB / 100MB
+  comm_group:
+    mode: within-node # across-node, flatview
+    within_node: 
+      num_nodes: 1 
+      num_gpus: 12
+      gpu_ids_per_node: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]   
+    across_node: 
+      num_nodes: 1
+      num_gpus: 2
+      gpu_ids_per_node: [0,1] 
+      
 
 
-horizontal: # Tensor Parallelism
-  tp_degree: 2
-  gpu_ids: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]   
 
-vertical: # Data Parallelism
-  dp_degree: 1
-  gpu_ids: [0] 
-  
-flatview: false
-
-
-use_unitrace: true
-
+ 
 
 
 
