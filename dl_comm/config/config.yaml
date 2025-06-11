@@ -14,7 +14,7 @@ collective:
     dtype: float32 # float64 / int32 / int64
     buffer_size: 1MB # 10MB / 100MB
   comm_group:
-    mode: within-node # across-node, flatview
+    mode: flatview # across-node, flatview
     within_node: 
       num_nodes: 1 
       num_gpus: 4

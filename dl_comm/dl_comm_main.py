@@ -369,11 +369,7 @@ def main(cfg: DictConfig):
         DLCOMMLogger.reset()
             
        
-        #time.sleep(0.5)
-        
-
-         
-        #finalize_logs(output_dir, log)
+       
 
 
 
