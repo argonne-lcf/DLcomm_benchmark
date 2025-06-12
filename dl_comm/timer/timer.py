@@ -53,7 +53,7 @@ def print_all_bandwidths(logger, buf_bytes, coll_name):
     title = "[BANDWIDTH]"
     logger.output(f"{title} -------------------------------------------")
     for label, vals in TIMES.items():
-        if not label.startswith("Latencies"):
+        if label == "init time" or label == "import time":
             continue
         avg = sum(vals) / len(vals)
         bw = bytes_per_coll(coll_name, buf_bytes) / avg
