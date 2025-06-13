@@ -1,139 +1,148 @@
 import datetime
-from time import perf_counter
+from time import perf_counter_ns
 import sys
 import os
 import socket
 from mpi4py import MPI
-import torch
- 
-t1 = perf_counter() 
-import intel_extension_for_pytorch  # Added Extra
+
+t1 = perf_counter_ns() 
+import intel_extension_for_pytorch
 import torch.nn.parallel
 import torch.distributed as dist
 import oneccl_bindings_for_pytorch
-t2 = perf_counter() 
+t2 = perf_counter_ns() 
 import_timer = t2 - t1
- 
+
+combined_config = {
+    'within_node': {
+        'num_gpus': 4,
+        'gpu_ids_per_node': [5, 6, 8, 10]
+    },
+    'across_node': {
+        'num_nodes': 2,
+        'gpu_ids_per_node': [5, 10]
+    }
+}
+
+num_gpus = combined_config['within_node']['num_gpus']
+gpu_ids_per_node = combined_config['within_node']['gpu_ids_per_node']
+num_nodes = combined_config['across_node']['num_nodes']
+across_gpu_ids = combined_config['across_node']['gpu_ids_per_node']
+
 MPI.COMM_WORLD.Barrier()
-#Here we are setting env for each process independently
-os.environ['RANK']          = str(os.environ.get('PMI_RANK', 0))
-os.environ['WORLD_SIZE']    = str(os.environ.get('PMI_SIZE', 1))
-mpi_world_size              = MPI.COMM_WORLD.Get_size()
-mpi_my_rank                 = MPI.COMM_WORLD.Get_rank()
 
+mpi_world_size = MPI.COMM_WORLD.Get_size()
+mpi_my_rank = MPI.COMM_WORLD.Get_rank()
+os.environ['RANK'] = str(mpi_my_rank)
+os.environ['WORLD_SIZE'] = str(mpi_world_size)
 
-
-##
-#We want all processes (ranks) to agree on who the "master" is and how to contact it.
-##
 if mpi_my_rank == 0:
-   master_addr              = socket.gethostname()
-   sock                     = socket.socket()
+   master_addr = socket.gethostname()
+   sock = socket.socket()
    sock.bind(('',0))
-   # master_port  = sock.getsockname()[1] 
-   master_port              = 2345
+   master_port = 2345
 else:
-   master_addr              = None
-   master_port              = None
+   master_addr = None
+   master_port = None
 
-
-##
-# All ranks learn the info here, root 0 means ranks 0 is broadcasting
-##
-master_addr                 = MPI.COMM_WORLD.bcast(master_addr, root=0)
-master_port                 = MPI.COMM_WORLD.bcast(master_port, root=0)
-os.environ["MASTER_ADDR"]   = master_addr
-os.environ["MASTER_PORT"]   = str(master_port)
+master_addr = MPI.COMM_WORLD.bcast(master_addr, root=0)
+master_port = MPI.COMM_WORLD.bcast(master_port, root=0)
+os.environ["MASTER_ADDR"] = master_addr
+os.environ["MASTER_PORT"] = str(master_port)
 
 MPI.COMM_WORLD.Barrier()
-t3 = perf_counter() 
-dist.init_process_group(backend = "ccl", init_method = 'env://', world_size = mpi_world_size, rank = mpi_my_rank, timeout = datetime.timedelta(seconds=3600))
-t4 = perf_counter() 
+t3 = perf_counter_ns()
+
+dist.init_process_group(backend="ccl", init_method='env://', world_size=mpi_world_size, rank=mpi_my_rank, timeout=datetime.timedelta(seconds=3600))
+
+node_id = mpi_my_rank // num_gpus
+gpu_index = mpi_my_rank % num_gpus
+
+within_groups = []
+
+for node in range(num_nodes):
+    group_ranks = []
+    for gpu in range(num_gpus):
+        rank = node * num_gpus + gpu
+        group_ranks.append(rank)
+    within_groups.append(dist.new_group(ranks=group_ranks))
+  
+
+my_within_group = within_groups[node_id] 
+
+across_groups = []
+
+for gpu_id in across_gpu_ids:
+    gpu_idx = gpu_ids_per_node.index(gpu_id)
+    group_ranks = []
+    for node in range(num_nodes):
+        rank = node * num_gpus + gpu_idx
+        group_ranks.append(rank)
+    across_groups.append(dist.new_group(ranks=group_ranks))
+    
+
+current_gpu_id = gpu_ids_per_node[gpu_index]
+my_across_group = None
+if current_gpu_id in across_gpu_ids:
+    across_idx = across_gpu_ids.index(current_gpu_id)
+    my_across_group = across_groups[across_idx]
+
+
+t4 = perf_counter_ns() 
 init_timer = t4 - t3
 MPI.COMM_WORLD.Barrier()
 
-# so we receive dist ranks here
-dist_my_rank        = dist.get_rank()
-dist_world_size     = dist.get_world_size()
+dist_my_rank = dist.get_rank()
+dist_world_size = dist.get_world_size()
 
-#each rank has their device
-def get_default_device():
+def get_device_for_rank(rank):
+    gpu_idx = rank % num_gpus
+    
     if torch.xpu.is_available():
-        return torch.device(f"xpu:{dist_my_rank%12}")
+        device_id = gpu_ids_per_node[gpu_idx]
+        device = torch.device(f"xpu:{device_id}")
+        return device
     else:
         return torch.device('cpu')
 
-device  = get_default_device()
+device = get_device_for_rank(dist_my_rank)
 
-dim_size=int(int(sys.argv[1])/4)
-tp_size = int(sys.argv[2]) if len(sys.argv) > 2 else 12
-dp_size = int(sys.argv[3]) if len(sys.argv) > 3 else 2
-
-if tp_size * dp_size != dist_world_size:
-    if dist_my_rank == 0:
-        print(f"Error: TP_SIZE ({tp_size}) * DP_SIZE ({dp_size}) = {tp_size * dp_size} != WORLD_SIZE ({dist_world_size})")
-    sys.exit(1)
-
-tp_rank = dist_my_rank % tp_size
-dp_rank = dist_my_rank // tp_size
-
-tp_groups = []
-for i in range(dp_size):
-    tp_group_ranks = list(range(i * tp_size, (i + 1) * tp_size))
-    tp_group = dist.new_group(tp_group_ranks)
-    tp_groups.append(tp_group)
-
-my_tp_group = tp_groups[dp_rank]
-
-dp_groups = []
-for i in range(tp_size):
-    dp_group_ranks = list(range(i, dist_world_size, tp_size))
-    dp_group = dist.new_group(dp_group_ranks)
-    dp_groups.append(dp_group)
-
-my_dp_group = dp_groups[tp_rank]
-
-if dist_my_rank == 0:
-    print(f"Configuration: TP_SIZE={tp_size}, DP_SIZE={dp_size}, WORLD_SIZE={dist_world_size}")
-    print(f"TP Groups: {[list(range(i * tp_size, (i + 1) * tp_size)) for i in range(dp_size)]}")
-    print(f"DP Groups: {[list(range(i, dist_world_size, tp_size)) for i in range(tp_size)]}")
-
+dim_size = int(int(sys.argv[1])/4)
 MPI.COMM_WORLD.Barrier()
 
-elapsed_tp = []
-elapsed_dp = []
+elapsed_within = []
+elapsed_across = []
 elapsed_total = []
 
-for _ in range(50):
-    x = torch.ones([1, dim_size],dtype=torch.float32).to(device, non_blocking=True)
+for i in range(50):
+    x = torch.ones([1, dim_size], dtype=torch.float32).to(device, non_blocking=True)
     
-    t_start = perf_counter()
+    if i == 0 and mpi_my_rank == 0:
+        print(f"Rank {mpi_my_rank}: Before any allreduce - tensor sum: {x.sum()}")
     
-    t5 = perf_counter() 
-    dist.all_reduce(x, op=dist.ReduceOp.SUM, group=my_tp_group)
+    t_start = perf_counter_ns()
+    
+    t5 = perf_counter_ns()
+    dist.all_reduce(x, op=dist.ReduceOp.SUM, group=my_within_group)
+    t6 = perf_counter_ns()
+    elapsed_within.append(t6 - t5)
+    
+    if i == 0 and mpi_my_rank == 0:
+        print(f"Rank {mpi_my_rank}: After within-node allreduce - tensor sum: {x.sum()}")
+    
     MPI.COMM_WORLD.Barrier()
-    t6 = perf_counter()
-    elapsed_tp.append(t6 - t5)
     
-    t7 = perf_counter() 
-    dist.all_reduce(x, op=dist.ReduceOp.SUM, group=my_dp_group)
+    t7 = perf_counter_ns()
+    if my_across_group is not None:
+        dist.all_reduce(x, op=dist.ReduceOp.SUM, group=my_across_group)
+    t8 = perf_counter_ns()
+    elapsed_across.append(t8 - t7)
+    
+    if i == 0 and mpi_my_rank == 0:
+        print(f"Rank {mpi_my_rank}: After across-node allreduce - tensor sum: {x.sum()}")
+    
     MPI.COMM_WORLD.Barrier()
-    t8 = perf_counter()
-    elapsed_dp.append(t8 - t7)
-    
-    t_end = perf_counter()
+    t_end = perf_counter_ns()
     elapsed_total.append(t_end - t_start)
 
-if mpi_my_rank == 0:
-    print(f"Rank {mpi_my_rank}: TP_RANK={tp_rank}, DP_RANK={dp_rank}")
-    print(f"Import timer: {import_timer}")
-    print(f"Init timer: {init_timer}")
-    print("TP_TIMINGS:")
-    for e in elapsed_tp:
-        print(e)
-    print("DP_TIMINGS:")
-    for e in elapsed_dp:
-        print(e)
-    print("TOTAL_TIMINGS:")
-    for e in elapsed_total:
-        print(e) 
+    
