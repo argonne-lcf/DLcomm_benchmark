@@ -104,6 +104,35 @@ class ConfigValidator:
         except ValueError as ve:
             errors.append(str(ve))
 
+        # comm_group validation
+        comm_group = cfg.collective.comm_group
+        comm_mode = comm_group.mode
+        valid_modes = ["within_node", "across_node", "combined", "flatview"]
+        
+        if comm_mode not in valid_modes:
+            errors.append(f"Invalid comm_mode '{comm_mode}'. Valid: {valid_modes}")
+        
+        # Mode-specific validation
+        if comm_mode == "within_node":
+            if not hasattr(comm_group, 'within_node'):
+                errors.append("comm_mode 'within_node' requires 'within_node' configuration")
+            else:
+                within_config = comm_group.within_node
+                if not hasattr(within_config, 'num_gpus') or not hasattr(within_config, 'gpu_ids_per_node'):
+                    errors.append("within_node config requires 'num_gpus' and 'gpu_ids_per_node'")
+        
+        elif comm_mode == "across_node":
+            if not hasattr(comm_group, 'across_node'):
+                errors.append("comm_mode 'across_node' requires 'across_node' configuration")
+            else:
+                across_config = comm_group.across_node
+                if not hasattr(across_config, 'num_nodes') or not hasattr(across_config, 'num_gpus') or not hasattr(across_config, 'gpu_ids_per_node'):
+                    errors.append("across_node config requires 'num_nodes', 'num_gpus' and 'gpu_ids_per_node'")
+        
+        elif comm_mode == "combined":
+            if not hasattr(comm_group, 'within_node') or not hasattr(comm_group, 'across_node'):
+                errors.append("comm_mode 'combined' requires both 'within_node' and 'across_node' configurations")
+
         if errors:
             raise ValueError("ALL ERRORS:\n" + "\n".join(errors))
 
@@ -124,14 +153,194 @@ def setup_environment(cfg: DictConfig):
     os.environ["FI_MR_CACHE_MONITOR"] = "userfaultfd"
 
 
-def get_default_device(rank: int, gpu_ids: list = None):
+def get_default_device(rank: int):
     if torch.xpu.is_available():
-        if gpu_ids and rank < len(gpu_ids):
-            return torch.device(f"xpu:{gpu_ids[rank]}")
-        else:
-            return torch.device(f"xpu:{rank % torch.xpu.device_count()}")
+        return torch.device(f"xpu:{rank % torch.xpu.device_count()}")
     else:
         return torch.device("cpu")
+
+def setup_communication_groups(cfg: DictConfig, mpi_rank: int, mpi_size: int, log, dist=None):
+ 
+    
+    comm_config = cfg.collective.comm_group
+    comm_mode = comm_config.mode
+    
+  
+    my_within_group = None
+    my_across_group = None
+    world_group = None
+    device = None
+    within_size = None
+    across_size = None
+    
+    if mpi_rank == 0:
+        log.info(f"[COMM] Setting up communication groups for mode: {comm_mode}")
+    
+    if comm_mode == "within_node":
+ 
+        
+     
+        within_config = comm_config.within_node
+        num_gpus = within_config.num_gpus
+        gpu_ids_per_node = within_config.gpu_ids_per_node
+        
+        if mpi_rank == 0:
+            log.info(f"[COMM] Within-node config: {num_gpus} GPUs, IDs: {gpu_ids_per_node}")
+        
+  
+        my_within_group = None  #  default world group
+        
+        
+        gpu_idx = mpi_rank % num_gpus
+        if torch.xpu.is_available():
+            device_id = gpu_ids_per_node[gpu_idx]
+            device = torch.device(f"xpu:{device_id}")
+ 
+        else:
+            device = torch.device('cpu')
+            if mpi_rank == 0:
+                log.info("[COMM] XPU not available, using CPU")
+        
+        within_size = mpi_size
+        across_size = 1  
+        
+        if mpi_rank == 0:
+            log.info(f"[COMM] Within group size: {within_size}, using world group for communication")
+        
+    elif comm_mode == "across_node":
+        
+        if mpi_rank == 0:
+            log.info("[COMM] Setting up across-node groups")
+        
+        across_config = comm_config.across_node
+        num_nodes = across_config.num_nodes
+        num_gpus = across_config.num_gpus
+        gpu_ids_per_node = across_config.gpu_ids_per_node
+        
+        if mpi_rank == 0:
+            log.info(f"[COMM] Across-node config: {num_nodes} nodes, {num_gpus} GPUs per node, IDs: {gpu_ids_per_node}")
+        
+       
+        if dist is None:
+            raise RuntimeError("torch.distributed is required for across_node mode but not available")
+        
+        across_groups = []
+        for i in range(num_gpus):
+            group_ranks = []
+            for node in range(num_nodes):
+                rank = node * num_gpus + i
+                group_ranks.append(rank)
+            across_groups.append(dist.new_group(ranks=group_ranks))
+        
+      
+        gpu_index = mpi_rank % num_gpus
+        node_id = mpi_rank // num_gpus
+        my_across_group = across_groups[gpu_index]
+        
+         
+        if torch.xpu.is_available():
+            device_id = gpu_ids_per_node[gpu_index]
+            device = torch.device(f"xpu:{device_id}")
+        else:
+            device = torch.device('cpu')
+            if mpi_rank == 0:
+                log.info("[COMM] XPU not available, using CPU")
+        
+        within_size = 1  
+        across_size = num_nodes
+        
+        if mpi_rank == 0:
+            log.info(f"[COMM] Across group size: {across_size}, created {len(across_groups)} across-node groups")
+        
+    elif comm_mode == "combined":
+       
+        if mpi_rank == 0:
+            log.info("[COMM] Setting up combined (within + across) groups")
+        
+       
+        within_config = comm_config.within_node
+        across_config = comm_config.across_node
+        
+        num_gpus = within_config.num_gpus
+        gpu_ids_per_node = within_config.gpu_ids_per_node
+        num_nodes = across_config.num_nodes
+        across_gpu_ids = across_config.gpu_ids_per_node
+        
+        if mpi_rank == 0:
+            log.info(f"[COMM] Combined config - Within: {num_gpus} GPUs {gpu_ids_per_node}, Across: {num_nodes} nodes {across_gpu_ids}")
+        
+        if dist is None:
+            raise RuntimeError("torch.distributed is required for combined mode but not available")
+        
+        
+        within_groups = []
+        for node in range(num_nodes):
+            group_ranks = []
+            for gpu in range(num_gpus):
+                rank = node * num_gpus + gpu
+                group_ranks.append(rank)
+            within_groups.append(dist.new_group(ranks=group_ranks))
+        
+     
+        node_id = mpi_rank // num_gpus
+        gpu_index = mpi_rank % num_gpus
+        my_within_group = within_groups[node_id]
+        
+        
+        across_groups = []
+        for gpu_id in across_gpu_ids:
+            gpu_idx = gpu_ids_per_node.index(gpu_id)
+            group_ranks = []
+            for node in range(num_nodes):
+                rank = node * num_gpus + gpu_idx
+                group_ranks.append(rank)
+            across_groups.append(dist.new_group(ranks=group_ranks))
+        
+      
+        current_gpu_id = gpu_ids_per_node[gpu_index]
+        my_across_group = None
+        if current_gpu_id in across_gpu_ids:
+            across_idx = across_gpu_ids.index(current_gpu_id)
+            my_across_group = across_groups[across_idx]
+        
+   
+
+        if torch.xpu.is_available():
+            device_id = gpu_ids_per_node[gpu_index]
+            device = torch.device(f"xpu:{device_id}")
+        else:
+            device = torch.device('cpu')
+            if mpi_rank == 0:
+                log.info("[COMM] XPU not available, using CPU")
+        
+        within_size = num_gpus
+        across_size = num_nodes if my_across_group is not None else 1
+        
+        if mpi_rank == 0:
+            log.info(f"[COMM] Created {len(within_groups)} within-node groups and {len(across_groups)} across-node groups")
+            log.info(f"[COMM] Within group size: {within_size}, Across group size: {across_size}")
+        
+    elif comm_mode == "flatview":
+         
+        if mpi_rank == 0:
+            log.info("[COMM] Using flatview (world group)")
+            
+        world_group = None  # Use default world group
+        device = get_default_device(mpi_rank)
+        within_size = mpi_size
+        across_size = 1
+        
+    else:
+        raise ValueError(f"Unknown comm_mode: '{comm_mode}'. Valid: within, across, combined, flatview")
+    
+    return {
+        'my_within_group': my_within_group,
+        'my_across_group': my_across_group, 
+        'world_group': world_group,
+        'device': device,
+        'within_size': within_size,
+        'across_size': across_size
+    }
 
 # ----------------------------------------------------------------------------
 # MAIN FUNCTION
@@ -186,7 +395,7 @@ def main(cfg: DictConfig):
    
     setup_environment(cfg)
     
-    # Import framework-specific modules after setting env vars
+ 
     if cfg.framework == "pytorch" and cfg.ccl_backend == "xccl":
         with timer("import time"):
             import intel_extension_for_pytorch
@@ -194,7 +403,7 @@ def main(cfg: DictConfig):
             import torch.nn.parallel
             import torch.distributed as dist
     
-    # Extract configuration values
+    
     framework   = cfg.framework
     coll_name   = cfg.collective.name
     op_name     = cfg.collective.op
@@ -205,24 +414,8 @@ def main(cfg: DictConfig):
     comm_mode = cfg.collective.comm_group.mode
     
      
-    within_size = None
-    across_size = None
-    num_nodes = None
-    num_gpus = None
-    within_group = None
-    across_group = None
+ 
 
-    if comm_mode == "hierarchical":
-        within_size = cfg.collective.comm_group.hierarchical.within_node.num_gpus
-        across_size = cfg.collective.comm_group.hierarchical.across_node.num_nodes
-        #expected_world_size = within_size * across_size
-
-            
-    elif comm_mode == "flatview":
-        pass
-    else:
-        raise ValueError(f"Unknown comm_mode: '{comm_mode}'. Valid options: 'hierarchical', 'flatview'")
-    
     
     if mpi_rank == 0:
         log.info("[CONFIG] Final validated settings\n")
@@ -235,8 +428,6 @@ def main(cfg: DictConfig):
         log.info(f"  • dtype               = {dtype_str}")
         log.info(f"  • count               = {cfg.collective.payload.count}")
         log.info(f"  • comm_mode           = {comm_mode}")
-        log.info(f"  • within_size         = {within_size or 'N/A'}")
-        log.info(f"  • across_size         = {across_size or 'N/A'}")
         log.info(f"  • use_profiler        = {cfg.get('use_profiler', 'none')}")
         log.info("-------------------------------------------------------------------------")
     #coll_name   = cfg.collective.name
@@ -249,7 +440,7 @@ def main(cfg: DictConfig):
     if mpi_rank == 0:
         import socket
         MASTER_ADDR = socket.gethostname()
-        MASTER_PORT = 2359  
+        MASTER_PORT = 2357
     else:
         MASTER_ADDR = None
         MASTER_PORT = None
@@ -271,44 +462,20 @@ def main(cfg: DictConfig):
             rank=mpi_rank,
             timeout=datetime.timedelta(seconds=3600)
         )
+    
+    
+    comm_info = setup_communication_groups(cfg, mpi_rank, mpi_size, log, dist)
+    my_within_group = comm_info['my_within_group']
+    my_across_group = comm_info['my_across_group'] 
+    world_group = comm_info['world_group']
+    device = comm_info['device']
+    within_size = comm_info['within_size']
+    across_size = comm_info['across_size']
    
    
     
  
-    within_rank = mpi_rank % within_size if within_size else 0
-    across_rank = mpi_rank // within_size if within_size else 0
-    
-    
-    if comm_mode == "combined": 
-        
-        within_groups = []
-        for i in range(across_size):
-            within_group_ranks = list(range(i * within_size, (i + 1) * within_size))
-            within_group = dist.new_group(within_group_ranks)
-            within_groups.append(within_group)
-        
-        my_within_group = within_groups[across_rank]
-        
-        across_groups = []
-        for i in range(within_size):
-            across_group_ranks = list(range(i, mpi_size, within_size))
-            across_group = dist.new_group(across_group_ranks)
-            across_groups.append(across_group)
-        
-        my_across_group = across_groups[within_rank]
-        
-    elif comm_mode == "flatview":
-        world_group = dist.group.WORLD
-    else:
-        raise ValueError(f"Unknown comm_mode: '{comm_mode}'. Valid options: 'hierarchical', 'flatview'")
-    
-     
-    if comm_mode == "hierarchical":
-        device = get_default_device(mpi_rank)
-    elif comm_mode == "flatview":
-        device = get_default_device(mpi_rank)
-    else:
-        raise ValueError(f"Unknown comm_mode: '{comm_mode}'. Valid options: 'hierarchical', 'flatview'")
+ 
         
         
     num_elems = buffer_in_bytes // elem_size
@@ -332,10 +499,36 @@ def main(cfg: DictConfig):
         log.info("[MPI] Launching profiling job")
 
 
-    for _ in range(iters):
+    for i in range(iters):
         x = torch.ones(num_elems, dtype=torch_dtype).to(device, non_blocking=True)
         
-        if comm_mode == "hierarchical":
+        if mpi_rank == 0 and i==0:
+            log.info(f"[CHECK] Before collective {x.sum()}")
+        
+
+        if comm_mode == "flatview":
+            with timer("(Flatview)"):
+                run_collective(x, op_obj, group=world_group)
+                MPI.COMM_WORLD.Barrier()
+
+
+
+        elif comm_mode == "within_node":
+            with timer("(Within)"):
+                run_collective(x, op_obj, group=my_within_group)
+                MPI.COMM_WORLD.Barrier()
+
+
+
+        elif comm_mode == "across_node":
+            with timer("(Across)"):
+                run_collective(x, op_obj, group=my_across_group)
+                MPI.COMM_WORLD.Barrier()
+
+
+
+
+        elif comm_mode == "combined":
             with timer("Total (Within→Across)"):
                 with timer("(Within)"):
                     run_collective(x, op_obj, group=my_within_group)
@@ -345,12 +538,13 @@ def main(cfg: DictConfig):
                     run_collective(x, op_obj, group=my_across_group)
                     MPI.COMM_WORLD.Barrier()
 
-        elif comm_mode == "flatview":
-            with timer("(Flatview)"):
-                run_collective(x, op_obj, group=world_group)
-                MPI.COMM_WORLD.Barrier()
+ 
+
         else:
-            raise ValueError(f"Unknown comm_mode: '{comm_mode}'. Valid options: 'hierarchical', 'flatview'")
+            raise ValueError(f"Unknown comm_mode: '{comm_mode}'. Valid options: 'within_node', 'across_node', 'combined', 'flatview'")
+        
+        if mpi_rank == 0 and i==0:
+            log.info(f"[CHECK] After collective {x.sum()}")
     
  
     if mpi_rank == 0:
@@ -386,6 +580,9 @@ def main(cfg: DictConfig):
     
         DLCOMMLogger.flush()
         DLCOMMLogger.reset()
+
+        #destroy_process_group()
+        # pytorch/torch/distributed/distributed_c10d.py  line 2094
             
        
        
