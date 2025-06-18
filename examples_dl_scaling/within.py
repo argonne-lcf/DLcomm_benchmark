@@ -14,7 +14,7 @@ t2 = perf_counter_ns()
 import_timer = t2 - t1
 
 within_config = {
-    'num_nodes': 1,
+    'num_nodes': 2,
     'num_gpus': 4,
     'gpu_ids_per_node': [ 8, 9, 10, 11]
 }
@@ -55,8 +55,31 @@ t4 = perf_counter_ns()
 init_timer = t4 - t3
 MPI.COMM_WORLD.Barrier()
 
+ 
+
 dist_my_rank = dist.get_rank()
 dist_world_size = dist.get_world_size()
+
+node_id=dist_my_rank // num_gpus
+
+within_groups = []
+
+for node in range(num_nodes):
+    group_ranks = []
+    for gpu in range(num_gpus):
+        rank = node * num_gpus + gpu
+        group_ranks.append(rank)
+    within_groups.append(dist.new_group(ranks=group_ranks))
+  
+
+my_within_group = within_groups[node_id] 
+
+
+
+
+
+
+
 
 def get_device_for_rank(rank):
     if torch.xpu.is_available():
@@ -78,7 +101,7 @@ for i in range(50):
     if i == 0 and mpi_my_rank == 0:
         print(f"Rank {mpi_my_rank}: Before allreduce - tensor sum: {x.sum()}")
     t5 = perf_counter_ns()
-    dist.all_reduce(x, op=dist.ReduceOp.SUM)
+    dist.all_reduce(x, op=dist.ReduceOp.SUM,group=my_within_group)
     if i == 0 and mpi_my_rank == 0:
         print(f"Rank {mpi_my_rank}: After allreduce - tensor sum: {x.sum()}")
     MPI.COMM_WORLD.Barrier()

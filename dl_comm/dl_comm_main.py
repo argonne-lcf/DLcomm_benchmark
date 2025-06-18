@@ -158,7 +158,7 @@ def setup_environment(cfg: DictConfig):
     # CCL environment variables
     os.environ["CCL_ATL_TRANSPORT"] = "mpi"
     os.environ["CCL_ATL_SHM"] = "0"
-    os.environ["CCL_LOG_LEVEL"] = "warn"
+    os.environ["CCL_LOG_LEVEL"] ="debug"
     os.environ["CCL_PROCESS_LAUNCHER"] = "pmix"
     os.environ["TORCH_CPP_LOG_LEVEL"] = "error"
     os.environ["FI_MR_CACHE_MONITOR"] = "userfaultfd"
