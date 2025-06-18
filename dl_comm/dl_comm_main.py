@@ -171,12 +171,6 @@ def setup_environment(cfg: DictConfig):
 
 
 
-def get_default_device(rank: int):
-    if torch.xpu.is_available():
-        return torch.device(f"xpu:{rank % torch.xpu.device_count()}")
-    else:
-        return torch.device("cpu")
-
 def setup_communication_groups(cfg: DictConfig, mpi_rank: int, mpi_size: int, log, dist=None):
  
     
@@ -351,7 +345,10 @@ def setup_communication_groups(cfg: DictConfig, mpi_rank: int, mpi_size: int, lo
             log.info("[COMM] Using flatview (world group)")
             
         world_group = None  # Use default world group
-        device = get_default_device(mpi_rank)
+        if torch.xpu.is_available():
+            device = torch.device(f"xpu:{mpi_rank % torch.xpu.device_count()}")
+        else:
+            device = torch.device("cpu")
         within_size = mpi_size
         across_size = 1
         
@@ -603,12 +600,11 @@ def main(cfg: DictConfig):
 
   
         
-    
+        #Clean Up
         DLCOMMLogger.flush()
         DLCOMMLogger.reset()
-
-        #destroy_process_group()
-        # pytorch/torch/distributed/distributed_c10d.py  line 2094
+        dist.destroy_process_group()
+        
             
        
        
