@@ -1,44 +1,41 @@
-framework: pytorch # tensorflow / jax / titan / monarch
-
-ccl_backend: xccl # rccl / nccl
-
+framework.  : pytorch  # tensorflow / jax / titan / monarch
+ccl_backend : xccl   # rccl / nccl
 use_profiler: unitrace
 
 collective:
-  name: allreduce # allgather / reducescatter / broadcast
-  op: prod # max / min 
-  algo: ring # tree 
+  name: allreduce   # allgather / reducescatter / broadcast
+  op: prod          # max / min 
+  scale_up_algorithm: topo
+  scale_out_algorithm: ring        # rabinseifner 
   iterations: 5
   payload:
-    count: 16
-    dtype: float32 # float64 / int32 / int64
-    buffer_size: 100MB # 10MB / 100MB
+    dtype: float32  # float64 / int32 / int64 / bfloat16 / float8 
+    count: 1024
+    buffer_size: 4096 # in Bytes -> float32(4B) x 1024 elements
+  
+  verify_correctness: on
+  
   comm_group:
-    mode: combined # within_node, across_node, combined, flatview # Only one out of four should be used
+    mode: combined  # within_node/across_node/combined/flatview -> Only one out of four should be used
+    
+    flatview: off
+    
     within_node: 
-      num_nodes: 2 
-      num_gpus: 4
-      gpu_ids_per_node: [  8, 9, 10, 11]   
+      num_compute_nodes: 2 
+      num_gpus_per_node: 4
+      gpu_ids_per_node: [8, 9, 10, 11]   
+    
     across_node: 
-      num_nodes: 2
-      num_gpus: 2
+      num_compute_nodes: 2
+      num_gpus_per_node: 2
       gpu_ids_per_node: [0,1] 
+    
     combined:
       within_node:
-        num_gpus: 12  
-        gpu_ids_per_node: [5, 6, 7, 8, 9, 10, 11]
+        num_compute_nodes: 2
+        num_gpus_per_node: 12  
+        gpu_ids_per_node: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
       across_node:
-        num_nodes: 2  
-        gpu_ids_per_node: [ 5, 7, 9 ]
-      
-
-
-
-
-
- 
-
-
-
-
-
+        num_compute_nodes: 2
+        num_gpus_per_node: 2  
+        gpu_ids_per_node: [5, 7]
