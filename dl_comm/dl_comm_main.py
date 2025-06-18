@@ -83,12 +83,19 @@ class ConfigValidator:
                 f"Invalid op '{op}' for collective '{collective}'. Valid: {valid_ops}"
             )
 
-        # collective.algo
-        algo = cfg.collective.algo
+        # collective.scale_up_algorithm
+        scale_up_algo = cfg.collective.scale_up_algorithm
         valid_algos = self.spec["algo"].get(collective, [])
-        if algo not in valid_algos:
+        if scale_up_algo not in valid_algos:
             errors.append(
-                f"Invalid algo '{algo}' for collective '{collective}'. Valid: {valid_algos}"
+                f"Invalid scale_up_algorithm '{scale_up_algo}' for collective '{collective}'. Valid: {valid_algos}"
+            )
+            
+        # collective.scale_out_algorithm  
+        scale_out_algo = cfg.collective.scale_out_algorithm
+        if scale_out_algo not in valid_algos:
+            errors.append(
+                f"Invalid scale_out_algorithm '{scale_out_algo}' for collective '{collective}'. Valid: {valid_algos}"
             )
 
         # dtype 
@@ -118,20 +125,24 @@ class ConfigValidator:
                 errors.append("comm_mode 'within_node' requires 'within_node' configuration")
             else:
                 within_config = comm_group.within_node
-                if not hasattr(within_config, 'num_gpus') or not hasattr(within_config, 'gpu_ids_per_node'):
-                    errors.append("within_node config requires 'num_gpus' and 'gpu_ids_per_node'")
+                if not hasattr(within_config, 'num_gpus_per_node') or not hasattr(within_config, 'gpu_ids_per_node'):
+                    errors.append("within_node config requires 'num_gpus_per_node' and 'gpu_ids_per_node'")
         
         elif comm_mode == "across_node":
             if not hasattr(comm_group, 'across_node'):
                 errors.append("comm_mode 'across_node' requires 'across_node' configuration")
             else:
                 across_config = comm_group.across_node
-                if not hasattr(across_config, 'num_nodes') or not hasattr(across_config, 'num_gpus') or not hasattr(across_config, 'gpu_ids_per_node'):
-                    errors.append("across_node config requires 'num_nodes', 'num_gpus' and 'gpu_ids_per_node'")
+                if not hasattr(across_config, 'num_compute_nodes') or not hasattr(across_config, 'num_gpus_per_node') or not hasattr(across_config, 'gpu_ids_per_node'):
+                    errors.append("across_node config requires 'num_compute_nodes', 'num_gpus_per_node' and 'gpu_ids_per_node'")
         
         elif comm_mode == "combined":
-            if not hasattr(comm_group, 'within_node') or not hasattr(comm_group, 'across_node'):
-                errors.append("comm_mode 'combined' requires both 'within_node' and 'across_node' configurations")
+            if not hasattr(comm_group, 'combined'):
+                errors.append("comm_mode 'combined' requires 'combined' configuration")
+            else:
+                combined_config = comm_group.combined
+                if not hasattr(combined_config, 'within_node') or not hasattr(combined_config, 'across_node'):
+                    errors.append("combined config requires both 'within_node' and 'across_node' sub-configurations")
 
         if errors:
             raise ValueError("ALL ERRORS:\n" + "\n".join(errors))
@@ -147,10 +158,17 @@ def setup_environment(cfg: DictConfig):
     # CCL environment variables
     os.environ["CCL_ATL_TRANSPORT"] = "mpi"
     os.environ["CCL_ATL_SHM"] = "0"
-    os.environ["CCL_LOG_LEVEL"] = "debug"
+    os.environ["CCL_LOG_LEVEL"] = "warn"
     os.environ["CCL_PROCESS_LAUNCHER"] = "pmix"
     os.environ["TORCH_CPP_LOG_LEVEL"] = "error"
     os.environ["FI_MR_CACHE_MONITOR"] = "userfaultfd"
+
+    scale_up_override = f"CCL_{cfg.collective.name.upper()}"
+    os.environ[scale_up_override]=cfg.collective.scale_up_algorithm
+
+    scale_out_override = f"CCL_{cfg.collective.name.upper()}_SCALEOUT"
+    os.environ[scale_out_override]=cfg.collective.scale_out_algorithm
+
 
 
 def get_default_device(rank: int):
@@ -181,14 +199,25 @@ def setup_communication_groups(cfg: DictConfig, mpi_rank: int, mpi_size: int, lo
         
      
         within_config = comm_config.within_node
-        num_gpus = within_config.num_gpus
+        num_gpus = within_config.num_gpus_per_node
+        num_nodes=within_config.num_compute_nodes
         gpu_ids_per_node = within_config.gpu_ids_per_node
         
         if mpi_rank == 0:
             log.info(f"[COMM] Within-node config: {num_gpus} GPUs, IDs: {gpu_ids_per_node}")
         
   
-        my_within_group = None  #  default world group
+        within_groups = []
+        for node in range(num_nodes):
+            group_ranks = []
+            for gpu in range(num_gpus):
+                rank = node * num_gpus + gpu
+                group_ranks.append(rank)
+            within_groups.append(dist.new_group(ranks=group_ranks))
+        
+        node_id = mpi_rank // num_gpus
+        my_within_group = within_groups[node_id] 
+
         
         
         gpu_idx = mpi_rank % num_gpus
@@ -201,8 +230,8 @@ def setup_communication_groups(cfg: DictConfig, mpi_rank: int, mpi_size: int, lo
             if mpi_rank == 0:
                 log.info("[COMM] XPU not available, using CPU")
         
-        within_size = mpi_size
-        across_size = 1  
+        within_size = num_gpus
+        across_size = num_nodes  
         
         if mpi_rank == 0:
             log.info(f"[COMM] Within group size: {within_size}, using world group for communication")
@@ -213,16 +242,13 @@ def setup_communication_groups(cfg: DictConfig, mpi_rank: int, mpi_size: int, lo
             log.info("[COMM] Setting up across-node groups")
         
         across_config = comm_config.across_node
-        num_nodes = across_config.num_nodes
-        num_gpus = across_config.num_gpus
+        num_nodes = across_config.num_compute_nodes
+        num_gpus = across_config.num_gpus_per_node
         gpu_ids_per_node = across_config.gpu_ids_per_node
         
         if mpi_rank == 0:
             log.info(f"[COMM] Across-node config: {num_nodes} nodes, {num_gpus} GPUs per node, IDs: {gpu_ids_per_node}")
-        
-       
-        if dist is None:
-            raise RuntimeError("torch.distributed is required for across_node mode but not available")
+ 
         
         across_groups = []
         for i in range(num_gpus):
@@ -258,19 +284,18 @@ def setup_communication_groups(cfg: DictConfig, mpi_rank: int, mpi_size: int, lo
             log.info("[COMM] Setting up combined (within + across) groups")
         
        
-        within_config = comm_config.within_node
-        across_config = comm_config.across_node
+        within_config = comm_config.combined.within_node
+        across_config = comm_config.combined.across_node
         
-        num_gpus = within_config.num_gpus
+        num_gpus = within_config.num_gpus_per_node
         gpu_ids_per_node = within_config.gpu_ids_per_node
-        num_nodes = across_config.num_nodes
+        num_nodes = across_config.num_compute_nodes
         across_gpu_ids = across_config.gpu_ids_per_node
         
         if mpi_rank == 0:
             log.info(f"[COMM] Combined config - Within: {num_gpus} GPUs {gpu_ids_per_node}, Across: {num_nodes} nodes {across_gpu_ids}")
         
-        if dist is None:
-            raise RuntimeError("torch.distributed is required for combined mode but not available")
+         
         
         
         within_groups = []
@@ -404,14 +429,13 @@ def main(cfg: DictConfig):
             import torch.distributed as dist
     
     
-    framework   = cfg.framework
-    coll_name   = cfg.collective.name
-    op_name     = cfg.collective.op
-    dtype_str   = cfg.collective.payload.dtype
-    iters       = cfg.collective.iterations
-
-     
-    comm_mode = cfg.collective.comm_group.mode
+    framework           = cfg.framework
+    coll_name           = cfg.collective.name
+    op_name             = cfg.collective.op
+    dtype_str           = cfg.collective.payload.dtype
+    iters               = cfg.collective.iterations
+    enable_correctness  = cfg.collective.verify_correctness 
+    comm_mode           = cfg.collective.comm_group.mode
     
      
  
@@ -423,7 +447,8 @@ def main(cfg: DictConfig):
         log.info(f"  • backend             = {cfg.ccl_backend}")
         log.info(f"  • collective_name     = {coll_name}")
         log.info(f"  • op                  = {op_name}")
-        log.info(f"  • algo                = {cfg.collective.algo}")
+        log.info(f"  • scale_up_algo       = {cfg.collective.scale_up_algorithm}")
+        log.info(f"  • scale_out_algo      = {cfg.collective.scale_out_algorithm}")
         log.info(f"  • buffer_size         = {cfg.collective.payload.buffer_size} ({buffer_in_bytes} bytes)")
         log.info(f"  • dtype               = {dtype_str}")
         log.info(f"  • count               = {cfg.collective.payload.count}")
@@ -502,8 +527,8 @@ def main(cfg: DictConfig):
     for i in range(iters):
         x = torch.ones(num_elems, dtype=torch_dtype).to(device, non_blocking=True)
         
-        if mpi_rank == 0 and i==0:
-            log.info(f"[CHECK] Before collective {x.sum()}")
+        if mpi_rank == 0 and i==0 and enable_correctness:
+            log.info(f"[CORRECTNESS CHECK] Before collective {x.sum()}")
         
 
         if comm_mode == "flatview":
@@ -535,7 +560,8 @@ def main(cfg: DictConfig):
                     MPI.COMM_WORLD.Barrier()
                 
                 with timer("(Across)"):
-                    run_collective(x, op_obj, group=my_across_group)
+                    if my_across_group:
+                        run_collective(x, op_obj, group=my_across_group)
                     MPI.COMM_WORLD.Barrier()
 
  
@@ -543,8 +569,8 @@ def main(cfg: DictConfig):
         else:
             raise ValueError(f"Unknown comm_mode: '{comm_mode}'. Valid options: 'within_node', 'across_node', 'combined', 'flatview'")
         
-        if mpi_rank == 0 and i==0:
-            log.info(f"[CHECK] After collective {x.sum()}")
+        if mpi_rank == 0 and i==0 and enable_correctness:
+            log.info(f"[CORRECTNESS CHECK] After collective {x.sum()}")
     
  
     if mpi_rank == 0:

@@ -16,7 +16,7 @@
       "barrier": [null]
     },
     "algo": {
-      "allreduce": ["ring", "tree", "recursive_doubling"],
+      "allreduce": ["ring", "tree", "recursive_doubling", "topo"],
       "broadcast": ["binomial_tree", "pipeline"],
       "gather": ["linear", "binomial_tree"],
       "scatter": ["linear", "binomial_tree"],
@@ -24,7 +24,7 @@
       "reduce": ["tree", "ring"],
       "barrier": ["dissemination"]
     },
-    "dtype": ["float16", "float32", "float64", "int32", "int64"],
+    "dtype": ["float16", "bfloat16", "float32", "float64", "int32", "int64"],
     "topology": ["horizontal", "vertical", "ring", "mesh"]
   }
   

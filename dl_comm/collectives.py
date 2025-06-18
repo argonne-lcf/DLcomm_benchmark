@@ -16,6 +16,7 @@ OP_MAP: dict[str, dist.ReduceOp] = {
 
 DTYPES = {
     "float16": (torch.float16, 2),
+    "bfloat16": (torch.bfloat16, 2),
     "float32": (torch.float32, 4),
     "float64": (torch.float64, 8),
     "int32":   (torch.int32,   4),
