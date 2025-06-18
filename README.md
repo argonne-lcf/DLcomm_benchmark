@@ -1,12 +1,14 @@
 # Deep Learning Communication (DLcomm) Benchmark
 
-![test status] ???
-
 This README provides an abbreviated documentation of the DL_COMM_code. Please refer to ... for full user documentation.
 
 ## Overview
 
-DL COMM is a lightweight benchmark for testing common communication patterns in large‐scale deep‐learning ( all‐reduce, broadcast, all‐gather). You run it from a single executable and configure everything with a simple YAML file. It’s modular—so adding new frameworks, back-ends, or algorithms is easy. DL COMM reports per‐iteration latency and bandwidth, can optionally generate Perfetto traces via DFTracer, and uses a small logger (DLIOLogger) to keep all output consistent across ranks.
+DL COMM is a lightweight benchmark for testing common communication patterns in large‐scale deep‐learning ( all‐reduce, broadcast, all‐gather). You run it from a single executable and configure everything with a simple YAML file. It’s modular—so adding new frameworks, back-ends, or algorithms is easy. DL COMM reports per‐iteration latency and bandwidth.
+
+update - x axis is num_gpus_per_node and y axis is num_compute_nodes
+
+![Alt text](tools/dl_comm_logo.gif)
 
 ## Installation and running DLIO
 
