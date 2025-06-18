@@ -1,82 +1,76 @@
-# Deep Learning I/O (DLIO) Benchmark
+# Deep Learning Communication (DLcomm) Benchmark
+
 ![test status] ???
 
-This README provides an abbreviated documentation of the DL_COMM_code. Please refer to ... for full user documentation. 
-
+This README provides an abbreviated documentation of the DL_COMM_code. Please refer to ... for full user documentation.
 
 ## Overview
 
 DL COMM is a lightweight benchmark for testing common communication patterns in large‐scale deep‐learning ( all‐reduce, broadcast, all‐gather). You run it from a single executable and configure everything with a simple YAML file. It’s modular—so adding new frameworks, back-ends, or algorithms is easy. DL COMM reports per‐iteration latency and bandwidth, can optionally generate Perfetto traces via DFTracer, and uses a small logger (DLIOLogger) to keep all output consistent across ranks.
 
 ## Installation and running DLIO
-### Bare metal installation 
 
+pip install -r requirements.txt
 
-### Bare metal installation with profiler
-
-
-
-## Container
-
-## PowerPC
-
-
-## Lassen, LLNL
-
-
+pip install DLcomm
 
 ## Running the benchmark
- 
 
-
-## YAML configuration file 
- 
+## YAML configuration file
 
 Workload characteristics for DL COMM are specified by a YAML configuration file. Below is an example of a YAML file for a DL COMM run that executes a PyTorch+XCCL ring all-reduce across 4 nodes with 8 GPUs each, sending a 1 MB float32 buffer for 10 iterations:
 
 ```yaml
 # contents of dl_comm_run.yaml
+framework.  : pytorch  # tensorflow / jax / titan / monarch
+ccl_backend : xccl   # rccl / nccl
+use_profiler: unitrace
 
-# --- Which framework and backend to use ---
-framework: pytorch
-ccl_backend: xccl       # options: xccl, nccl, …
-
-# --- Collective settings ---
 collective:
-  name: allreduce       # options: allreduce, reduce, broadcast, allgather, …
-  algo: ring            # options: ring, tree ...
-  op: sum               # valid when collective is a reduction (sum, max, min, prod)
-  iterations: 10
+  name: allreduce   # allgather / reducescatter / broadcast
+  op: prod          # max / min 
+  scale_up_algorithm: topo
+  scale_out_algorithm: ring        # rabinseifner 
+  iterations: 5
   payload:
-    buffer_size: 1MB    # can be specified as “1MB”, “512KB”, “1048576B”, etc.
-    dtype: float32      # options: float32, float64, int32, int64, …
-
-# --- Tensor-parallel (horizontal) configuration ---
-horizontal:
-  tp_degree: 8          # number of GPUs per node
-  gpu_ids: [0,1,2,3,4,5,6,7]
-
-# --- Data-parallel (vertical) configuration ---
-vertical:
-  dp_degree: 4          # number of nodes
-
-# --- If true, skips TP/DP grouping and use a single “flat” communicator 
-flatview: false
-
-# --- Enable Tracer/Perfetto 
-use_unitrace: true
+    dtype: float32  # float64 / int32 / int64 / bfloat16 / float8 
+    count: 1024
+    buffer_size: 4096 # in Bytes -> float32(4B) x 1024 elements
+  
+  verify_correctness: on
+  
+  comm_group:
+    mode: combined  # within_node/across_node/combined/flatview -> Only one out of four should be used
+  
+    flatview: off
+  
+    within_node: 
+      num_compute_nodes: 2 
+      num_gpus_per_node: 4
+      gpu_ids_per_node: [8, 9, 10, 11]   
+  
+    across_node: 
+      num_compute_nodes: 2
+      num_gpus_per_node: 2
+      gpu_ids_per_node: [0,1] 
+  
+    combined:
+      within_node:
+        num_compute_nodes: 2
+        num_gpus_per_node: 12  
+        gpu_ids_per_node: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+      across_node:
+        num_compute_nodes: 2
+        num_gpus_per_node: 2  
+        gpu_ids_per_node: [5, 7]
 
 
 
 ```
 
-
-
-## How to contribute 
+## How to contribute
 
 ## Citation and Reference
-
-
 
 ## Acknowledgments
 
