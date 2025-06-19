@@ -1,4 +1,23 @@
 # ----------------------------------------------------------------------------
+# OVERALL STRUCTURE
+# ----------------------------------------------------------------------------
+
+# dl_comm/
+# ├── dl_comm_main.py    # main(), setup_environment()
+# ├── analysis/          # CCL parsing + bandwidth analysis
+# │   ├── ccl_parser.py     # parse_ccl_selection(), report_ccl_selection()
+# │   └── bandwidth.py      # bytes_per_rank(), bytes_per_coll(), print_all_bandwidths()
+# ├── comm/             
+# │   ├── comm_setup.py     # setup_communication_groups()
+# │   └── collectives.py    # COLLECTIVES, OPS_NEED_REDUCE, OP_MAP, DTYPES
+# ├── config/          
+# │   └── validation.py     # ConfigValidator, parse_buffer_size()
+# ├── timer/           
+# │   └── timer.py          # timer(), print_all_times()
+# └── utils/            
+#     └── utility.py        # DLCOMMLogger, Profile
+
+# ----------------------------------------------------------------------------
 # IMPORTS
 # ----------------------------------------------------------------------------
 

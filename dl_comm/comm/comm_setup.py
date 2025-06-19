@@ -41,10 +41,10 @@ def setup_communication_groups(cfg: DictConfig, mpi_rank, log, dist=None):
             within_groups.append(dist.new_group(ranks=group_ranks))
         
         node_id = mpi_rank // num_gpus_per_node
+        gpu_idx = mpi_rank % num_gpus_per_node
         my_within_group = within_groups[node_id]
 
         # DEVICE ALLOCATION
-        gpu_idx = mpi_rank % num_gpus_per_node
         if torch.xpu.is_available():
             device_id = gpu_ids_per_node[gpu_idx]
             device = torch.device(f"xpu:{device_id}")
@@ -81,7 +81,6 @@ def setup_communication_groups(cfg: DictConfig, mpi_rank, log, dist=None):
             across_groups.append(dist.new_group(ranks=group_ranks))
         
         gpu_index = mpi_rank % num_gpus_per_node
-        node_id = mpi_rank // num_gpus_per_node
         my_across_group = across_groups[gpu_index]
 
         # DEVICE ALLOCATION
