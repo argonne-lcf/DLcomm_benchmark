@@ -1,10 +1,6 @@
+ 
 import re
-import subprocess
-import os
-import shutil
-from datetime import datetime
-import glob
-import time
+
 
 def parse_ccl_selection(log_path: str, algo_name: str):
     sel = {}
@@ -30,7 +26,9 @@ def parse_ccl_selection(log_path: str, algo_name: str):
             sel[current_table] = m_choice.group(1).strip()
     return sel
 
+
 def report_ccl_selection(log_path: str, algo_name: str, logger):
+   
     selection = parse_ccl_selection(log_path, algo_name)
     if not selection:
         logger.info(f"No '{algo_name} selection' block found in {log_path}")
