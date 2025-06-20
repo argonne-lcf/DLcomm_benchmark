@@ -1,5 +1,6 @@
 framework  : pytorch  # tensorflow / jax / titan / monarch
 ccl_backend : xccl   # rccl / nccl
+ccl_debug   : off     # on / off - enables CCL debug logging and algorithm selection reporting
 use_profiler: unitrace
 
 collective:

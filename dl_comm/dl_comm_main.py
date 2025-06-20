@@ -51,7 +51,8 @@ def setup_environment(cfg: DictConfig):
     # CCL environment variables
     os.environ["CCL_ATL_TRANSPORT"] = "mpi"
     os.environ["CCL_ATL_SHM"] = "0"
-    os.environ["CCL_LOG_LEVEL"] ="debug"
+    if cfg.ccl_debug:
+        os.environ["CCL_LOG_LEVEL"] = "debug"
     os.environ["CCL_PROCESS_LAUNCHER"] = "pmix"
     os.environ["TORCH_CPP_LOG_LEVEL"] = "error"
     os.environ["FI_MR_CACHE_MONITOR"] = "userfaultfd"
@@ -276,14 +277,16 @@ def main(cfg: DictConfig):
         log.info("-------------------------------------------------------------------------")
         log.info("[MPI] Job complete")
         log.info("-------------------------------------------------------------------------")
-        log.info("Querying Default Table selection")
+        
+        if cfg.ccl_debug:
+            log.info("Querying Default Table selection")
 
-        terminal_log_path = os.path.join(log_dir, "terminal_output.log")
-        if os.path.exists(terminal_log_path):
-            # report_ccl_selection func defined in ./analysis/ccl_parser.py
-            report_ccl_selection(terminal_log_path, cfg.collective.name, log)
-        else:
-            log.info(f"[SELECTION] Terminal output log not found: {terminal_log_path}")
+            terminal_log_path = os.path.join(log_dir, "terminal_output.log")
+            if os.path.exists(terminal_log_path):
+                # report_ccl_selection func defined in ./analysis/ccl_parser.py
+                report_ccl_selection(terminal_log_path, cfg.collective.name, log)
+            else:
+                log.info(f"[SELECTION] Terminal output log not found: {terminal_log_path}")
 
         log.info("-------------------------------------------------------------------------")
         log.info("[EXIT] All Done.")
