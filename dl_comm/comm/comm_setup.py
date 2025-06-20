@@ -30,9 +30,11 @@ def setup_communication_groups(cfg: DictConfig, mpi_rank, log, dist=None):
         gpu_ids_per_node = within_config.gpu_ids_per_node
         
         if mpi_rank == 0:
-            log.info(f"[COMM] Within-node config: {num_gpus_per_node} GPUs, IDs: {gpu_ids_per_node}")
+            log.info(f"[COMM][CONFIG] Within-node config: {num_gpus_per_node} GPUs, Device IDs: {gpu_ids_per_node}")
             
         # DISTRIBUTED GROUP CREATION
+        if mpi_rank == 0:
+            log.info("[COMM][GROUP CREATION] Within-node groups:")
         with timer("Group Creation (Within)"):
             within_groups = []
             for node in range(num_compute_nodes):
@@ -41,6 +43,8 @@ def setup_communication_groups(cfg: DictConfig, mpi_rank, log, dist=None):
                     rank = node * num_gpus_per_node + gpu
                     group_ranks.append(rank)
                 within_groups.append(dist.new_group(ranks=group_ranks))
+                if mpi_rank == 0:
+                    log.info(f"[COMM][GROUP CREATION][Within Group-{node}] Ranks: {group_ranks}")
         
         node_id = mpi_rank // num_gpus_per_node
         gpu_idx = mpi_rank % num_gpus_per_node
@@ -71,9 +75,11 @@ def setup_communication_groups(cfg: DictConfig, mpi_rank, log, dist=None):
         gpu_ids_per_node = across_config.gpu_ids_per_node
         
         if mpi_rank == 0:
-            log.info(f"[COMM] Across-node config: {num_compute_nodes} nodes, {num_gpus_per_node} GPUs per node, IDs: {gpu_ids_per_node}")
+            log.info(f"[COMM][CONFIG] Across-node config: {num_compute_nodes} nodes, {num_gpus_per_node} GPUs per node, Device IDs: {gpu_ids_per_node}")
 
         # DISTRIBUTED GROUP CREATION
+        if mpi_rank == 0:
+            log.info("[COMM][GROUP CREATION] Across-node groups:")
         with timer("Group Creation (Across)"):
             across_groups = []
             for i in range(num_gpus_per_node):
@@ -82,6 +88,8 @@ def setup_communication_groups(cfg: DictConfig, mpi_rank, log, dist=None):
                     rank = node * num_gpus_per_node + i
                     group_ranks.append(rank)
                 across_groups.append(dist.new_group(ranks=group_ranks))
+                if mpi_rank == 0:
+                    log.info(f"[COMM][GROUP CREATION][Across Group-{i}] Ranks: {group_ranks}")
         
         gpu_index = mpi_rank % num_gpus_per_node
         my_across_group = across_groups[gpu_index]
@@ -117,7 +125,8 @@ def setup_communication_groups(cfg: DictConfig, mpi_rank, log, dist=None):
         across_gpu_ids = across_config.gpu_ids_per_node
         
         if mpi_rank == 0:
-            log.info(f"[COMM] Combined config - Within: {num_gpus_per_node} GPUs {gpu_ids_per_node}, Across: {num_compute_nodes} nodes {across_gpu_ids}")
+            log.info(f"[COMM][CONFIG] Combined config - Within: {num_gpus_per_node} GPUs Device IDs: {gpu_ids_per_node}, Across: {num_compute_nodes} nodes Device IDs: {across_gpu_ids}")
+            log.info("[COMM][GROUP CREATION] Combined mode groups:")
 
         # DISTRIBUTED GROUP CREATION - WITHIN
         with timer("Group Creation (Combined-Within)"):
@@ -128,6 +137,8 @@ def setup_communication_groups(cfg: DictConfig, mpi_rank, log, dist=None):
                     rank = node * num_gpus_per_node + gpu
                     group_ranks.append(rank)
                 within_groups.append(dist.new_group(ranks=group_ranks))
+                if mpi_rank == 0:
+                    log.info(f"[COMM][GROUP CREATION][Within Group-{node}] Ranks: {group_ranks}")
         
         node_id = mpi_rank // num_gpus_per_node
         gpu_index = mpi_rank % num_gpus_per_node
@@ -136,13 +147,15 @@ def setup_communication_groups(cfg: DictConfig, mpi_rank, log, dist=None):
         # DISTRIBUTED GROUP CREATION - ACROSS
         with timer("Group Creation (Combined-Across)"):
             across_groups = []
-            for gpu_id in across_gpu_ids:
+            for i, gpu_id in enumerate(across_gpu_ids):
                 gpu_idx = gpu_ids_per_node.index(gpu_id)
                 group_ranks = []
                 for node in range(num_compute_nodes):
                     rank = node * num_gpus_per_node + gpu_idx
                     group_ranks.append(rank)
                 across_groups.append(dist.new_group(ranks=group_ranks))
+                if mpi_rank == 0:
+                    log.info(f"[COMM][GROUP CREATION][Across Group-{i}] Ranks: {group_ranks}")
         
         current_gpu_id = gpu_ids_per_node[gpu_index]
         my_across_group = None
@@ -169,7 +182,8 @@ def setup_communication_groups(cfg: DictConfig, mpi_rank, log, dist=None):
     elif comm_mode == "flatview":
          
         if mpi_rank == 0:
-            log.info("[COMM] Using flatview (world group)")
+            log.info("[COMM][CONFIG] Using flatview (world group)")
+            log.info("[COMM][GROUP CREATION] Flatview: Using world group (all ranks)")
 
         # CONFIG PARSING and DEVICE ALLOCATION
         world_group = None  

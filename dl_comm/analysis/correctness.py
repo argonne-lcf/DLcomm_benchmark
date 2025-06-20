@@ -65,7 +65,7 @@ def check_group_correctness(context, x, group_type, phase):
                 before_value = _before_values[group_label]
                 after_value = tensor_sum
                 
-                log.info(f"[CORRECTNESS {group_label}] Tensor sum before collective: {before_value} → after collective: {after_value}")
+                log.output(f"[CORRECTNESS {group_label}] Tensor sum before collective: {before_value} → after collective: {after_value}")
                 
                  
                 del _before_values[group_label]
