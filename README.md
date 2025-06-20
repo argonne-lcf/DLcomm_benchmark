@@ -10,7 +10,7 @@ update - x axis is num_gpus_per_node and y axis is num_compute_nodes
 
 ![Alt text](tools/dl_comm_logo.gif)
 
-## Installation and running DLIO
+## Installation and running DLCOMM
 
 pip install -r requirements.txt
 
