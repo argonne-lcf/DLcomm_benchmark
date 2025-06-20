@@ -1,5 +1,6 @@
 import torch
 from omegaconf import DictConfig
+from dl_comm.timer import timer
 
 
 def setup_communication_groups(cfg: DictConfig, mpi_rank, log, dist=None):
@@ -30,15 +31,16 @@ def setup_communication_groups(cfg: DictConfig, mpi_rank, log, dist=None):
         
         if mpi_rank == 0:
             log.info(f"[COMM] Within-node config: {num_gpus_per_node} GPUs, IDs: {gpu_ids_per_node}")
-
+            
         # DISTRIBUTED GROUP CREATION
-        within_groups = []
-        for node in range(num_compute_nodes):
-            group_ranks = []
-            for gpu in range(num_gpus_per_node):
-                rank = node * num_gpus_per_node + gpu
-                group_ranks.append(rank)
-            within_groups.append(dist.new_group(ranks=group_ranks))
+        with timer("Group Creation (Within)"):
+            within_groups = []
+            for node in range(num_compute_nodes):
+                group_ranks = []
+                for gpu in range(num_gpus_per_node):
+                    rank = node * num_gpus_per_node + gpu
+                    group_ranks.append(rank)
+                within_groups.append(dist.new_group(ranks=group_ranks))
         
         node_id = mpi_rank // num_gpus_per_node
         gpu_idx = mpi_rank % num_gpus_per_node
@@ -72,13 +74,14 @@ def setup_communication_groups(cfg: DictConfig, mpi_rank, log, dist=None):
             log.info(f"[COMM] Across-node config: {num_compute_nodes} nodes, {num_gpus_per_node} GPUs per node, IDs: {gpu_ids_per_node}")
 
         # DISTRIBUTED GROUP CREATION
-        across_groups = []
-        for i in range(num_gpus_per_node):
-            group_ranks = []
-            for node in range(num_compute_nodes):
-                rank = node * num_gpus_per_node + i
-                group_ranks.append(rank)
-            across_groups.append(dist.new_group(ranks=group_ranks))
+        with timer("Group Creation (Across)"):
+            across_groups = []
+            for i in range(num_gpus_per_node):
+                group_ranks = []
+                for node in range(num_compute_nodes):
+                    rank = node * num_gpus_per_node + i
+                    group_ranks.append(rank)
+                across_groups.append(dist.new_group(ranks=group_ranks))
         
         gpu_index = mpi_rank % num_gpus_per_node
         my_across_group = across_groups[gpu_index]
@@ -117,27 +120,29 @@ def setup_communication_groups(cfg: DictConfig, mpi_rank, log, dist=None):
             log.info(f"[COMM] Combined config - Within: {num_gpus_per_node} GPUs {gpu_ids_per_node}, Across: {num_compute_nodes} nodes {across_gpu_ids}")
 
         # DISTRIBUTED GROUP CREATION - WITHIN
-        within_groups = []
-        for node in range(num_compute_nodes):
-            group_ranks = []
-            for gpu in range(num_gpus_per_node):
-                rank = node * num_gpus_per_node + gpu
-                group_ranks.append(rank)
-            within_groups.append(dist.new_group(ranks=group_ranks))
+        with timer("Group Creation (Combined-Within)"):
+            within_groups = []
+            for node in range(num_compute_nodes):
+                group_ranks = []
+                for gpu in range(num_gpus_per_node):
+                    rank = node * num_gpus_per_node + gpu
+                    group_ranks.append(rank)
+                within_groups.append(dist.new_group(ranks=group_ranks))
         
         node_id = mpi_rank // num_gpus_per_node
         gpu_index = mpi_rank % num_gpus_per_node
         my_within_group = within_groups[node_id]
 
         # DISTRIBUTED GROUP CREATION - ACROSS
-        across_groups = []
-        for gpu_id in across_gpu_ids:
-            gpu_idx = gpu_ids_per_node.index(gpu_id)
-            group_ranks = []
-            for node in range(num_compute_nodes):
-                rank = node * num_gpus_per_node + gpu_idx
-                group_ranks.append(rank)
-            across_groups.append(dist.new_group(ranks=group_ranks))
+        with timer("Group Creation (Combined-Across)"):
+            across_groups = []
+            for gpu_id in across_gpu_ids:
+                gpu_idx = gpu_ids_per_node.index(gpu_id)
+                group_ranks = []
+                for node in range(num_compute_nodes):
+                    rank = node * num_gpus_per_node + gpu_idx
+                    group_ranks.append(rank)
+                across_groups.append(dist.new_group(ranks=group_ranks))
         
         current_gpu_id = gpu_ids_per_node[gpu_index]
         my_across_group = None

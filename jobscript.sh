@@ -11,7 +11,8 @@
 
 module load frameworks
 
-cd $PBS_O_WORKDIR
+WORKDIR=$(pwd)
+cd "$WORKDIR"
 
 echo "Job started at: $(date)"
 echo "Job ID: $PBS_JOBID"
@@ -30,11 +31,11 @@ NRANKS=$(( NNODES * RANKS_PER_NODE ))
 CPU_BINDING="list:4:9:14:19:20:25:56:61:66:71:74:79"
  
 export CCL_LOG_LEVEL=debug
-
+export FI_MR_CACHE_MONITOR=userfaultfd
  
 # Create timestamped directory for this run
 RUN_TIMESTAMP=$(date '+%Y%m%d_%H%M%S')
-RUN_LOG_DIR="$PBS_O_WORKDIR/logs/run_${RUN_TIMESTAMP}"
+RUN_LOG_DIR="$WORKDIR/logs/run_${RUN_TIMESTAMP}"
 mkdir -p "$RUN_LOG_DIR"
 
  

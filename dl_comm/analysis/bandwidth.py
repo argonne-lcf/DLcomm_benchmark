@@ -33,7 +33,7 @@ def print_all_bandwidths(logger, buf_bytes, coll_name):
     title = "[BANDWIDTH]"
     logger.output(f"{title} -------------------------------------------")
     for label, vals in TIMES.items():
-        if label == "init time" or label == "import time":
+        if label == "init time" or label == "import time" or label.startswith("Group Creation"):
             continue
         avg = sum(vals) / len(vals)
         bw = bytes_per_coll(coll_name, buf_bytes) / avg
