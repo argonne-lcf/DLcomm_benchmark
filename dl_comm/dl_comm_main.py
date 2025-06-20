@@ -229,48 +229,45 @@ def main(cfg: DictConfig):
 
     for i in range(iters):
         x = torch.ones(num_elems, dtype=torch_dtype).to(device, non_blocking=True)
-       
-       
+        context = {'mpi_rank': mpi_rank, 'cfg': cfg, 'log': log, 'iteration': i}
         
         if comm_mode == "flatview":
-            check_group_correctness(mpi_rank, cfg, log, x, comm_mode, "flatview", "before", enable_correctness, i)
+            check_group_correctness(context, x, "flatview", "before")
             with timer("(Flatview)"):
                 run_collective(x, op_obj, group=world_group)
                 MPI.COMM_WORLD.Barrier()
-            check_group_correctness(mpi_rank, cfg, log, x, comm_mode, "flatview", "after", enable_correctness, i)
+            check_group_correctness(context, x, "flatview", "after")
 
         elif comm_mode == "within_node":
-            check_group_correctness(mpi_rank, cfg, log, x, comm_mode, "within", "before", enable_correctness, i)
+            check_group_correctness(context, x, "within", "before")
             with timer("(Within)"):
                 run_collective(x, op_obj, group=my_within_group)
                 MPI.COMM_WORLD.Barrier()
-            check_group_correctness(mpi_rank, cfg, log, x, comm_mode, "within", "after", enable_correctness, i)
+            check_group_correctness(context, x, "within", "after")
 
         elif comm_mode == "across_node":
-            check_group_correctness(mpi_rank, cfg, log, x, comm_mode, "across", "before", enable_correctness, i)
+            check_group_correctness(context, x, "across", "before")
             with timer("(Across)"):
                 run_collective(x, op_obj, group=my_across_group)
                 MPI.COMM_WORLD.Barrier()
-            check_group_correctness(mpi_rank, cfg, log, x, comm_mode, "across", "after", enable_correctness, i)
+            check_group_correctness(context, x, "across", "after")
 
         elif comm_mode == "combined":
             with timer("Total (Within→Across)"):
                  
-                check_group_correctness(mpi_rank, cfg, log, x, comm_mode, "within", "before", enable_correctness, i)
+                check_group_correctness(context, x, "within", "before")
                 with timer("(Within)"):
                     run_collective(x, op_obj, group=my_within_group)
                     MPI.COMM_WORLD.Barrier()
-                check_group_correctness(mpi_rank, cfg, log, x, comm_mode, "within", "after", enable_correctness, i)
+                check_group_correctness(context, x, "within", "after")
                 
                  
-                check_group_correctness(mpi_rank, cfg, log, x, comm_mode, "across", "before", enable_correctness, i)
+                check_group_correctness(context, x, "across", "before")
                 with timer("(Across)"):
                     if my_across_group:
                         run_collective(x, op_obj, group=my_across_group)
                     MPI.COMM_WORLD.Barrier()
-                check_group_correctness(mpi_rank, cfg, log, x, comm_mode, "across", "after", enable_correctness, i)
-   
-      
+                check_group_correctness(context, x, "across", "after")      
 
     # ----------------------------------------------------------------------------
     #  REPORTING
