@@ -30,7 +30,7 @@ NRANKS=$(( NNODES * RANKS_PER_NODE ))
  
 CPU_BINDING="list:4:9:14:19:20:25:56:61:66:71:74:79"
  
-export CCL_LOG_LEVEL=debug
+#export CCL_LOG_LEVEL=debug
 export FI_MR_CACHE_MONITOR=userfaultfd
  
 # Create timestamped directory for this run

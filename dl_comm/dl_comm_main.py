@@ -38,7 +38,7 @@ from mpi4py import MPI
 from dl_comm.utils.utility import DLCOMMLogger, Profile
 from dl_comm.comm import COLLECTIVES, OPS_NEED_REDUCE, OP_MAP, DTYPES
 from dl_comm.timer import timer, print_all_times
-from dl_comm.analysis import report_ccl_selection, print_all_bandwidths
+from dl_comm.analysis import report_ccl_selection, print_all_bandwidths, check_group_correctness
 from dl_comm.comm import setup_communication_groups
 from dl_comm.config import ConfigValidator, parse_buffer_size
  
@@ -77,6 +77,7 @@ def main(cfg: DictConfig):
     # LOGGER INITIALIZATION
     # ----------------------------------------------------------------------------
 
+   
     if mpi_rank == 0:      
         if "DL_COMM_LOG_DIR" in os.environ:
             log_dir = os.environ["DL_COMM_LOG_DIR"]
@@ -86,18 +87,16 @@ def main(cfg: DictConfig):
             log_dir = f"logs/run_{timestamp}"
 
         os.makedirs(log_dir, exist_ok=True)
-        # DLCOMMLogger class defined in ./utils/utility.py
-        log = DLCOMMLogger.get_instance(log_file="dlcomm.log", log_dir=log_dir)
+    else:
+        log_dir = None
+    
+    
+    log_dir = MPI.COMM_WORLD.bcast(log_dir, root=0)
+    log = DLCOMMLogger.get_instance(log_file="dlcomm.log", log_dir=log_dir)
+    
+    if mpi_rank == 0:
         log.info("-------------------------------------------------------------------------")
         log.info("[CONFIG] Loading schema and validating user YAML")
-    else:
-        class DummyLogger:
-            def info(self, msg): pass
-            def debug(self, msg): pass
-            def warning(self, msg): pass
-            def error(self, msg): pass
-            def output(self, msg): pass
-        log = DummyLogger()
     
     if mpi_rank == 0:
         log.info("-------------------------------------------------------------------------")
@@ -171,7 +170,7 @@ def main(cfg: DictConfig):
     if mpi_rank == 0:
         import socket
         MASTER_ADDR = socket.gethostname()
-        MASTER_PORT = 2357
+        MASTER_PORT = 2221
     else:
         MASTER_ADDR = None
         MASTER_PORT = None
@@ -220,7 +219,6 @@ def main(cfg: DictConfig):
         log.info(f"[MPI][SETUP] Buffer Size    : {buffer_in_bytes}")
         log.info(f"[MPI][SETUP] Iterations     : {iters}")
         log.info(f"[MPI][SETUP] World Size     : {mpi_size}")
-        log.info("")
         log.info("[MPI][SETUP] ------------------------------------------------------")
         log.info("")
         log.info("[MPI] Launching profiling job")
@@ -231,38 +229,48 @@ def main(cfg: DictConfig):
 
     for i in range(iters):
         x = torch.ones(num_elems, dtype=torch_dtype).to(device, non_blocking=True)
-        
-        if mpi_rank == 0 and i==0 and enable_correctness:
-            log.info(f"[CORRECTNESS CHECK] Before collective {x.sum()}")
+       
+       
         
         if comm_mode == "flatview":
+            check_group_correctness(mpi_rank, cfg, log, x, comm_mode, "flatview", "before", enable_correctness, i)
             with timer("(Flatview)"):
                 run_collective(x, op_obj, group=world_group)
                 MPI.COMM_WORLD.Barrier()
+            check_group_correctness(mpi_rank, cfg, log, x, comm_mode, "flatview", "after", enable_correctness, i)
 
         elif comm_mode == "within_node":
+            check_group_correctness(mpi_rank, cfg, log, x, comm_mode, "within", "before", enable_correctness, i)
             with timer("(Within)"):
                 run_collective(x, op_obj, group=my_within_group)
                 MPI.COMM_WORLD.Barrier()
+            check_group_correctness(mpi_rank, cfg, log, x, comm_mode, "within", "after", enable_correctness, i)
 
         elif comm_mode == "across_node":
+            check_group_correctness(mpi_rank, cfg, log, x, comm_mode, "across", "before", enable_correctness, i)
             with timer("(Across)"):
                 run_collective(x, op_obj, group=my_across_group)
                 MPI.COMM_WORLD.Barrier()
+            check_group_correctness(mpi_rank, cfg, log, x, comm_mode, "across", "after", enable_correctness, i)
 
         elif comm_mode == "combined":
             with timer("Total (Within→Across)"):
+                 
+                check_group_correctness(mpi_rank, cfg, log, x, comm_mode, "within", "before", enable_correctness, i)
                 with timer("(Within)"):
                     run_collective(x, op_obj, group=my_within_group)
                     MPI.COMM_WORLD.Barrier()
+                check_group_correctness(mpi_rank, cfg, log, x, comm_mode, "within", "after", enable_correctness, i)
                 
+                 
+                check_group_correctness(mpi_rank, cfg, log, x, comm_mode, "across", "before", enable_correctness, i)
                 with timer("(Across)"):
                     if my_across_group:
                         run_collective(x, op_obj, group=my_across_group)
                     MPI.COMM_WORLD.Barrier()
+                check_group_correctness(mpi_rank, cfg, log, x, comm_mode, "across", "after", enable_correctness, i)
    
-        if mpi_rank == 0 and i==0 and enable_correctness:
-            log.info(f"[CORRECTNESS CHECK] After collective {x.sum()}")
+      
 
     # ----------------------------------------------------------------------------
     #  REPORTING

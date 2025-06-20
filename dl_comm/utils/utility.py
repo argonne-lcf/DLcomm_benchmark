@@ -58,9 +58,6 @@ class DLCOMMLogger:
  
         
         DLCOMMLogger.__instance = self
-        
-         
-        self.logger.info(f"Logger initialized. Writing to: {log_path}")
     
     @staticmethod
     def get_instance(log_file="dlcomm.log", log_dir=None):
