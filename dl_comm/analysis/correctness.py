@@ -1,5 +1,11 @@
-def check_group_correctness(mpi_rank, cfg, log, x, comm_mode, group_type, stage, enable_correctness, iteration):
+# Global storage for before values
+_before_values = {}
 
+def check_group_correctness(mpi_rank, cfg, log, x, comm_mode, group_type, stage, enable_correctness, iteration):
+    """Log tensor values for per-group correctness checking
+    
+    Stores 'before' values and displays before→after in single line.
+    """
     if iteration != 0 or not enable_correctness:
         return
     
@@ -44,4 +50,19 @@ def check_group_correctness(mpi_rank, cfg, log, x, comm_mode, group_type, stage,
     
     if should_log and group_id is not None:
         group_label = f"{group_type.title()}-Group-{group_id}"
-        log.info(f"[CORRECTNESS {group_label}] {stage.title()}: {x.sum()}")
+        tensor_sum = float(x.sum())
+        
+        if stage == "before":
+             
+            _before_values[group_label] = tensor_sum
+            
+        elif stage == "after":
+             
+            if group_label in _before_values:
+                before_value = _before_values[group_label]
+                after_value = tensor_sum
+                
+                log.info(f"[CORRECTNESS {group_label}] Tensor sum before collective: {before_value} → after collective: {after_value}")
+                
+                 
+                del _before_values[group_label]

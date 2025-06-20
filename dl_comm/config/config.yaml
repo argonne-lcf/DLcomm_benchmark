@@ -17,7 +17,7 @@ collective:
   verify_correctness: on
   
   comm_group:
-    mode: combined  # within_node/across_node/combined/flatview -> Only one out of four should be used
+    mode: across_node  # within_node/across_node/combined/flatview -> Only one out of four should be used
     
     flatview: off
     
