@@ -37,14 +37,11 @@ def check_group_correctness(context, x, group_type, phase):
             should_log = True
             
     elif comm_mode == "combined" and group_type == "across":
-        rank_id_per_node = mpi_rank % cfg.collective.comm_group.combined.within_node.num_gpus_per_node
-        current_gpu_id = cfg.collective.comm_group.combined.within_node.gpu_ids_per_node[rank_id_per_node]
-        if current_gpu_id in cfg.collective.comm_group.combined.across_node.gpu_ids_per_node:
-            across_group_idx = cfg.collective.comm_group.combined.across_node.gpu_ids_per_node.index(current_gpu_id)
-            node_id = mpi_rank // cfg.collective.comm_group.combined.within_node.num_gpus_per_node
-            if node_id == 0:   
-                group_rank_id = across_group_idx
-                should_log = True
+        rank_id_per_node = mpi_rank % cfg.collective.comm_group.combined.across_node.num_gpus_per_node
+        node_id = mpi_rank // cfg.collective.comm_group.combined.across_node.num_gpus_per_node
+        if node_id == 0:   
+            group_rank_id = rank_id_per_node
+            should_log = True
                 
     elif comm_mode == "flatview" and group_type == "flatview":
         if mpi_rank == 0:
