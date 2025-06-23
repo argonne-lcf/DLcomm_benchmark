@@ -17,7 +17,7 @@ collective:
   verify_correctness: on
   
   comm_group:
-    mode: combined  # within_node/across_node/combined/flatview -> Only one out of four should be used
+    mode: combined # within_node/across_node/combined/flatview -> Only one out of four should be used
     
     flatview: off
     
@@ -34,9 +34,9 @@ collective:
     combined:
       within_node:
         num_compute_nodes: 2
-        num_gpus_per_node: 12  
-        gpu_ids_per_node: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+        num_gpus_per_node: 6  
+        gpu_ids_per_node: [0, 1, 2, 3, 4, 5]
       across_node:
         num_compute_nodes: 2
         num_gpus_per_node: 2  
-        gpu_ids_per_node: [0, 7]
+        gpu_ids_per_node: [8, 9]

@@ -15,7 +15,7 @@ def setup_communication_groups(cfg: DictConfig, mpi_rank, log, dist=None):
     device = None
 
     if mpi_rank == 0:
-        log.info(f"[COMM] Setting up communication groups for mode: {comm_mode}")
+        log.info(f"[COMM][CONFIG] Setting up communication groups for mode: {comm_mode}")
     
     # ----------------------------------------------------------------------------
     # WITHIN NODE MODE
@@ -31,7 +31,7 @@ def setup_communication_groups(cfg: DictConfig, mpi_rank, log, dist=None):
         
         if mpi_rank == 0:
             log.info(f"[COMM][CONFIG] Within-node config: {num_gpus_per_node} GPUs, Device IDs: {gpu_ids_per_node}")
-            
+            log.info("")
         # DISTRIBUTED GROUP CREATION
         if mpi_rank == 0:
             log.info("[COMM][GROUP CREATION] Within-node groups:")
@@ -47,12 +47,12 @@ def setup_communication_groups(cfg: DictConfig, mpi_rank, log, dist=None):
                     log.info(f"[COMM][GROUP CREATION][Within Group-{node}] Ranks: {group_ranks}")
         
         node_id = mpi_rank // num_gpus_per_node
-        gpu_idx = mpi_rank % num_gpus_per_node
+        rank_id_per_node = mpi_rank % num_gpus_per_node
         my_within_group = within_groups[node_id]
 
         # DEVICE ALLOCATION
         if torch.xpu.is_available():
-            device_id = gpu_ids_per_node[gpu_idx]
+            device_id = gpu_ids_per_node[rank_id_per_node]
             device = torch.device(f"xpu:{device_id}")
         else:
             device = torch.device('cpu')
@@ -66,7 +66,7 @@ def setup_communication_groups(cfg: DictConfig, mpi_rank, log, dist=None):
     elif comm_mode == "across_node":
         
         if mpi_rank == 0:
-            log.info("[COMM] Setting up across-node groups")
+            log.info("[COMM][CONFIG] Setting up across-node groups")
 
         # CONFIG PARSING
         across_config = comm_config.across_node
@@ -76,7 +76,7 @@ def setup_communication_groups(cfg: DictConfig, mpi_rank, log, dist=None):
         
         if mpi_rank == 0:
             log.info(f"[COMM][CONFIG] Across-node config: {num_compute_nodes} nodes, {num_gpus_per_node} GPUs per node, Device IDs: {gpu_ids_per_node}")
-
+            log.info("")
         # DISTRIBUTED GROUP CREATION
         if mpi_rank == 0:
             log.info("[COMM][GROUP CREATION] Across-node groups:")
@@ -91,12 +91,12 @@ def setup_communication_groups(cfg: DictConfig, mpi_rank, log, dist=None):
                 if mpi_rank == 0:
                     log.info(f"[COMM][GROUP CREATION][Across Group-{i}] Ranks: {group_ranks}")
         
-        gpu_index = mpi_rank % num_gpus_per_node
-        my_across_group = across_groups[gpu_index]
+        rank_id_per_node = mpi_rank % num_gpus_per_node
+        my_across_group = across_groups[rank_id_per_node]
 
         # DEVICE ALLOCATION
         if torch.xpu.is_available():
-            device_id = gpu_ids_per_node[gpu_index]
+            device_id = gpu_ids_per_node[rank_id_per_node]
             device = torch.device(f"xpu:{device_id}")
         else:
             device = torch.device('cpu')
@@ -104,7 +104,7 @@ def setup_communication_groups(cfg: DictConfig, mpi_rank, log, dist=None):
                 log.info("[COMM] XPU not available, using CPU")
 
         if mpi_rank == 0:
-            log.info(f"[COMM] Created {len(across_groups)} across-node groups")
+            log.info(f"[COMM][GROUP CREATION] Created {len(across_groups)} across-node groups")
 
     # ----------------------------------------------------------------------------
     # COMBINED MODE
@@ -113,7 +113,8 @@ def setup_communication_groups(cfg: DictConfig, mpi_rank, log, dist=None):
     elif comm_mode == "combined":
        
         if mpi_rank == 0:
-            log.info("[COMM] Setting up combined (within + across) groups")
+            log.info("[COMM][CONFIG] Setting up combined (within + across) groups")
+             
 
         # CONFIG PARSING
         within_config = comm_config.combined.within_node
@@ -126,6 +127,7 @@ def setup_communication_groups(cfg: DictConfig, mpi_rank, log, dist=None):
         
         if mpi_rank == 0:
             log.info(f"[COMM][CONFIG] Combined config - Within: {num_gpus_per_node} GPUs Device IDs: {gpu_ids_per_node}, Across: {num_compute_nodes} nodes Device IDs: {across_gpu_ids}")
+            log.info("")
             log.info("[COMM][GROUP CREATION] Combined mode groups:")
 
         # DISTRIBUTED GROUP CREATION - WITHIN
@@ -141,23 +143,23 @@ def setup_communication_groups(cfg: DictConfig, mpi_rank, log, dist=None):
                     log.info(f"[COMM][GROUP CREATION][Within Group-{node}] Ranks: {group_ranks}")
         
         node_id = mpi_rank // num_gpus_per_node
-        gpu_index = mpi_rank % num_gpus_per_node
+        rank_id_per_node = mpi_rank % num_gpus_per_node
         my_within_group = within_groups[node_id]
 
         # DISTRIBUTED GROUP CREATION - ACROSS
         with timer("Group Creation (Combined-Across)"):
             across_groups = []
             for i, gpu_id in enumerate(across_gpu_ids):
-                gpu_idx = gpu_ids_per_node.index(gpu_id)
+                rank_idx_per_node = gpu_ids_per_node.index(gpu_id)
                 group_ranks = []
                 for node in range(num_compute_nodes):
-                    rank = node * num_gpus_per_node + gpu_idx
+                    rank = node * num_gpus_per_node + rank_idx_per_node
                     group_ranks.append(rank)
                 across_groups.append(dist.new_group(ranks=group_ranks))
                 if mpi_rank == 0:
                     log.info(f"[COMM][GROUP CREATION][Across Group-{i}] Ranks: {group_ranks}")
         
-        current_gpu_id = gpu_ids_per_node[gpu_index]
+        current_gpu_id = gpu_ids_per_node[rank_id_per_node]
         my_across_group = None
         if current_gpu_id in across_gpu_ids:
             across_idx = across_gpu_ids.index(current_gpu_id)
@@ -165,7 +167,7 @@ def setup_communication_groups(cfg: DictConfig, mpi_rank, log, dist=None):
 
         # DEVICE ALLOCATION
         if torch.xpu.is_available():
-            device_id = gpu_ids_per_node[gpu_index]
+            device_id = gpu_ids_per_node[rank_id_per_node]
             device = torch.device(f"xpu:{device_id}")
         else:
             device = torch.device('cpu')
@@ -173,7 +175,7 @@ def setup_communication_groups(cfg: DictConfig, mpi_rank, log, dist=None):
                 log.info("[COMM] XPU not available, using CPU")
         
         if mpi_rank == 0:
-            log.info(f"[COMM] Created {len(within_groups)} within-node groups and {len(across_groups)} across-node groups")
+            log.info(f"[COMM][GROUP CREATION] Created {len(within_groups)} within-node groups and {len(across_groups)} across-node groups")
 
     # ----------------------------------------------------------------------------
     # FLATVIEW MODE
@@ -183,6 +185,7 @@ def setup_communication_groups(cfg: DictConfig, mpi_rank, log, dist=None):
          
         if mpi_rank == 0:
             log.info("[COMM][CONFIG] Using flatview (world group)")
+            log.info("")
             log.info("[COMM][GROUP CREATION] Flatview: Using world group (all ranks)")
 
         # CONFIG PARSING and DEVICE ALLOCATION
