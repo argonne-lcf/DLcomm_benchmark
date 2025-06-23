@@ -112,7 +112,18 @@ def main(cfg: DictConfig):
     
     # ConfigValidator and parse_buffer_size funcs defined in ./config/validation.py
     validator = ConfigValidator(spec)
-    buffer_in_bytes = validator.validate(cfg)
+    config_valid, buffer_in_bytes = validator.validate(cfg, mpi_rank, log)
+    
+    if not config_valid:
+        if mpi_rank == 0:
+            log.error("[EXIT] Exiting due to configuration validation errors")
+        return
+    
+    # Validation for MPI and hardware setup
+    if not validator.validate_runtime(cfg, mpi_size, mpi_rank, log):
+        if mpi_rank == 0:
+            log.error("[EXIT] Exiting due to runtime validation errors")
+        return
     
     # setup_environment func defined in current file
     setup_environment(cfg)

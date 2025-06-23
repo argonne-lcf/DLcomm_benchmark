@@ -118,12 +118,21 @@ def setup_communication_groups(cfg: DictConfig, mpi_rank, log, dist=None):
     # ----------------------------------------------------------------------------
     
     if comm_mode == "flatview":
-         
+        
+        # Determine topology information
+        if torch.xpu.is_available():
+            gpus_per_node = torch.xpu.device_count()
+            device_ids = list(range(gpus_per_node))
+        else:
+            gpus_per_node = 1
+            device_ids = ["CPU"]
+ 
+        
         if mpi_rank == 0:
-            log.info("[COMM][CONFIG] Using flatview (world group)")
+            log.info(f"[COMM][CONFIG] Flatview: ?? nodes, {gpus_per_node} GPUs per node, Device IDs: {device_ids}")
             log.info("")
-            log.info("[COMM][GROUP CREATION] Flatview: Using world group (all ranks)")
-
+            log.info("[COMM][GROUP CREATION] Flatview groups:")
+ 
         # CONFIG PARSING and DEVICE ALLOCATION
         world_group = None  
         if torch.xpu.is_available():
