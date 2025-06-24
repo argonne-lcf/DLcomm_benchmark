@@ -13,6 +13,12 @@ def setup_communication_groups(cfg: DictConfig, mpi_rank, log, dist=None):
     my_across_group = None
     world_group = None
     device = None
+    within_group_id = None
+    across_group_id = None
+    within_group_ranks = None
+    across_group_ranks = None
+    world_group_ranks = None
+    ranks_responsible_for_logging = set([0])  # Rank 0 always responsible for world/flatview
 
 
     
@@ -37,6 +43,7 @@ def setup_communication_groups(cfg: DictConfig, mpi_rank, log, dist=None):
         if mpi_rank == 0:
             log.info(f"[COMM][CONFIG] Within-node: {num_gpus_per_node} GPUs per node, Device IDs: {gpu_ids_per_node}")
             log.info("[COMM][GROUP CREATION] Within-node groups:")
+
         with timer("Group Creation (Within)"):
             within_groups = []
             for node in range(num_compute_nodes):
@@ -45,12 +52,22 @@ def setup_communication_groups(cfg: DictConfig, mpi_rank, log, dist=None):
                     rank = node * num_gpus_per_node + gpu
                     group_ranks.append(rank)
                 within_groups.append(dist.new_group(ranks=group_ranks))
+                # First rank in each within group is responsible for logging
+                responsible_rank = min(group_ranks)
+                ranks_responsible_for_logging.add(responsible_rank)
                 if mpi_rank == 0:
-                    log.info(f"[COMM][GROUP CREATION][Within Group-{node}] Ranks: {group_ranks}")
+                    log.info(f"[COMM][GROUP CREATION][Within Group-{node}] Ranks: {group_ranks}, Logging: rank {responsible_rank}")
         
         node_id = mpi_rank // num_gpus_per_node
         rank_id_per_node = mpi_rank % num_gpus_per_node
         my_within_group = within_groups[node_id]
+        within_group_id = node_id
+        
+        # Calculate the ranks for this rank's within-group
+        within_group_ranks = []
+        for gpu in range(num_gpus_per_node):
+            rank = node_id * num_gpus_per_node + gpu
+            within_group_ranks.append(rank)
 
         # DEVICE ALLOCATION
         if torch.xpu.is_available():
@@ -94,11 +111,21 @@ def setup_communication_groups(cfg: DictConfig, mpi_rank, log, dist=None):
                     rank = node * num_gpus_per_node + i
                     group_ranks.append(rank)
                 across_groups.append(dist.new_group(ranks=group_ranks))
+                # First rank in each across group is responsible for logging
+                responsible_rank = min(group_ranks)
+                ranks_responsible_for_logging.add(responsible_rank)
                 if mpi_rank == 0:
-                    log.info(f"[COMM][GROUP CREATION][Across Group-{i}] Ranks: {group_ranks}")
+                    log.info(f"[COMM][GROUP CREATION][Across Group-{i}] Ranks: {group_ranks}, Logging: rank {responsible_rank}")
         
         rank_id_per_node = mpi_rank % num_gpus_per_node
         my_across_group = across_groups[rank_id_per_node]
+        across_group_id = rank_id_per_node
+        
+        # Calculate the ranks for this rank's across-group
+        across_group_ranks = []
+        for node in range(num_compute_nodes):
+            rank = node * num_gpus_per_node + rank_id_per_node
+            across_group_ranks.append(rank)
 
         # DEVICE ALLOCATION
         if torch.xpu.is_available():
@@ -139,11 +166,23 @@ def setup_communication_groups(cfg: DictConfig, mpi_rank, log, dist=None):
             device = torch.device(f"xpu:{mpi_rank % torch.xpu.device_count()}")
         else:
             device = torch.device("cpu")
+        
+        # For flatview, all ranks participate
+        from mpi4py import MPI
+        mpi_size = MPI.COMM_WORLD.Get_size()
+        world_group_ranks = list(range(mpi_size))
 
-    
+ 
+
     return {
         'my_within_group': my_within_group,
         'my_across_group': my_across_group, 
         'world_group': world_group,
         'device': device,
+        'within_group_id': within_group_id,
+        'across_group_id': across_group_id,
+        'within_group_ranks': within_group_ranks,
+        'across_group_ranks': across_group_ranks,
+        'world_group_ranks': world_group_ranks,
+        'ranks_responsible_for_logging': ranks_responsible_for_logging,
     }

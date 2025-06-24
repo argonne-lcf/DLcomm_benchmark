@@ -37,7 +37,7 @@ from mpi4py import MPI
 # dl_comm packages
 from dl_comm.utils.utility import DLCOMMLogger, Profile
 from dl_comm.comm import COLLECTIVES, OPS_NEED_REDUCE, OP_MAP, DTYPES
-from dl_comm.timer import timer, print_all_times
+from dl_comm.timer import timer, print_all_times, gather_and_print_all_times
 from dl_comm.analysis import report_ccl_selection, print_all_bandwidths, check_group_correctness
 from dl_comm.comm import setup_communication_groups
 from dl_comm.config import ConfigValidator, parse_buffer_size
@@ -181,7 +181,7 @@ def main(cfg: DictConfig):
     if mpi_rank == 0:
         import socket
         MASTER_ADDR = socket.gethostname()
-        MASTER_PORT = 2255
+        MASTER_PORT = 2257
     else:
         MASTER_ADDR = None
         MASTER_PORT = None
@@ -216,6 +216,11 @@ def main(cfg: DictConfig):
     my_across_group = comm_info['my_across_group'] 
     world_group = comm_info['world_group']
     device = comm_info['device']
+    within_group_id = comm_info['within_group_id']
+    across_group_id = comm_info['across_group_id']
+ 
+    ranks_responsible_for_logging = comm_info['ranks_responsible_for_logging']
+   
  
     MPI.COMM_WORLD.Barrier()
     
@@ -243,6 +248,7 @@ def main(cfg: DictConfig):
         context = {'mpi_rank': mpi_rank, 'cfg': cfg, 'log': log, 'iteration': i}
         
         if comm_mode == "flatview":
+            
             check_group_correctness(context, x, "flatview", "before")
             with timer("(Flatview)"):
                 run_collective(x, op_obj, group=world_group)
@@ -250,43 +256,49 @@ def main(cfg: DictConfig):
             check_group_correctness(context, x, "flatview", "after")
 
         elif comm_mode == "within_node":
+
             check_group_correctness(context, x, "within", "before")
-            with timer("(Within)"):
+            with timer(f"(Within-Group-{within_group_id})"):
                 run_collective(x, op_obj, group=my_within_group)
                 MPI.COMM_WORLD.Barrier()
             check_group_correctness(context, x, "within", "after")
 
         elif comm_mode == "across_node":
+
             check_group_correctness(context, x, "across", "before")
-            with timer("(Across)"):
+            with timer(f"(Across-Group-{across_group_id})"):
                 run_collective(x, op_obj, group=my_across_group)
                 MPI.COMM_WORLD.Barrier()
             check_group_correctness(context, x, "across", "after")
 
         elif comm_mode == "combined":
+
             with timer("Total (Within→Across)"):
                  
                 check_group_correctness(context, x, "within", "before")
-                with timer("(Within)"):
+                with timer(f"(Within-Group-{within_group_id})"):
                     run_collective(x, op_obj, group=my_within_group)
                     MPI.COMM_WORLD.Barrier()
                 check_group_correctness(context, x, "within", "after")
-                
-                 
+
+                #Fresh tensor for sequintal operation
+                x = torch.ones(num_elems, dtype=torch_dtype).to(device, non_blocking=True)
                 check_group_correctness(context, x, "across", "before")
-                with timer("(Across)"):
-                    if my_across_group:
+                if my_across_group:
+                    with timer(f"(Across-Group-{across_group_id})"):
                         run_collective(x, op_obj, group=my_across_group)
-                    MPI.COMM_WORLD.Barrier()
+                        MPI.COMM_WORLD.Barrier()
                 check_group_correctness(context, x, "across", "after")      
 
     # ----------------------------------------------------------------------------
     #  REPORTING
     # ----------------------------------------------------------------------------
-
+  
+    # Gather all timer data from responsible ranks and let rank 0 print organized output
+    gather_and_print_all_times(log, ranks_responsible_for_logging)
+    
+    # Only rank 0 prints bandwidth analysis
     if mpi_rank == 0:
-        # print_all_times func defined in ./timer/timer.py
-        print_all_times(log)
         # print_all_bandwidths func defined in ./analysis/bandwidth.py
         print_all_bandwidths(log, buffer_in_bytes, coll_name)
 
