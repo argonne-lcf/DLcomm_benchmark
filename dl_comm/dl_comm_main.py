@@ -151,6 +151,7 @@ def main(cfg: DictConfig):
     iters               = cfg.collective.iterations
     enable_correctness  = cfg.collective.verify_correctness 
     comm_mode           = cfg.collective.comm_group.mode
+    barrier_enabled     = cfg.barrier
 
     # COLLECTIVES, DTYPES, OP_MAP, OPS_NEED_REDUCE defined in ./comm/collectives.py
     torch_dtype, elem_size = DTYPES[dtype_str]
@@ -158,6 +159,11 @@ def main(cfg: DictConfig):
 
     run_collective = COLLECTIVES[coll_name]
     op_obj = OP_MAP[op_name] if coll_name in OPS_NEED_REDUCE else None
+    
+    # Define barrier function for timing synchronization
+    def time_barrier():
+        if barrier_enabled:
+            MPI.COMM_WORLD.Barrier()
     
     if mpi_rank == 0:
         log.info("[CONFIG] Final validated settings\n")
@@ -250,53 +256,60 @@ def main(cfg: DictConfig):
         if comm_mode == "flatview":
             
             check_group_correctness(context, x, "flatview", "before")
+            time_barrier()
             with timer("(Flatview)"):
                 run_collective(x, op_obj, group=world_group)
-                MPI.COMM_WORLD.Barrier()
+                time_barrier()
             check_group_correctness(context, x, "flatview", "after")
 
         elif comm_mode == "within_node":
 
             check_group_correctness(context, x, "within", "before")
+            time_barrier()
             with timer(f"(Within-Group-{within_group_id})"):
                 run_collective(x, op_obj, group=my_within_group)
-                MPI.COMM_WORLD.Barrier()
+                time_barrier()
             check_group_correctness(context, x, "within", "after")
 
         elif comm_mode == "across_node":
 
             check_group_correctness(context, x, "across", "before")
+            time_barrier()
             with timer(f"(Across-Group-{across_group_id})"):
                 run_collective(x, op_obj, group=my_across_group)
-                MPI.COMM_WORLD.Barrier()
+                time_barrier()
             check_group_correctness(context, x, "across", "after")
 
         elif comm_mode == "combined":
 
+            time_barrier()
             with timer("Total (Within→Across)"):
                  
                 check_group_correctness(context, x, "within", "before")
+                time_barrier()
                 with timer(f"(Within-Group-{within_group_id})"):
                     run_collective(x, op_obj, group=my_within_group)
-                    MPI.COMM_WORLD.Barrier()
+                    time_barrier()
                 check_group_correctness(context, x, "within", "after")
 
                 #Fresh tensor for sequintal operation
                 x = torch.ones(num_elems, dtype=torch_dtype).to(device, non_blocking=True)
-                
+
                 check_group_correctness(context, x, "across", "before")
                 if my_across_group:
+                    time_barrier()
                     with timer(f"(Across-Group-{across_group_id})"):
                         run_collective(x, op_obj, group=my_across_group)
-                        MPI.COMM_WORLD.Barrier()
-                check_group_correctness(context, x, "across", "after")      
+                        time_barrier()
+                check_group_correctness(context, x, "across", "after")
+                time_barrier()
 
     # ----------------------------------------------------------------------------
     #  REPORTING
     # ----------------------------------------------------------------------------
   
     # Gather all timer data from responsible ranks and let rank 0 print organized output
-    gather_and_print_all_times(log, ranks_responsible_for_logging)
+    gather_and_print_all_times(log, ranks_responsible_for_logging, barrier_enabled)
     
     # Only rank 0 prints bandwidth analysis
     if mpi_rank == 0:

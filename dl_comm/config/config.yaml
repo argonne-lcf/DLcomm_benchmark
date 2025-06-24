@@ -2,6 +2,7 @@ framework  : pytorch  # tensorflow / jax / titan / monarch
 ccl_backend : xccl   # rccl / nccl
 ccl_debug   : off    # on / off - enables CCL debug logging and algorithm selection reporting
 use_profiler: unitrace
+barrier     : off    # on / off - on: adds MPI barrier before timer printing for accurate timing, off: only rank 0 prints (other collectives may still be in process)
 
 collective:
   name: allreduce   # allgather / reducescatter / broadcast
@@ -34,9 +35,9 @@ collective:
     combined:
       within_node:
         num_compute_nodes: 2
-        num_gpus_per_node: 3
-        gpu_ids_per_node: [0, 1, 2,  ]
+        num_gpus_per_node: 12
+        gpu_ids_per_node: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]   
       across_node:
         num_compute_nodes: 2
         num_gpus_per_node: 2
-        gpu_ids_per_node: [  10, 11]
+        gpu_ids_per_node: [0, 1]

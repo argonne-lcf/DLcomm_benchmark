@@ -12,7 +12,7 @@ def timer(label: str):
     yield
     TIMES[label].append(perf_counter_ns() - start)
 
-def gather_and_print_all_times(logger, ranks_responsible_for_logging, title="[TIMERS]"):
+def gather_and_print_all_times(logger, ranks_responsible_for_logging, barrier_enabled, title="[TIMERS]"):
     mpi_rank = MPI.COMM_WORLD.Get_rank()
     
     my_data = None
@@ -116,6 +116,12 @@ def gather_and_print_all_times(logger, ranks_responsible_for_logging, title="[TI
             vals = timer_data['vals']
             rank = timer_data['rank']
             logger.output(f"[TIMERS][LOGGING RANK - {rank}] {label:<25}= {vals[0]} ns")
+        
+        logger.output("")
+        if barrier_enabled:
+            logger.output(f"{title} [BARRIER ENABLED] Timing measurements used MPI barriers for synchronization")
+        else:
+            logger.output(f"{title} [BARRIER DISABLED] Warning: Timing without barriers - other collectives may still be in process")
         
         if iteration_data:
             logger.output("")
