@@ -1,6 +1,6 @@
  
 from contextlib import contextmanager
-from time import perf_counter
+from time import perf_counter_ns
 from collections import defaultdict
 from mpi4py import MPI
 
@@ -8,9 +8,9 @@ TIMES = defaultdict(list)
 
 @contextmanager
 def timer(label: str):
-    start = perf_counter()
+    start = perf_counter_ns()
     yield
-    TIMES[label].append(perf_counter() - start)
+    TIMES[label].append(perf_counter_ns() - start)
 
 def gather_and_print_all_times(logger, ranks_responsible_for_logging, title="[TIMERS]"):
     mpi_rank = MPI.COMM_WORLD.Get_rank()
@@ -93,10 +93,10 @@ def gather_and_print_all_times(logger, ranks_responsible_for_logging, title="[TI
                     vals = timer_data['vals']
                     rank = timer_data['rank']
                     if len(vals) == 1:
-                        logger.output(f"[TIMERS][LOGGING RANK - {rank}] {label:<25}= {vals[0]:.6f} s")
+                        logger.output(f"[TIMERS][LOGGING RANK - {rank}] {label:<25}= {vals[0]} ns")
                     else:
-                        joined = ", ".join(f"{v:.6f}" for v in vals)
-                        logger.output(f"[TIMERS][LOGGING RANK - {rank}] {label:<25}= [{joined}] s")
+                        joined = ", ".join(f"{v}" for v in vals)
+                        logger.output(f"[TIMERS][LOGGING RANK - {rank}] {label:<25}= [{joined}] ns")
         
         iteration_data = {}
         non_iteration_data = {}
@@ -115,7 +115,7 @@ def gather_and_print_all_times(logger, ranks_responsible_for_logging, title="[TI
         for label, timer_data in non_iteration_data.items():
             vals = timer_data['vals']
             rank = timer_data['rank']
-            logger.output(f"[TIMERS][LOGGING RANK - {rank}] {label:<25}= {vals[0]:.6f} s")
+            logger.output(f"[TIMERS][LOGGING RANK - {rank}] {label:<25}= {vals[0]} ns")
         
         if iteration_data:
             logger.output("")
@@ -146,7 +146,7 @@ def gather_and_print_all_times(logger, ranks_responsible_for_logging, title="[TI
                 for label in headers:
                     vals = iteration_data[label]['vals']
                     if i < len(vals):
-                        row += f"{vals[i]:^{col_width}.6f}"
+                        row += f"{vals[i]:^{col_width}}"
                     else:
                         row += f"{'-':^{col_width}}"
                 logger.output(row)
@@ -163,9 +163,9 @@ def print_all_times(logger, title="[TIMERS]"):
     
     for label, vals in TIMES.items():
         if len(vals) == 1:
-            logger.output(f"{title} {label:<25}= {vals[0]:.6f} s")
+            logger.output(f"{title} {label:<25}= {vals[0]} ns")
         else:
-            joined = ", ".join(f"{v:.6f}" for v in vals)
-            logger.output(f"{title} {label:<25}= [{joined}] s")
+            joined = ", ".join(f"{v}" for v in vals)
+            logger.output(f"{title} {label:<25}= [{joined}] ns")
 
     logger.output(f"{title} -------------------------------------------\n")

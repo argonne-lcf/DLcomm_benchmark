@@ -283,6 +283,7 @@ def main(cfg: DictConfig):
 
                 #Fresh tensor for sequintal operation
                 x = torch.ones(num_elems, dtype=torch_dtype).to(device, non_blocking=True)
+                
                 check_group_correctness(context, x, "across", "before")
                 if my_across_group:
                     with timer(f"(Across-Group-{across_group_id})"):
