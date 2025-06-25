@@ -1,0 +1,43 @@
+framework  : pytorch  # tensorflow / jax / titan / monarch
+ccl_backend : xccl   # rccl / nccl
+ccl_debug   : off    # on / off - enables CCL debug logging and algorithm selection reporting
+use_profiler: unitrace
+barrier     : on    # on / off - on: adds MPI barrier before timer printing for accurate timing, off: only rank 0 prints (other collectives may still be in process)
+
+collective:
+  name: allreduce   # allgather / reducescatter / broadcast
+  op: sum          # max / min / prod / sum
+  scale_up_algorithm: topo
+  scale_out_algorithm: ring        # rabinseifner 
+  iterations: 5
+  payload:
+    dtype: bfloat16  # float64 / int32 / int64 / bfloat16 / float8 / float32
+    count: 1024
+    buffer_size: 1KB # 4096  # in Bytes -> float32(4B) x 1024 elements
+   
+  verify_correctness: on
+  
+  comm_group:
+    mode: combined # within_node/across_node/combined/flatview -> Only one out of four should be used
+    
+    flatview: off
+    
+    within_node: 
+      num_compute_nodes: 2 
+      num_gpus_per_node: 12
+      gpu_ids_per_node: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]   
+    
+    across_node: 
+      num_compute_nodes: 2
+      num_gpus_per_node: 12
+      gpu_ids_per_node: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]   
+    
+    combined:
+      within_node:
+        num_compute_nodes: 2
+        num_gpus_per_node: 12
+        gpu_ids_per_node: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]   
+      across_node:
+        num_compute_nodes: 2
+        num_gpus_per_node: 2
+        gpu_ids_per_node: [0, 1]

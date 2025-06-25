@@ -3,42 +3,57 @@ _before_values = {}
 
 def check_group_correctness(context, x, group_type, phase):
  
-    if context['iteration'] != 0 or not context['cfg'].collective.verify_correctness:
+    # Check verify_correctness based on comm_mode and group_type
+    cfg = context['cfg']
+    comm_mode = cfg.comm_group.mode
+    
+    verify_correctness = False
+    if comm_mode == "flatview" and group_type == "flatview":
+        verify_correctness = cfg.comm_group.flatview.verify_correctness
+    elif comm_mode == "within_node" and group_type == "within":
+        verify_correctness = cfg.comm_group.within_node.verify_correctness
+    elif comm_mode == "across_node" and group_type == "across":
+        verify_correctness = cfg.comm_group.across_node.verify_correctness
+    elif comm_mode == "combined":
+        if group_type == "within":
+            verify_correctness = cfg.comm_group.combined.within_node.verify_correctness
+        elif group_type == "across":
+            verify_correctness = cfg.comm_group.combined.across_node.verify_correctness
+    
+    if context['iteration'] != 0 or not verify_correctness:
         return
     
   
     mpi_rank = context['mpi_rank']
-    cfg = context['cfg']
     log = context['log']
-    comm_mode = cfg.collective.comm_group.mode
     
     group_rank_id = None
     should_log = False
     
     if comm_mode == "within_node" and group_type == "within":
-        node_id = mpi_rank // cfg.collective.comm_group.within_node.num_gpus_per_node
-        rank_id_per_node = mpi_rank % cfg.collective.comm_group.within_node.num_gpus_per_node
+        node_id = mpi_rank // cfg.comm_group.within_node.num_gpus_per_node
+        rank_id_per_node = mpi_rank % cfg.comm_group.within_node.num_gpus_per_node
         if rank_id_per_node == 0:  
             group_rank_id = node_id
             should_log = True
             
     elif comm_mode == "across_node" and group_type == "across":
-        rank_id_per_node = mpi_rank % cfg.collective.comm_group.across_node.num_gpus_per_node
-        node_id = mpi_rank // cfg.collective.comm_group.across_node.num_gpus_per_node
+        rank_id_per_node = mpi_rank % cfg.comm_group.across_node.num_gpus_per_node
+        node_id = mpi_rank // cfg.comm_group.across_node.num_gpus_per_node
         if node_id == 0:   
             group_rank_id = rank_id_per_node
             should_log = True
             
     elif comm_mode == "combined" and group_type == "within":
-        node_id = mpi_rank // cfg.collective.comm_group.combined.within_node.num_gpus_per_node
-        rank_id_per_node = mpi_rank % cfg.collective.comm_group.combined.within_node.num_gpus_per_node
+        node_id = mpi_rank // cfg.comm_group.combined.within_node.num_gpus_per_node
+        rank_id_per_node = mpi_rank % cfg.comm_group.combined.within_node.num_gpus_per_node
         if rank_id_per_node == 0:  
             group_rank_id = node_id
             should_log = True
             
     elif comm_mode == "combined" and group_type == "across":
-        rank_id_per_node = mpi_rank % cfg.collective.comm_group.combined.across_node.num_gpus_per_node
-        node_id = mpi_rank // cfg.collective.comm_group.combined.across_node.num_gpus_per_node
+        rank_id_per_node = mpi_rank % cfg.comm_group.combined.across_node.num_gpus_per_node
+        node_id = mpi_rank // cfg.comm_group.combined.across_node.num_gpus_per_node
         if node_id == 0:   
             group_rank_id = rank_id_per_node
             should_log = True

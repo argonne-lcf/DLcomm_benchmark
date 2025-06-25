@@ -6,7 +6,7 @@ from dl_comm.timer import timer
 def setup_communication_groups(cfg: DictConfig, mpi_rank, log, dist=None):
  
     
-    comm_config = cfg.collective.comm_group
+    comm_config = cfg.comm_group
     comm_mode = comm_config.mode
     
     my_within_group = None
