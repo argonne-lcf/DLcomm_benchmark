@@ -30,18 +30,17 @@ import pytz
 import torch
 import hydra
 import datetime
+from mpi4py import MPI
 from pathlib import Path
 from time import perf_counter
 from omegaconf import DictConfig, OmegaConf
-from mpi4py import MPI
 # dl_comm packages
+from dl_comm.comm import setup_communication_groups
 from dl_comm.utils.utility import DLCOMMLogger, Profile
+from dl_comm.config import ConfigValidator, parse_buffer_size
 from dl_comm.comm import COLLECTIVES, OPS_NEED_REDUCE, OP_MAP, DTYPES
 from dl_comm.timer import timer, print_all_times, gather_and_print_all_times
 from dl_comm.analysis import report_ccl_selection, print_all_bandwidths, check_group_correctness
-from dl_comm.comm import setup_communication_groups
-from dl_comm.config import ConfigValidator, parse_buffer_size
- 
 # ----------------------------------------------------------------------------
 # SETUP FUNCTIONS
 # ----------------------------------------------------------------------------
@@ -174,7 +173,7 @@ def main(cfg: DictConfig):
         op_across  = OP_MAP[op_name_across] if coll_name_across in OPS_NEED_REDUCE else None
     
     # ----------------------------------------------------------------------------
-    # CONFIG VALIDATION & ENVIRONMENT SETUP
+    # CONFIG VALIDATION 
     # ----------------------------------------------------------------------------
     
     config_spec_path = Path(__file__).parent / "config" / "config_spec.json"
@@ -196,12 +195,7 @@ def main(cfg: DictConfig):
             log.error("[EXIT] Exiting due to runtime validation errors")
         return
     
-    # setup_environment func defined in current file
-    if comm_mode != "combined":
-        setup_environment_with_collective(cfg, coll_cfg)
-    else:
-        # For combined mode, set up environment with within-node config first
-        setup_environment_with_collective(cfg, coll_within_cfg)
+    
     
     # ----------------------------------------------------------------------------
     # FRAMEWORK-SPECIFIC IMPORTS
@@ -332,7 +326,6 @@ def main(cfg: DictConfig):
     device = comm_info['device']
     within_group_id = comm_info['within_group_id']
     across_group_id = comm_info['across_group_id']
- 
     ranks_responsible_for_logging = comm_info['ranks_responsible_for_logging']
    
  
@@ -350,6 +343,7 @@ def main(cfg: DictConfig):
 
     # Single-phase (flatview / within_node / across_node)
     if comm_mode != "combined":
+        setup_environment_with_collective(cfg, coll_cfg)
         for i in range(iters):
            
             x = torch.ones(num_elems, dtype=torch_dtype).to(device, non_blocking=True)
@@ -383,6 +377,7 @@ def main(cfg: DictConfig):
     
     else:
         # ─── Within-node phase iterations ───────────────────────────
+        setup_environment_with_collective(cfg, coll_within_cfg)
         for i in range(iters_within):
             context = {'mpi_rank': mpi_rank, 'cfg': cfg,'log': log, 'iteration': i}
             x = torch.ones(num_elems_within, dtype=torch_dtype_within).to(device, non_blocking=True)
@@ -395,6 +390,7 @@ def main(cfg: DictConfig):
             check_group_correctness(context, x, "within", "after")
 
         # ─── Across-node phase iterations ───────────────────────────
+        setup_environment_with_collective(cfg, coll_across_cfg)
         for i in range(iters_across):
             context = {'mpi_rank': mpi_rank, 'cfg': cfg,'log': log, 'iteration': i}
             x = torch.ones(num_elems_across, dtype=torch_dtype_across).to(device, non_blocking=True)
