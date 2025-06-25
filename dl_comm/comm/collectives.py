@@ -51,7 +51,7 @@ def _reduce(tensor, op, group=None, dist=None):
 
 
 @register_collective("broadcast")      
-def _broadcast(tensor, op=None, group=None, dist=None):
+def _broadcast(tensor, group=None, dist=None):
     # Find the smallest global rank in the group to use as source
     group_ranks = dist.get_process_group_ranks(group)
     smallest_rank = min(group_ranks)
@@ -64,7 +64,7 @@ def _allgather(tensor, op=None, group=None, dist=None):
     world_size = dist.get_world_size(group)
     tensor_list = [torch.empty_like(tensor) for _ in range(world_size)]
     dist.all_gather(tensor_list, tensor, group=group)
-    return tensor_list
+    return tensor_list  # Return pure list - no concatenation
 
 
 @register_collective("reducescatter", needs_op=True)

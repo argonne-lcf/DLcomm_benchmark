@@ -353,25 +353,25 @@ def main(cfg: DictConfig):
                 check_group_correctness(context, x, "flatview", "before")
                 time_barrier()
                 with timer("(Flatview)"):
-                    run_collective(x, op_obj, group=world_group, dist=dist)
+                    result = run_collective(x, op_obj, group=world_group, dist=dist)
                     time_barrier()
-                check_group_correctness(context, x, "flatview", "after")
+                check_group_correctness(context, x, "flatview", "after", tensor_list=result)
 
             elif comm_mode == "within_node":
                 check_group_correctness(context, x, "within", "before")
                 time_barrier()
                 with timer(f"(Within-Group-{within_group_id})"):
-                    run_collective(x, op_obj, group=my_within_group, dist=dist)
+                    result = run_collective(x, op_obj, group=my_within_group, dist=dist)
                     time_barrier()
-                check_group_correctness(context, x, "within", "after")
+                check_group_correctness(context, x, "within", "after", tensor_list=result)
 
             elif comm_mode == "across_node":
                 check_group_correctness(context, x, "across", "before")
                 time_barrier()
                 with timer(f"(Across-Group-{across_group_id})"):
-                    run_collective(x, op_obj, group=my_across_group, dist=dist)
+                    result = run_collective(x, op_obj, group=my_across_group, dist=dist)
                     time_barrier()
-                check_group_correctness(context, x, "across", "after")
+                check_group_correctness(context, x, "across", "after", tensor_list=result)
 
 
     
@@ -385,9 +385,9 @@ def main(cfg: DictConfig):
             check_group_correctness(context, x, "within", "before")
             time_barrier()
             with timer(f"(Within-Group-{within_group_id})"):
-                run_within(x, op_within, group=my_within_group, dist=dist)
+                result = run_within(x, op_within, group=my_within_group, dist=dist)
                 time_barrier()
-            check_group_correctness(context, x, "within", "after")
+            check_group_correctness(context, x, "within", "after", tensor_list=result)
 
         # ─── Across-node phase iterations ───────────────────────────
         setup_environment_with_collective(cfg, coll_across_cfg)
@@ -399,9 +399,11 @@ def main(cfg: DictConfig):
             if my_across_group:
                 time_barrier()
                 with timer(f"(Across-Group-{across_group_id})"):
-                    run_across(x, op_across, group=my_across_group, dist=dist)
+                    result = run_across(x, op_across, group=my_across_group, dist=dist)
                     time_barrier()
-            check_group_correctness(context, x, "across", "after")
+            else:
+                result = None
+            check_group_correctness(context, x, "across", "after", tensor_list=result)
 
         time_barrier()
 
