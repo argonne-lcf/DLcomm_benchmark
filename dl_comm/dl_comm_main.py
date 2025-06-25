@@ -46,8 +46,7 @@ from dl_comm.config import ConfigValidator, parse_buffer_size
 # SETUP FUNCTIONS
 # ----------------------------------------------------------------------------
 
-def setup_environment(cfg: DictConfig):
-
+def setup_environment_with_collective(cfg: DictConfig, coll_cfg):
     # CCL environment variables
     os.environ["CCL_ATL_TRANSPORT"] = "mpi"
     os.environ["CCL_ATL_SHM"] = "0"
@@ -57,22 +56,11 @@ def setup_environment(cfg: DictConfig):
     os.environ["TORCH_CPP_LOG_LEVEL"] = "error"
     os.environ["FI_MR_CACHE_MONITOR"] = "userfaultfd"
 
-    # Get collective config for environment setup
-    comm_mode           = cfg.comm_group.mode
-    if comm_mode == "flatview":
-        collective_cfg = cfg.comm_group.flatview.collective
-    elif comm_mode == "within_node":
-        collective_cfg = cfg.comm_group.within_node.collective
-    elif comm_mode == "across_node":
-        collective_cfg = cfg.comm_group.across_node.collective
-    elif comm_mode == "combined":
-        collective_cfg = cfg.comm_group.combined.within_node.collective
-    
-    scale_up_override = f"CCL_{collective_cfg.name.upper()}"
-    os.environ[scale_up_override]=collective_cfg.scale_up_algorithm
+    scale_up_override = f"CCL_{coll_cfg.name.upper()}"
+    os.environ[scale_up_override] = coll_cfg.scale_up_algorithm
 
-    scale_out_override = f"CCL_{collective_cfg.name.upper()}_SCALEOUT"
-    os.environ[scale_out_override]=collective_cfg.scale_out_algorithm
+    scale_out_override = f"CCL_{coll_cfg.name.upper()}_SCALEOUT"
+    os.environ[scale_out_override] = coll_cfg.scale_out_algorithm
 
 # ----------------------------------------------------------------------------
 # MAIN FUNCTION
@@ -114,16 +102,92 @@ def main(cfg: DictConfig):
         log.info("[CONFIG] Loading schema and validating user YAML")
 
     # ----------------------------------------------------------------------------
-    # CONFIG VALIDATION & ENVIRONMENT SETUP
+    # EXTRACT CONFIG VALUES
     # ----------------------------------------------------------------------------
 
+    framework       = cfg.framework
+    comm_mode       = cfg.comm_group.mode
+    barrier_enabled = cfg.barrier
+
+    # 1) Pick the right config block (or blocks) based on comm_mode
+    if comm_mode == "flatview":
+        coll_cfg = cfg.comm_group.flatview.collective
+
+    elif comm_mode == "within_node":
+        coll_cfg = cfg.comm_group.within_node.collective
+
+    elif comm_mode == "across_node":
+        coll_cfg = cfg.comm_group.across_node.collective
+
+    elif comm_mode == "combined":
+        # Unpack both within- and across-node configs
+        coll_within_cfg = cfg.comm_group.combined.within_node.collective
+        coll_across_cfg = cfg.comm_group.combined.across_node.collective
+
+    else:
+        raise ValueError(f"Unknown comm_group.mode: {comm_mode}")
+
+    # 2) Single-phase modes: extract once
+    if comm_mode != "combined":
+        mode_cfg = getattr(cfg.comm_group, comm_mode)
+        coll_name          = coll_cfg.name
+        op_name            = coll_cfg.op
+        dtype_str          = coll_cfg.payload.dtype
+        iters              = coll_cfg.iterations
+        enable_correctness = mode_cfg.verify_correctness
+
+        # compute buffer/count
+        buffer_in_bytes = parse_buffer_size(coll_cfg.payload.buffer_size)
+        torch_dtype, elem_size = DTYPES[dtype_str]
+        num_elems = buffer_in_bytes // elem_size
+
+        # lookup collective fn and op
+        run_collective = COLLECTIVES[coll_name]
+        op_obj         = OP_MAP[op_name] if coll_name in OPS_NEED_REDUCE else None
+
+    # 3) Combined mode: extract for both phases
+    else:
+        # ─── Within-node phase unpack ───────────────────────────────────────────
+        within_mode_cfg = cfg.comm_group.combined.within_node
+        coll_name_within          = coll_within_cfg.name
+        op_name_within            = coll_within_cfg.op
+        dtype_str_within          = coll_within_cfg.payload.dtype
+        iters_within              = coll_within_cfg.iterations
+        enable_correctness_within = within_mode_cfg.verify_correctness
+
+        buffer_within_bytes = parse_buffer_size(coll_within_cfg.payload.buffer_size)
+        torch_dtype_within, elem_size_within = DTYPES[dtype_str_within]
+        num_elems_within   = buffer_within_bytes // elem_size_within
+
+        run_within = COLLECTIVES[coll_name_within]
+        op_within  = OP_MAP[op_name_within] if coll_name_within in OPS_NEED_REDUCE else None
+
+        # ─── Across-node phase unpack ───────────────────────────────────────────
+        across_mode_cfg = cfg.comm_group.combined.across_node
+        coll_name_across          = coll_across_cfg.name
+        op_name_across            = coll_across_cfg.op
+        dtype_str_across          = coll_across_cfg.payload.dtype
+        iters_across              = coll_across_cfg.iterations
+        enable_correctness_across = across_mode_cfg.verify_correctness
+
+        buffer_across_bytes = parse_buffer_size(coll_across_cfg.payload.buffer_size)
+        torch_dtype_across, elem_size_across = DTYPES[dtype_str_across]
+        num_elems_across   = buffer_across_bytes // elem_size_across
+
+        run_across = COLLECTIVES[coll_name_across]
+        op_across  = OP_MAP[op_name_across] if coll_name_across in OPS_NEED_REDUCE else None
+    
+    # ----------------------------------------------------------------------------
+    # CONFIG VALIDATION & ENVIRONMENT SETUP
+    # ----------------------------------------------------------------------------
+    
     config_spec_path = Path(__file__).parent / "config" / "config_spec.json"
     with open(config_spec_path, "r") as f:
         spec = json.load(f)
     
     # ConfigValidator and parse_buffer_size funcs defined in ./config/validation.py
     validator = ConfigValidator(spec)
-    config_valid, buffer_in_bytes = validator.validate(cfg, mpi_rank, log)
+    config_valid, validation_buffer_bytes = validator.validate(cfg, mpi_rank, log)
     
     if not config_valid:
         if mpi_rank == 0:
@@ -137,7 +201,11 @@ def main(cfg: DictConfig):
         return
     
     # setup_environment func defined in current file
-    setup_environment(cfg)
+    if comm_mode != "combined":
+        setup_environment_with_collective(cfg, coll_cfg)
+    else:
+        # For combined mode, set up environment with within-node config first
+        setup_environment_with_collective(cfg, coll_within_cfg)
     
     # ----------------------------------------------------------------------------
     # FRAMEWORK-SPECIFIC IMPORTS
@@ -151,74 +219,6 @@ def main(cfg: DictConfig):
             import torch.nn.parallel
             import torch.distributed as dist
 
-    # ----------------------------------------------------------------------------
-    # EXTRACT CONFIG VALUES
-    # ----------------------------------------------------------------------------
-
-    framework           = cfg.framework
-    comm_mode           = cfg.comm_group.mode
-    barrier_enabled     = cfg.barrier
-    
-    # Get collective configs based on comm_mode
-    within_collective_cfg = None
-    across_collective_cfg = None
-    primary_collective_cfg = None
-    primary_mode_cfg = None
-    
-    if comm_mode == "flatview":
-        primary_mode_cfg = cfg.comm_group.flatview
-        primary_collective_cfg = primary_mode_cfg.collective
-    elif comm_mode == "within_node":
-        primary_mode_cfg = cfg.comm_group.within_node
-        primary_collective_cfg = primary_mode_cfg.collective
-        within_collective_cfg = primary_collective_cfg
-    elif comm_mode == "across_node":
-        primary_mode_cfg = cfg.comm_group.across_node
-        primary_collective_cfg = primary_mode_cfg.collective
-        across_collective_cfg = primary_collective_cfg
-    elif comm_mode == "combined":
-        # For combined mode, handle both within and across configs
-        within_mode_cfg = cfg.comm_group.combined.within_node
-        across_mode_cfg = cfg.comm_group.combined.across_node
-        within_collective_cfg = within_mode_cfg.collective
-        across_collective_cfg = across_mode_cfg.collective
-        # Use within_node as primary for overall setup
-        primary_mode_cfg = within_mode_cfg
-        primary_collective_cfg = within_collective_cfg
-    
-    coll_name           = primary_collective_cfg.name
-    op_name             = primary_collective_cfg.op
-    dtype_str           = primary_collective_cfg.payload.dtype
-    iters               = primary_collective_cfg.iterations
-    enable_correctness  = primary_mode_cfg.verify_correctness
-
-    # COLLECTIVES, DTYPES, OP_MAP, OPS_NEED_REDUCE defined in ./comm/collectives.py
-    torch_dtype, elem_size = DTYPES[dtype_str]
-    num_elems = buffer_in_bytes // elem_size
-
-  
-    run_collective = COLLECTIVES[coll_name]
-    op_obj = OP_MAP[op_name] if coll_name in OPS_NEED_REDUCE else None
-    
-    
-    within_run_collective = None
-    within_op_obj = None
-    across_run_collective = None
-    across_op_obj = None
-    
-    if comm_mode == "combined":
-       
-        within_coll_name = within_collective_cfg.name
-        within_op_name = within_collective_cfg.op
-        within_run_collective = COLLECTIVES[within_coll_name]
-        within_op_obj = OP_MAP[within_op_name] if within_coll_name in OPS_NEED_REDUCE else None
-        
-        
-        across_coll_name = across_collective_cfg.name
-        across_op_name = across_collective_cfg.op
-        across_run_collective = COLLECTIVES[across_coll_name]
-        across_op_obj = OP_MAP[across_op_name] if across_coll_name in OPS_NEED_REDUCE else None
-    
     # Define barrier function for timing synchronization
     def time_barrier():
         if barrier_enabled:
@@ -228,15 +228,29 @@ def main(cfg: DictConfig):
         log.info("[CONFIG] Final validated settings\n")
         log.info(f"  • framework           = {framework}")
         log.info(f"  • backend             = {cfg.ccl_backend}")
-        log.info(f"  • collective_name     = {coll_name}")
-        log.info(f"  • op                  = {op_name}")
-        log.info(f"  • scale_up_algo       = {primary_collective_cfg.scale_up_algorithm}")
-        log.info(f"  • scale_out_algo      = {primary_collective_cfg.scale_out_algorithm}")
-        log.info(f"  • buffer_size         = {primary_collective_cfg.payload.buffer_size} ({buffer_in_bytes} bytes)")
-        log.info(f"  • dtype               = {dtype_str}")
-        log.info(f"  • count               = {primary_collective_cfg.payload.count}")
         log.info(f"  • comm_mode           = {comm_mode}")
         log.info(f"  • use_profiler        = {cfg.get('use_profiler', 'none')}")
+        
+        if comm_mode != "combined":
+            log.info(f"  • collective_name     = {coll_name}")
+            log.info(f"  • op                  = {op_name}")
+            log.info(f"  • scale_up_algo       = {coll_cfg.scale_up_algorithm}")
+            log.info(f"  • scale_out_algo      = {coll_cfg.scale_out_algorithm}")
+            log.info(f"  • buffer_size         = {coll_cfg.payload.buffer_size} ({buffer_in_bytes} bytes)")
+            log.info(f"  • dtype               = {dtype_str}")
+            log.info(f"  • count               = {coll_cfg.payload.count}")
+        else:
+            log.info(f"  • within_collective   = {coll_name_within}")
+            log.info(f"  • within_op           = {op_name_within}")
+            log.info(f"  • within_scale_up     = {coll_within_cfg.scale_up_algorithm}")
+            log.info(f"  • within_buffer_size  = {coll_within_cfg.payload.buffer_size} ({buffer_within_bytes} bytes)")
+            log.info(f"  • within_dtype        = {dtype_str_within}")
+            log.info(f"  • across_collective   = {coll_name_across}")
+            log.info(f"  • across_op           = {op_name_across}")
+            log.info(f"  • across_scale_up     = {coll_across_cfg.scale_up_algorithm}")
+            log.info(f"  • across_buffer_size  = {coll_across_cfg.payload.buffer_size} ({buffer_across_bytes} bytes)")
+            log.info(f"  • across_dtype        = {dtype_str_across}")
+        
         log.info("-------------------------------------------------------------------------")
    
     # ----------------------------------------------------------------------------
@@ -293,27 +307,25 @@ def main(cfg: DictConfig):
         log.info("")
         log.info("[MPI][SETUP] ------------------------------------------------------")
         log.info(f"[MPI][SETUP] Framework      : {framework}")
-        log.info(f"[MPI][SETUP] Collective     : {coll_name}")
-        log.info(f"[MPI][SETUP] Operation      : {op_name if op_obj else 'N/A'}")
-        log.info(f"[MPI][SETUP] DType          : {dtype_str}")
-        log.info(f"[MPI][SETUP] Count          : {primary_collective_cfg.payload.count}")
-        log.info(f"[MPI][SETUP] Buffer Size    : {buffer_in_bytes}")
-        log.info(f"[MPI][SETUP] Iterations     : {iters}")
         log.info(f"[MPI][SETUP] World Size     : {mpi_size}")
         
-        # Additional logging for combined mode
-        if comm_mode == "combined":
-            log.info("")
-            log.info("[MPI][SETUP] COMBINED MODE - Within-node config:")
-            log.info(f"[MPI][SETUP]   Collective   : {within_collective_cfg.name}")
-            log.info(f"[MPI][SETUP]   Operation    : {within_collective_cfg.op}")
-            log.info(f"[MPI][SETUP]   DType        : {within_collective_cfg.payload.dtype}")
-            log.info(f"[MPI][SETUP]   Buffer Size  : {within_collective_cfg.payload.buffer_size}")
-            log.info("[MPI][SETUP] COMBINED MODE - Across-node config:")
-            log.info(f"[MPI][SETUP]   Collective   : {across_collective_cfg.name}")
-            log.info(f"[MPI][SETUP]   Operation    : {across_collective_cfg.op}")
-            log.info(f"[MPI][SETUP]   DType        : {across_collective_cfg.payload.dtype}")
-            log.info(f"[MPI][SETUP]   Buffer Size  : {across_collective_cfg.payload.buffer_size}")
+        if comm_mode != "combined":
+            log.info(f"[MPI][SETUP] Collective     : {coll_name}")
+            log.info(f"[MPI][SETUP] Operation      : {op_name if op_obj else 'N/A'}")
+            log.info(f"[MPI][SETUP] DType          : {dtype_str}")
+            log.info(f"[MPI][SETUP] Count          : {coll_cfg.payload.count}")
+            log.info(f"[MPI][SETUP] Buffer Size    : {buffer_in_bytes}")
+            log.info(f"[MPI][SETUP] Iterations     : {iters}")
+        else:
+            log.info(f"[MPI][SETUP] Within Collective : {coll_name_within}")
+            log.info(f"[MPI][SETUP] Within Operation  : {op_name_within if op_within else 'N/A'}")
+            log.info(f"[MPI][SETUP] Within DType      : {dtype_str_within}")
+            log.info(f"[MPI][SETUP] Within Buffer Size: {buffer_within_bytes}")
+            log.info(f"[MPI][SETUP] Across Collective : {coll_name_across}")
+            log.info(f"[MPI][SETUP] Across Operation  : {op_name_across if op_across else 'N/A'}")
+            log.info(f"[MPI][SETUP] Across DType      : {dtype_str_across}")
+            log.info(f"[MPI][SETUP] Across Buffer Size: {buffer_across_bytes}")
+            log.info(f"[MPI][SETUP] Iterations        : {iters_within}")
         
         log.info("[MPI][SETUP] ------------------------------------------------------")
         log.info("")
@@ -323,75 +335,74 @@ def main(cfg: DictConfig):
     #  COLLECTIVE OP EXECUTION
     # ----------------------------------------------------------------------------
 
-    for i in range(iters):
-        
-        if comm_mode == "combined":
-            
-            within_dtype_str = within_collective_cfg.payload.dtype
-            within_torch_dtype, within_elem_size = DTYPES[within_dtype_str]
-            within_buffer_bytes = parse_buffer_size(within_collective_cfg.payload.buffer_size)
-            within_num_elems = within_buffer_bytes // within_elem_size
-            x = torch.ones(within_num_elems, dtype=within_torch_dtype).to(device, non_blocking=True)
-        else:
-            x = torch.ones(num_elems, dtype=torch_dtype).to(device, non_blocking=True)
-        
-        context = {'mpi_rank': mpi_rank, 'cfg': cfg, 'log': log, 'iteration': i}
-        
-        if comm_mode == "flatview":
-            
-            check_group_correctness(context, x, "flatview", "before")
-            time_barrier()
-            with timer("(Flatview)"):
-                run_collective(x, op_obj, group=world_group)
+ 
+
+    # Single-phase (flatview / within_node / across_node)
+    if comm_mode != "combined":
+        for i in range(iters):
+            # fresh tensor for this iteration
+            x = torch.ones(num_elems, dtype=torch_dtype) \
+                    .to(device, non_blocking=True)
+            context = {'mpi_rank': mpi_rank, 'cfg': cfg,
+                    'log': log, 'iteration': i}
+
+            if comm_mode == "flatview":
+                check_group_correctness(context, x, "flatview", "before")
                 time_barrier()
-            check_group_correctness(context, x, "flatview", "after")
+                with timer("(Flatview)"):
+                    run_collective(x, op_obj, group=world_group)
+                    time_barrier()
+                check_group_correctness(context, x, "flatview", "after")
 
-        elif comm_mode == "within_node":
-
-            check_group_correctness(context, x, "within", "before")
-            time_barrier()
-            with timer(f"(Within-Group-{within_group_id})"):
-                run_collective(x, op_obj, group=my_within_group)
-                time_barrier()
-            check_group_correctness(context, x, "within", "after")
-
-        elif comm_mode == "across_node":
-
-            check_group_correctness(context, x, "across", "before")
-            time_barrier()
-            with timer(f"(Across-Group-{across_group_id})"):
-                run_collective(x, op_obj, group=my_across_group)
-                time_barrier()
-            check_group_correctness(context, x, "across", "after")
-
-        elif comm_mode == "combined":
-
-            time_barrier()
-            with timer("Total (Within→Across)"):
-                 
+            elif comm_mode == "within_node":
                 check_group_correctness(context, x, "within", "before")
                 time_barrier()
                 with timer(f"(Within-Group-{within_group_id})"):
-                    within_run_collective(x, within_op_obj, group=my_within_group)
+                    run_collective(x, op_obj, group=my_within_group)
                     time_barrier()
                 check_group_correctness(context, x, "within", "after")
 
-                # Create fresh tensor for across operation with potentially different config
-                across_dtype_str = across_collective_cfg.payload.dtype
-                across_torch_dtype, across_elem_size = DTYPES[across_dtype_str]
-                across_buffer_bytes = parse_buffer_size(across_collective_cfg.payload.buffer_size)
-                across_num_elems = across_buffer_bytes // across_elem_size
-                
-                x = torch.ones(across_num_elems, dtype=across_torch_dtype).to(device, non_blocking=True)
+            else:  # "across_node"
+                check_group_correctness(context, x, "across", "before")
+                time_barrier()
+                with timer(f"(Across-Group-{across_group_id})"):
+                    run_collective(x, op_obj, group=my_across_group)
+                    time_barrier()
+                check_group_correctness(context, x, "across", "after")
 
+
+    # Combined (within → across in each iteration)
+    else:
+        for i in range(iters_within):
+            context = {'mpi_rank': mpi_rank, 'cfg': cfg,
+                    'log': log, 'iteration': i}
+
+            time_barrier()
+            with timer("Total (Within→Across)"):
+                # ─── Within-node phase ───────────────────────────
+                x = torch.ones(num_elems_within,
+                            dtype=torch_dtype_within) \
+                        .to(device, non_blocking=True)
+                check_group_correctness(context, x, "within", "before")
+                time_barrier()
+                with timer(f"(Within-Group-{within_group_id})"):
+                    run_within(x, op_within, group=my_within_group)
+                    time_barrier()
+                check_group_correctness(context, x, "within", "after")
+
+                # ─── Across-node phase ───────────────────────────
+                x = torch.ones(num_elems_across,
+                            dtype=torch_dtype_across) \
+                        .to(device, non_blocking=True)
                 check_group_correctness(context, x, "across", "before")
                 if my_across_group:
                     time_barrier()
                     with timer(f"(Across-Group-{across_group_id})"):
-                        across_run_collective(x, across_op_obj, group=my_across_group)
+                        run_across(x, op_across, group=my_across_group)
                         time_barrier()
                 check_group_correctness(context, x, "across", "after")
-                time_barrier()
+
+            time_barrier()
 
     # ----------------------------------------------------------------------------
     #  REPORTING
@@ -403,7 +414,14 @@ def main(cfg: DictConfig):
     # Only rank 0 prints bandwidth analysis
     if mpi_rank == 0:
         # print_all_bandwidths func defined in ./analysis/bandwidth.py
-        print_all_bandwidths(log, buffer_in_bytes, coll_name)
+        if comm_mode != "combined":
+            print_all_bandwidths(log, buffer_in_bytes, coll_name)
+        else:
+            # For combined mode, report both buffer sizes
+            log.info("[BANDWIDTH] Combined mode - reporting within-node bandwidth:")
+            print_all_bandwidths(log, buffer_within_bytes, coll_name_within)
+            log.info("[BANDWIDTH] Combined mode - reporting across-node bandwidth:")
+            print_all_bandwidths(log, buffer_across_bytes, coll_name_across)
 
         log.info("-------------------------------------------------------------------------")
         log.info("[MPI] Job complete")
@@ -415,7 +433,10 @@ def main(cfg: DictConfig):
             terminal_log_path = os.path.join(log_dir, "terminal_output.log")
             if os.path.exists(terminal_log_path):
                 # report_ccl_selection func defined in ./analysis/ccl_parser.py
-                report_ccl_selection(terminal_log_path, primary_collective_cfg.name, log)
+                if comm_mode != "combined":
+                    report_ccl_selection(terminal_log_path, coll_name, log)
+                else:
+                    report_ccl_selection(terminal_log_path, coll_name_within, log)
             else:
                 log.info(f"[SELECTION] Terminal output log not found: {terminal_log_path}")
 

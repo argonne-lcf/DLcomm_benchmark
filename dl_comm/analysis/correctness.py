@@ -3,10 +3,11 @@ _before_values = {}
 
 def check_group_correctness(context, x, group_type, phase):
  
-    # Check verify_correctness based on comm_mode and group_type
+    # Get verify_correctness setting based on mode and group type
     cfg = context['cfg']
     comm_mode = cfg.comm_group.mode
     
+    # Determine if correctness checking is enabled for this group type
     verify_correctness = False
     if comm_mode == "flatview" and group_type == "flatview":
         verify_correctness = cfg.comm_group.flatview.verify_correctness
