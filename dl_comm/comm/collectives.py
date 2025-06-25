@@ -69,10 +69,26 @@ def _allgather(tensor, op=None, group=None, dist=None):
 
 @register_collective("reducescatter", needs_op=True)
 def _reduce_scatter(tensor, op, group=None, dist=None):
-    # Create input_list internally for benchmark usage
+    # Simple ReduceScatter testing with ones
     world_size = dist.get_world_size(group)
-    input_list = [tensor.clone() for _ in range(world_size)]
+    global_rank = dist.get_rank()  # Global rank across all processes
+    group_rank = dist.get_rank(group)  # Rank within this specific group
+    
+    # Create input_list - each rank contributes the same tensor (already ones)
+    input_list = []
+    for i in range(world_size):
+        chunk = tensor.clone()  # Already filled with ones from main program
+        input_list.append(chunk)
+    
     dist.reduce_scatter(tensor, input_list, op=op, group=group)
+    
+    # Return diagnostic info for validation
+    return {
+        'global_rank': global_rank,
+        'group_rank': group_rank,
+        'my_chunk_index': group_rank,
+        'expected_value': float(world_size)  # Each element should equal world_size after SUM
+    }
 
 
 @register_collective("gather", needs_op=False)

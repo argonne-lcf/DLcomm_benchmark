@@ -80,12 +80,25 @@ def check_group_correctness(context, x, group_type, phase, tensor_list=None):
                 
                 log.output(f"[CORRECTNESS][{group_label}] Tensor sum before collective: {before_value} → after collective: {after_value}")
                 
-                # Check list-based correctness for collectives that return tensor lists (like allgather)
+                # Check list-based correctness for collectives that return data structures
                 if tensor_list is not None and phase == "after":
-                    log.output(f"[CORRECTNESS][{group_label}] List validation:")
-                    log.output(f"[CORRECTNESS][{group_label}]   - List size: {len(tensor_list)} tensors")
-                    for i, tensor in enumerate(tensor_list):
-                        tensor_sum = float(tensor.sum())
-                        log.output(f"[CORRECTNESS][{group_label}]   - Tensor[{i}] sum: {tensor_sum}")
+                    if isinstance(tensor_list, list):
+                        # AllGather validation
+                        log.output(f"[CORRECTNESS][{group_label}] AllGather validation:")
+                        log.output(f"[CORRECTNESS][{group_label}]   - List size: {len(tensor_list)} tensors")
+                        for i, tensor in enumerate(tensor_list):
+                            tensor_sum = float(tensor.sum())
+                            log.output(f"[CORRECTNESS][{group_label}]   - Tensor[{i}] sum: {tensor_sum}")
+                    elif isinstance(tensor_list, dict):
+                        # ReduceScatter validation
+                        log.output(f"[CORRECTNESS][{group_label}] ReduceScatter validation:")
+                        global_rank = tensor_list['global_rank']
+                        group_rank = tensor_list['group_rank']
+                        my_chunk = tensor_list['my_chunk_index']
+                        expected_value = tensor_list['expected_value']
+                        log.output(f"[CORRECTNESS][{group_label}]   - Global Rank {global_rank} (Group Rank {group_rank}) contributed: ones to all chunks")
+                        log.output(f"[CORRECTNESS][{group_label}]   - Global Rank {global_rank} received chunk index: {my_chunk}")
+                        log.output(f"[CORRECTNESS][{group_label}]   - Expected: each element = {expected_value} (sum of {int(expected_value)} ones)")
+                        log.output(f"[CORRECTNESS][{group_label}]   - Actual result sum: {after_value}")
                 
                 del _before_values[group_label]
