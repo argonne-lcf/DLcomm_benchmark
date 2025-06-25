@@ -91,15 +91,71 @@ def check_group_correctness(context, x, group_type, phase, tensor_list=None, col
                             tensor_sum = float(tensor.sum())
                             log.output(f"[CORRECTNESS][{group_label}]   - Tensor[{i}] sum: {tensor_sum}")
                     elif isinstance(tensor_list, dict):
-                        # ReduceScatter validation
-                        log.output(f"[CORRECTNESS][{group_label}] ReduceScatter validation:")
-                        global_rank = tensor_list['global_rank']
-                        group_rank = tensor_list['group_rank']
-                        my_chunk = tensor_list['my_chunk_index']
-                        expected_value = tensor_list['expected_value']
-                        log.output(f"[CORRECTNESS][{group_label}]   - Global Rank {global_rank} (Group Rank {group_rank}) contributed: ones to all chunks")
-                        log.output(f"[CORRECTNESS][{group_label}]   - Global Rank {global_rank} received chunk index: {my_chunk}")
-                        log.output(f"[CORRECTNESS][{group_label}]   - Expected: each element = {expected_value} (sum of {int(expected_value)} ones)")
-                        log.output(f"[CORRECTNESS][{group_label}]   - Actual result sum: {after_value}")
+                        if 'type' in tensor_list and tensor_list['type'] == 'source':
+                            # Scatter validation - source rank
+                            log.output(f"[CORRECTNESS][{group_label}] Scatter validation (Source):")
+                            source_rank = tensor_list['source_global_rank']
+                            scattered_data = tensor_list['scattered_data']
+                            log.output(f"[CORRECTNESS][{group_label}]   - Source Global Rank: {source_rank}")
+                            log.output(f"[CORRECTNESS][{group_label}]   - Scattered data:")
+                            for data in scattered_data:
+                                to_rank = data['to_group_rank']
+                                value = data['value']
+                                tensor_sum = data['tensor_sum']
+                                log.output(f"[CORRECTNESS][{group_label}]     → To Group Rank {to_rank}: tensor filled with {value}, sum = {tensor_sum}")
+                        elif 'type' in tensor_list and tensor_list['type'] == 'receiver':
+                            # Scatter validation - receiver rank
+                            log.output(f"[CORRECTNESS][{group_label}] Scatter validation (Receiver):")
+                            global_rank = tensor_list['receiver_global_rank']
+                            group_rank = tensor_list['receiver_group_rank']
+                            expected = tensor_list['expected_value']
+                            received_sum = tensor_list['received_tensor_sum']
+                            is_correct = tensor_list['is_correct']
+                            status = "✓ CORRECT" if is_correct else "✗ INCORRECT"
+                            log.output(f"[CORRECTNESS][{group_label}]   - Global Rank {global_rank} (Group Rank {group_rank})")
+                            log.output(f"[CORRECTNESS][{group_label}]   - Expected: tensor filled with {expected}")
+                            log.output(f"[CORRECTNESS][{group_label}]   - Received sum: {received_sum} {status}")
+                        elif 'sent_data' in tensor_list and 'received_data' in tensor_list:
+                            # AllToAll validation
+                            log.output(f"[CORRECTNESS][{group_label}] AllToAll validation:")
+                            global_rank = tensor_list['global_rank']
+                            group_rank = tensor_list['group_rank']
+                            sent_data = tensor_list['sent_data']
+                            received_data = tensor_list['received_data']
+                            
+                            log.output(f"[CORRECTNESS][{group_label}]   - Global Rank {global_rank} (Group Rank {group_rank})")
+                            log.output(f"[CORRECTNESS][{group_label}]   - Sent data:")
+                            for data in sent_data:
+                                to_rank = data['to_group_rank']
+                                sent_val = data['sent_value']
+                                chunk_sum = data['chunk_sum']
+                                log.output(f"[CORRECTNESS][{group_label}]     → To Group Rank {to_rank}: value {sent_val}, sum = {chunk_sum}")
+                            
+                            log.output(f"[CORRECTNESS][{group_label}]   - Received data:")
+                            all_correct = True
+                            for data in received_data:
+                                from_rank = data['from_group_rank']
+                                expected_val = data['expected_value']
+                                expected_sum = data['expected_sum']
+                                received_sum = data['received_sum']
+                                is_correct = data['is_correct']
+                                status = "✓" if is_correct else "✗"
+                                if not is_correct:
+                                    all_correct = False
+                                log.output(f"[CORRECTNESS][{group_label}]     ← From Group Rank {from_rank}: expected {expected_val} (sum={expected_sum}), got sum={received_sum} {status}")
+                            
+                            overall_status = "✓ ALL CORRECT" if all_correct else "✗ SOME INCORRECT"
+                            log.output(f"[CORRECTNESS][{group_label}]   - Overall: {overall_status}")
+                        else:
+                            # ReduceScatter validation
+                            log.output(f"[CORRECTNESS][{group_label}] ReduceScatter validation:")
+                            global_rank = tensor_list['global_rank']
+                            group_rank = tensor_list['group_rank']
+                            my_chunk = tensor_list['my_chunk_index']
+                            expected_value = tensor_list['expected_value']
+                            log.output(f"[CORRECTNESS][{group_label}]   - Global Rank {global_rank} (Group Rank {group_rank}) contributed: ones to all chunks")
+                            log.output(f"[CORRECTNESS][{group_label}]   - Global Rank {global_rank} received chunk index: {my_chunk}")
+                            log.output(f"[CORRECTNESS][{group_label}]   - Expected: each element = {expected_value} (sum of {int(expected_value)} ones)")
+                            log.output(f"[CORRECTNESS][{group_label}]   - Actual result sum: {after_value}")
                 
                 del _before_values[group_label]
