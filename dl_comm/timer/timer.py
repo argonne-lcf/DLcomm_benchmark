@@ -25,6 +25,7 @@ def gather_and_print_all_times(logger, ranks_responsible_for_logging, barrier_en
     all_data = MPI.COMM_WORLD.gather(my_data, root=0)
     
     if mpi_rank == 0:
+        logger.output("")
         logger.output(f"{title} -------------------------------------------")
         
         group_timers = {}
@@ -119,9 +120,9 @@ def gather_and_print_all_times(logger, ranks_responsible_for_logging, barrier_en
         
         logger.output("")
         if barrier_enabled:
-            logger.output(f"{title} [BARRIER ENABLED] Timing measurements used MPI barriers for synchronization")
+            logger.info(f"  {title} [BARRIER ENABLED] Timing measurements used MPI barriers for synchronization")
         else:
-            logger.output(f"{title} [BARRIER DISABLED] Warning: Timing without barriers - other collectives may still be in process")
+            logger.info(f"  {title} [BARRIER DISABLED] Warning: Timing without barriers - other collectives may still be in process")
         
         if iteration_data:
             logger.output("")

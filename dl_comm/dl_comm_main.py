@@ -96,10 +96,6 @@ def main(cfg: DictConfig):
     if mpi_rank == 0:
         log.info("-------------------------------------------------------------------------")
         log.info("[CONFIG] Loading schema and validating user YAML")
-    
-    if mpi_rank == 0:
-        log.info("-------------------------------------------------------------------------")
-        log.info("[CONFIG] Loading schema and validating user YAML")
 
     # ----------------------------------------------------------------------------
     # EXTRACT CONFIG VALUES
@@ -225,33 +221,72 @@ def main(cfg: DictConfig):
             MPI.COMM_WORLD.Barrier()
     
     if mpi_rank == 0:
-        log.info("[CONFIG] Final validated settings\n")
-        log.info(f"  • framework           = {framework}")
-        log.info(f"  • backend             = {cfg.ccl_backend}")
-        log.info(f"  • comm_mode           = {comm_mode}")
-        log.info(f"  • use_profiler        = {cfg.get('use_profiler', 'none')}")
+        log.info("")
+        log.info("[CONFIG] Setup")
+        log.info("[CONFIG] ------------------------------------------------------")
+        log.info(f"[CONFIG] Framework            : {framework}")
+        log.info(f"[CONFIG] Backend              : {cfg.ccl_backend}")
+        log.info(f"[CONFIG] Use Profiler         : {cfg.get('use_profiler', 'none')}")
+        log.info(f"[CONFIG] Barrier Enabled      : {cfg.barrier}")
+        log.info(f"[CONFIG] World Size           : {mpi_size}")
+        log.info("[CONFIG] ------------------------------------------------------")
+        log.info("")
         
-        if comm_mode != "combined":
-            log.info(f"  • collective_name     = {coll_name}")
-            log.info(f"  • op                  = {op_name}")
-            log.info(f"  • scale_up_algo       = {coll_cfg.scale_up_algorithm}")
-            log.info(f"  • scale_out_algo      = {coll_cfg.scale_out_algorithm}")
-            log.info(f"  • buffer_size         = {coll_cfg.payload.buffer_size} ({buffer_in_bytes} bytes)")
-            log.info(f"  • dtype               = {dtype_str}")
-            log.info(f"  • count               = {coll_cfg.payload.count}")
+        log.info("[CONFIG] Communication Group")
+        log.info("[CONFIG] ------------------------------------------------------")
+        log.info(f"[CONFIG] Mode                 : {comm_mode}")
+        if comm_mode == "combined":
+            within_nodes = cfg.comm_group.combined.within_node.num_compute_nodes
+            within_gpus = cfg.comm_group.combined.within_node.num_gpus_per_node
+            across_nodes = cfg.comm_group.combined.across_node.num_compute_nodes  
+            across_gpus = cfg.comm_group.combined.across_node.num_gpus_per_node
+            log.info(f"[CONFIG] Within               : {within_nodes} nodes x {within_gpus} GPUs")
+            log.info(f"[CONFIG] Across               : {across_nodes} nodes x {across_gpus} GPUs")
         else:
-            log.info(f"  • within_collective   = {coll_name_within}")
-            log.info(f"  • within_op           = {op_name_within}")
-            log.info(f"  • within_scale_up     = {coll_within_cfg.scale_up_algorithm}")
-            log.info(f"  • within_buffer_size  = {coll_within_cfg.payload.buffer_size} ({buffer_within_bytes} bytes)")
-            log.info(f"  • within_dtype        = {dtype_str_within}")
-            log.info(f"  • across_collective   = {coll_name_across}")
-            log.info(f"  • across_op           = {op_name_across}")
-            log.info(f"  • across_scale_up     = {coll_across_cfg.scale_up_algorithm}")
-            log.info(f"  • across_buffer_size  = {coll_across_cfg.payload.buffer_size} ({buffer_across_bytes} bytes)")
-            log.info(f"  • across_dtype        = {dtype_str_across}")
+            mode_cfg = getattr(cfg.comm_group, comm_mode)
+            nodes = mode_cfg.num_compute_nodes
+            gpus = mode_cfg.num_gpus_per_node
+            log.info(f"[CONFIG] Topology             : {nodes} nodes x {gpus} GPUs")
+        log.info("[CONFIG] ------------------------------------------------------")
+        log.info("")
         
-        log.info("-------------------------------------------------------------------------")
+        log.info("[CONFIG] Communication Group Details")
+        log.info("[CONFIG] ------------------------------------------------------")
+        if comm_mode != "combined":
+            log.info(f"[CONFIG] Collective Name      : {coll_name}")
+            log.info(f"[CONFIG] Operation            : {op_name if op_obj else 'N/A'}")
+            log.info(f"[CONFIG] Scale Up Algorithm   : {coll_cfg.scale_up_algorithm}")
+            log.info(f"[CONFIG] Scale Out Algorithm  : {coll_cfg.scale_out_algorithm}")
+            log.info(f"[CONFIG] Data Type            : {dtype_str}")
+            log.info(f"[CONFIG] Element Count        : {coll_cfg.payload.count}")
+            log.info(f"[CONFIG] Buffer Size          : {coll_cfg.payload.buffer_size} ({buffer_in_bytes} bytes)")
+            log.info(f"[CONFIG] Iterations           : {iters}")
+            log.info(f"[CONFIG] Verify Correctness   : {enable_correctness}")
+        else:
+            log.info("[CONFIG] Within-Node Phase:")
+            log.info(f"[CONFIG]   Collective         : {coll_name_within}")
+            log.info(f"[CONFIG]   Operation          : {op_name_within if op_within else 'N/A'}")
+            log.info(f"[CONFIG]   Scale Up Algorithm : {coll_within_cfg.scale_up_algorithm}")
+            log.info(f"[CONFIG]   Scale Out Algorithm: {coll_within_cfg.scale_out_algorithm}")
+            log.info(f"[CONFIG]   Data Type          : {dtype_str_within}")
+            log.info(f"[CONFIG]   Element Count      : {coll_within_cfg.payload.count}")
+            log.info(f"[CONFIG]   Buffer Size        : {coll_within_cfg.payload.buffer_size} ({buffer_within_bytes} bytes)")
+            log.info(f"[CONFIG]   Iterations         : {iters_within}")
+            log.info(f"[CONFIG]   Verify Correctness : {enable_correctness_within}")
+            log.info("")
+            log.info("[CONFIG] Across-Node Phase:")
+            log.info(f"[CONFIG]   Collective         : {coll_name_across}")
+            log.info(f"[CONFIG]   Operation          : {op_name_across if op_across else 'N/A'}")
+            log.info(f"[CONFIG]   Scale Up Algorithm : {coll_across_cfg.scale_up_algorithm}")
+            log.info(f"[CONFIG]   Scale Out Algorithm: {coll_across_cfg.scale_out_algorithm}")
+            log.info(f"[CONFIG]   Data Type          : {dtype_str_across}")
+            log.info(f"[CONFIG]   Element Count      : {coll_across_cfg.payload.count}")
+            log.info(f"[CONFIG]   Buffer Size        : {coll_across_cfg.payload.buffer_size} ({buffer_across_bytes} bytes)")
+            log.info(f"[CONFIG]   Iterations         : {iters_across}")
+            log.info(f"[CONFIG]   Verify Correctness : {enable_correctness_across}")
+        
+        log.info("[CONFIG] ------------------------------------------------------")
+        log.info("")
    
     # ----------------------------------------------------------------------------
     # MPI RANK COORDINATION
@@ -305,30 +340,6 @@ def main(cfg: DictConfig):
     
     if mpi_rank == 0:
         log.info("")
-        log.info("[MPI][SETUP] ------------------------------------------------------")
-        log.info(f"[MPI][SETUP] Framework      : {framework}")
-        log.info(f"[MPI][SETUP] World Size     : {mpi_size}")
-        
-        if comm_mode != "combined":
-            log.info(f"[MPI][SETUP] Collective     : {coll_name}")
-            log.info(f"[MPI][SETUP] Operation      : {op_name if op_obj else 'N/A'}")
-            log.info(f"[MPI][SETUP] DType          : {dtype_str}")
-            log.info(f"[MPI][SETUP] Count          : {coll_cfg.payload.count}")
-            log.info(f"[MPI][SETUP] Buffer Size    : {buffer_in_bytes}")
-            log.info(f"[MPI][SETUP] Iterations     : {iters}")
-        else:
-            log.info(f"[MPI][SETUP] Within Collective : {coll_name_within}")
-            log.info(f"[MPI][SETUP] Within Operation  : {op_name_within if op_within else 'N/A'}")
-            log.info(f"[MPI][SETUP] Within DType      : {dtype_str_within}")
-            log.info(f"[MPI][SETUP] Within Buffer Size: {buffer_within_bytes}")
-            log.info(f"[MPI][SETUP] Across Collective : {coll_name_across}")
-            log.info(f"[MPI][SETUP] Across Operation  : {op_name_across if op_across else 'N/A'}")
-            log.info(f"[MPI][SETUP] Across DType      : {dtype_str_across}")
-            log.info(f"[MPI][SETUP] Across Buffer Size: {buffer_across_bytes}")
-            log.info(f"[MPI][SETUP] Iterations        : {iters_within}")
-        
-        log.info("[MPI][SETUP] ------------------------------------------------------")
-        log.info("")
         log.info("[MPI] Launching profiling job")
 
     # ----------------------------------------------------------------------------
@@ -340,11 +351,9 @@ def main(cfg: DictConfig):
     # Single-phase (flatview / within_node / across_node)
     if comm_mode != "combined":
         for i in range(iters):
-            # fresh tensor for this iteration
-            x = torch.ones(num_elems, dtype=torch_dtype) \
-                    .to(device, non_blocking=True)
-            context = {'mpi_rank': mpi_rank, 'cfg': cfg,
-                    'log': log, 'iteration': i}
+           
+            x = torch.ones(num_elems, dtype=torch_dtype).to(device, non_blocking=True)
+            context = {'mpi_rank': mpi_rank, 'cfg': cfg,'log': log, 'iteration': i}
 
             if comm_mode == "flatview":
                 check_group_correctness(context, x, "flatview", "before")
@@ -362,7 +371,7 @@ def main(cfg: DictConfig):
                     time_barrier()
                 check_group_correctness(context, x, "within", "after")
 
-            else:  # "across_node"
+            elif comm_mode == "across_node":
                 check_group_correctness(context, x, "across", "before")
                 time_barrier()
                 with timer(f"(Across-Group-{across_group_id})"):
@@ -371,38 +380,34 @@ def main(cfg: DictConfig):
                 check_group_correctness(context, x, "across", "after")
 
 
-    # Combined (within → across in each iteration)
+    
     else:
+        # ─── Within-node phase iterations ───────────────────────────
         for i in range(iters_within):
-            context = {'mpi_rank': mpi_rank, 'cfg': cfg,
-                    'log': log, 'iteration': i}
-
+            context = {'mpi_rank': mpi_rank, 'cfg': cfg,'log': log, 'iteration': i}
+            x = torch.ones(num_elems_within, dtype=torch_dtype_within).to(device, non_blocking=True)
+            
+            check_group_correctness(context, x, "within", "before")
             time_barrier()
-            with timer("Total (Within→Across)"):
-                # ─── Within-node phase ───────────────────────────
-                x = torch.ones(num_elems_within,
-                            dtype=torch_dtype_within) \
-                        .to(device, non_blocking=True)
-                check_group_correctness(context, x, "within", "before")
+            with timer(f"(Within-Group-{within_group_id})"):
+                run_within(x, op_within, group=my_within_group)
                 time_barrier()
-                with timer(f"(Within-Group-{within_group_id})"):
-                    run_within(x, op_within, group=my_within_group)
-                    time_barrier()
-                check_group_correctness(context, x, "within", "after")
+            check_group_correctness(context, x, "within", "after")
 
-                # ─── Across-node phase ───────────────────────────
-                x = torch.ones(num_elems_across,
-                            dtype=torch_dtype_across) \
-                        .to(device, non_blocking=True)
-                check_group_correctness(context, x, "across", "before")
-                if my_across_group:
+        # ─── Across-node phase iterations ───────────────────────────
+        for i in range(iters_across):
+            context = {'mpi_rank': mpi_rank, 'cfg': cfg,'log': log, 'iteration': i}
+            x = torch.ones(num_elems_across, dtype=torch_dtype_across).to(device, non_blocking=True)
+            
+            check_group_correctness(context, x, "across", "before")
+            if my_across_group:
+                time_barrier()
+                with timer(f"(Across-Group-{across_group_id})"):
+                    run_across(x, op_across, group=my_across_group)
                     time_barrier()
-                    with timer(f"(Across-Group-{across_group_id})"):
-                        run_across(x, op_across, group=my_across_group)
-                        time_barrier()
-                check_group_correctness(context, x, "across", "after")
+            check_group_correctness(context, x, "across", "after")
 
-            time_barrier()
+        time_barrier()
 
     # ----------------------------------------------------------------------------
     #  REPORTING
