@@ -1,11 +1,11 @@
-
+y
 torch.distributed.all_to_all(       output_tensor_list,   input_tensor_list,        group=None, async_op=False)
 torch.distributed.all_reduce(       tensor,               op=<RedOpType.SUM: 0>,     group=None, async_op=False)
 torch.distributed.all_gather(       tensor_list,          tensor,                    group=None, async_op=False)
 
-torch.distributed.broadcast(        tensor,               src=None,                  group=None, async_op=False, group_src=None)
+torch.distributed.broadcast(        tensor,               src=None,                  group=None, async_op=False)
 torch.distributed.barrier(                                  group=None,              async_op=False, device_ids=None)
-torch.distributed.gather(           tensor,               gather_list=None,         dst=None,  group=None, async_op=False, group_dst=None)
-torch.distributed.reduce(           tensor,               dst=None,                 op=<RedOpType.SUM: 0>, group=None, async_op=False, group_dst=None)
-torch.distributed.scatter(          tensor,               scatter_list=None,        src=None,  group=None, async_op=False, group_src=None)
+torch.distributed.gather(           tensor,               gather_list=None,         dst=None,  group=None, async_op=False)
+torch.distributed.reduce(           tensor,               dst=None,                 op=<RedOpType.SUM: 0>, group=None, async_op=False)
+torch.distributed.scatter(          tensor,               scatter_list=None,        src=None,  group=None, async_op=False)
 torch.distributed.reduce_scatter(   output,               input_list,               op=<RedOpType.SUM: 0>, group=None, async_op=False)

@@ -353,7 +353,7 @@ def main(cfg: DictConfig):
                 check_group_correctness(context, x, "flatview", "before")
                 time_barrier()
                 with timer("(Flatview)"):
-                    run_collective(x, op_obj, group=world_group)
+                    run_collective(x, op_obj, group=world_group, dist=dist)
                     time_barrier()
                 check_group_correctness(context, x, "flatview", "after")
 
@@ -361,7 +361,7 @@ def main(cfg: DictConfig):
                 check_group_correctness(context, x, "within", "before")
                 time_barrier()
                 with timer(f"(Within-Group-{within_group_id})"):
-                    run_collective(x, op_obj, group=my_within_group)
+                    run_collective(x, op_obj, group=my_within_group, dist=dist)
                     time_barrier()
                 check_group_correctness(context, x, "within", "after")
 
@@ -369,7 +369,7 @@ def main(cfg: DictConfig):
                 check_group_correctness(context, x, "across", "before")
                 time_barrier()
                 with timer(f"(Across-Group-{across_group_id})"):
-                    run_collective(x, op_obj, group=my_across_group)
+                    run_collective(x, op_obj, group=my_across_group, dist=dist)
                     time_barrier()
                 check_group_correctness(context, x, "across", "after")
 
@@ -385,7 +385,7 @@ def main(cfg: DictConfig):
             check_group_correctness(context, x, "within", "before")
             time_barrier()
             with timer(f"(Within-Group-{within_group_id})"):
-                run_within(x, op_within, group=my_within_group)
+                run_within(x, op_within, group=my_within_group, dist=dist)
                 time_barrier()
             check_group_correctness(context, x, "within", "after")
 
@@ -399,7 +399,7 @@ def main(cfg: DictConfig):
             if my_across_group:
                 time_barrier()
                 with timer(f"(Across-Group-{across_group_id})"):
-                    run_across(x, op_across, group=my_across_group)
+                    run_across(x, op_across, group=my_across_group, dist=dist)
                     time_barrier()
             check_group_correctness(context, x, "across", "after")
 
@@ -451,6 +451,7 @@ def main(cfg: DictConfig):
 
     DLCOMMLogger.flush()
     DLCOMMLogger.reset()
+    MPI.COMM_WORLD.Barrier()   
     dist.destroy_process_group()
     
 if __name__ == "__main__":
