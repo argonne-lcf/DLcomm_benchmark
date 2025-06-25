@@ -1,7 +1,7 @@
  
 _before_values = {}
 
-def check_group_correctness(context, x, group_type, phase, tensor_list=None):
+def check_group_correctness(context, x, group_type, phase, tensor_list=None, collective_name=None):
  
     # Get verify_correctness setting based on mode and group type
     cfg = context['cfg']
@@ -83,8 +83,9 @@ def check_group_correctness(context, x, group_type, phase, tensor_list=None):
                 # Check list-based correctness for collectives that return data structures
                 if tensor_list is not None and phase == "after":
                     if isinstance(tensor_list, list):
-                        # AllGather validation
-                        log.output(f"[CORRECTNESS][{group_label}] AllGather validation:")
+                        # List validation for AllGather or Gather
+                        collective_label = collective_name.title() if collective_name else "List-based collective"
+                        log.output(f"[CORRECTNESS][{group_label}] {collective_label} validation:")
                         log.output(f"[CORRECTNESS][{group_label}]   - List size: {len(tensor_list)} tensors")
                         for i, tensor in enumerate(tensor_list):
                             tensor_sum = float(tensor.sum())

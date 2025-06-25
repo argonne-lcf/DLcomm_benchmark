@@ -71,13 +71,13 @@ def _allgather(tensor, op=None, group=None, dist=None):
 def _reduce_scatter(tensor, op, group=None, dist=None):
     # Simple ReduceScatter testing with ones
     world_size = dist.get_world_size(group)
-    global_rank = dist.get_rank()  # Global rank across all processes
-    group_rank = dist.get_rank(group)  # Rank within this specific group
+    global_rank = dist.get_rank()   
+    group_rank = dist.get_rank(group)   
     
-    # Create input_list - each rank contributes the same tensor (already ones)
+     
     input_list = []
     for i in range(world_size):
-        chunk = tensor.clone()  # Already filled with ones from main program
+        chunk = tensor.clone()  
         input_list.append(chunk)
     
     dist.reduce_scatter(tensor, input_list, op=op, group=group)
@@ -97,12 +97,15 @@ def _gather(tensor, op=None, group=None, dist=None):
     group_ranks = dist.get_process_group_ranks(group)
     smallest_rank = min(group_ranks)
     world_size = dist.get_world_size(group)
-    rank = dist.get_rank(group)
-    if rank == 0:
+    global_rank = dist.get_rank()  # My global rank
+    
+    if global_rank == smallest_rank:
+        # I am the destination rank - create gather_list
         gather_list = [torch.empty_like(tensor) for _ in range(world_size)]
         dist.gather(tensor, gather_list, dst=smallest_rank, group=group)
         return gather_list
     else:
+        # I am not the destination - gather_list must be None
         dist.gather(tensor, None, dst=smallest_rank, group=group)
         return None
 

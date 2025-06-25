@@ -30,7 +30,7 @@ comm_group:
     num_gpus_per_node: 12
     gpu_ids_per_node: [0,1,2,3,4,5,6,7, 8, 9, 10, 11]   
     collective:
-      name: reducescatter   # allgather / reducescatter / broadcast
+      name: gather   # allgather / reducescatter / broadcast
       op: sum          # max / min / prod / sum
       scale_up_algorithm: topo
       scale_out_algorithm: ring        # rabinseifner 
