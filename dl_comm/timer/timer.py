@@ -33,7 +33,7 @@ def gather_and_print_all_times(logger, ranks_responsible_for_logging, barrier_en
     
     # Gather all timer data to rank 0
     all_data = MPI.COMM_WORLD.gather(my_data, root=0)
-    logger.error(all_data)
+    #logger.error(all_data)
     if mpi_rank == 0:
         logger.output("")
         logger.output(f"{title} -------------------------------------------")

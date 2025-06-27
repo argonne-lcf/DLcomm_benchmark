@@ -443,6 +443,8 @@ def main(cfg: DictConfig):
                     report_ccl_selection(terminal_log_path, coll_name, log)
                 else:
                     report_ccl_selection(terminal_log_path, coll_name_within, log)
+                    log.info("")
+                    report_ccl_selection(terminal_log_path, coll_name_across, log)
             else:
                 log.info(f"[SELECTION] Terminal output log not found: {terminal_log_path}")
 

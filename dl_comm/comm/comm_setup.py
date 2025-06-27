@@ -46,31 +46,37 @@ def setup_communication_groups(cfg: DictConfig, mpi_rank, log, dist=None):
             log.info("[COMM][GROUP CREATION] Within-node groups:")
 
         with timer("Group Creation (Within)"):
-            within_groups = []
+            my_within_group = None
+            within_group_id = None
+            
             for node in range(num_compute_nodes):
                 group_ranks = []
                 for gpu in range(num_gpus_per_node):
                     rank = node * num_gpus_per_node + gpu
                     group_ranks.append(rank)
-                within_groups.append(dist.new_group(ranks=group_ranks))
+                
                 # First rank in each within group is responsible for logging
                 responsible_rank = min(group_ranks)
                 ranks_responsible_for_logging.add(responsible_rank)
+                
                 if mpi_rank == 0:
                     log.info(f"[COMM][GROUP CREATION][Within Group-{node}] Ranks: {group_ranks}, Logging: rank {responsible_rank}")
-        
-        node_id = mpi_rank // num_gpus_per_node
-        rank_id_per_node = mpi_rank % num_gpus_per_node
-        my_within_group = within_groups[node_id]
-        within_group_id = node_id
+                
+                # Only create group if current rank belongs to it
+                group = dist.new_group(ranks=group_ranks)
+                if mpi_rank in group_ranks:
+                    my_within_group = group
+                    within_group_id = node
         
         # Calculate the ranks for this rank's within-group
         within_group_ranks = []
-        for gpu in range(num_gpus_per_node):
-            rank = node_id * num_gpus_per_node + gpu
-            within_group_ranks.append(rank)
+        if within_group_id is not None:
+            for gpu in range(num_gpus_per_node):
+                rank = within_group_id * num_gpus_per_node + gpu
+                within_group_ranks.append(rank)
 
         # DEVICE ALLOCATION
+        rank_id_per_node = mpi_rank % num_gpus_per_node
         if torch.xpu.is_available():
             device_id = gpu_ids_per_node[rank_id_per_node]
             device = torch.device(f"xpu:{device_id}")
@@ -80,7 +86,7 @@ def setup_communication_groups(cfg: DictConfig, mpi_rank, log, dist=None):
                 log.info("[COMM] XPU not available, using CPU")
 
         if mpi_rank == 0:
-            log.info(f"[COMM][GROUP CREATION] Created {len(within_groups)} within-node groups")
+            log.info(f"[COMM][GROUP CREATION] Created {num_compute_nodes} within-node groups")
 
     # ----------------------------------------------------------------------------
     # ACROSS NODE MODE
@@ -105,30 +111,37 @@ def setup_communication_groups(cfg: DictConfig, mpi_rank, log, dist=None):
 
             log.info("[COMM][GROUP CREATION] Across-node groups:")
         with timer("Group Creation (Across)"):
-            across_groups = []
+            my_across_group = None
+            across_group_id = None
+            
             for i in range(num_gpus_per_node):
                 group_ranks = []
                 for node in range(num_compute_nodes):
                     rank = node * num_gpus_per_node + i
                     group_ranks.append(rank)
-                across_groups.append(dist.new_group(ranks=group_ranks))
+                
                 # First rank in each across group is responsible for logging
                 responsible_rank = min(group_ranks)
                 ranks_responsible_for_logging.add(responsible_rank)
+                
                 if mpi_rank == 0:
                     log.info(f"[COMM][GROUP CREATION][Across Group-{i}] Ranks: {group_ranks}, Logging: rank {responsible_rank}")
-        
-        rank_id_per_node = mpi_rank % num_gpus_per_node
-        my_across_group = across_groups[rank_id_per_node]
-        across_group_id = rank_id_per_node
+                
+                # Only create group if current rank belongs to it
+                group = dist.new_group(ranks=group_ranks)
+                if mpi_rank in group_ranks:
+                    my_across_group = group
+                    across_group_id = i
         
         # Calculate the ranks for this rank's across-group
         across_group_ranks = []
-        for node in range(num_compute_nodes):
-            rank = node * num_gpus_per_node + rank_id_per_node
-            across_group_ranks.append(rank)
+        if across_group_id is not None:
+            for node in range(num_compute_nodes):
+                rank = node * num_gpus_per_node + across_group_id
+                across_group_ranks.append(rank)
 
         # DEVICE ALLOCATION
+        rank_id_per_node = mpi_rank % num_gpus_per_node
         if torch.xpu.is_available():
             device_id = gpu_ids_per_node[rank_id_per_node]
             device = torch.device(f"xpu:{device_id}")
@@ -138,7 +151,7 @@ def setup_communication_groups(cfg: DictConfig, mpi_rank, log, dist=None):
                 log.info("[COMM] XPU not available, using CPU")
 
         if mpi_rank == 0:
-            log.info(f"[COMM][GROUP CREATION] Created {len(across_groups)} across-node groups")
+            log.info(f"[COMM][GROUP CREATION] Created {num_gpus_per_node} across-node groups")
 
 
     # ----------------------------------------------------------------------------
