@@ -44,18 +44,44 @@ def _allreduce(tensor, op, group=None, dist=None):
 
 @register_collective("reduce", needs_op=True)
 def _reduce(tensor, op, group=None, dist=None):
-    # Find the smallest global rank in the group to use as destination
     group_ranks = dist.get_process_group_ranks(group)
     smallest_rank = min(group_ranks)
     dist.reduce(tensor, dst=smallest_rank, op=op, group=group)
 
 
-@register_collective("broadcast")      
-def _broadcast(tensor, group=None, dist=None):
-    # Find the smallest global rank in the group to use as source
+@register_collective("broadcast",needs_op=False)      
+def _broadcast(tensor, op, group=None, dist=None):
+    
     group_ranks = dist.get_process_group_ranks(group)
     smallest_rank = min(group_ranks)
+    global_rank = dist.get_rank()
+    group_rank = dist.get_rank(group)
+    
+    # Store original data for source verification
+    if global_rank == smallest_rank:
+        original_tensor = tensor.clone()
+    
     dist.broadcast(tensor, src=smallest_rank, group=group)
+    
+    # Return verification info
+    if global_rank == smallest_rank:
+        return {
+            'type': 'source',
+            'global_rank': global_rank,
+            'group_rank': group_rank,
+            'source_rank': smallest_rank,
+            'sent_tensor': original_tensor,
+            'sent_sum': float(original_tensor.sum())
+        }
+    else:
+        return {
+            'type': 'receiver',
+            'global_rank': global_rank,
+            'group_rank': group_rank,
+            'source_rank': smallest_rank,
+            'received_tensor': tensor.clone(),
+            'received_sum': float(tensor.sum())
+        }
 
 
 @register_collective("allgather", needs_op=False)

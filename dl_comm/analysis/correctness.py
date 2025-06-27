@@ -64,6 +64,37 @@ def check_group_correctness(context, x, group_type, phase, tensor_list=None, col
             group_rank_id = "All"
             should_log = True
     
+    # Special handling for broadcast - allow all ranks to log their results
+    if tensor_list is not None and isinstance(tensor_list, dict) and 'type' in tensor_list and collective_name == "broadcast":
+        # For broadcast, we want to see all ranks, not just designated logging ranks
+        if comm_mode == "within_node" and group_type == "within":
+            node_id = mpi_rank // cfg.comm_group.within_node.num_gpus_per_node
+            group_label = f"{group_type.title()}-Group-{node_id}"
+        elif comm_mode == "across_node" and group_type == "across":
+            rank_id_per_node = mpi_rank % cfg.comm_group.across_node.num_gpus_per_node
+            group_label = f"{group_type.title()}-Group-{rank_id_per_node}"
+        elif comm_mode == "combined" and group_type == "within":
+            node_id = mpi_rank // cfg.comm_group.combined.within_node.num_gpus_per_node
+            group_label = f"{group_type.title()}-Group-{node_id}"
+        elif comm_mode == "combined" and group_type == "across":
+            rank_id_per_node = mpi_rank % cfg.comm_group.combined.across_node.num_gpus_per_node
+            group_label = f"{group_type.title()}-Group-{rank_id_per_node}"
+        elif comm_mode == "flatview" and group_type == "flatview":
+            group_label = f"{group_type.title()}-Group-All"
+        
+        # Log broadcast results for all ranks
+        if tensor_list['type'] == 'source':
+            sent_sum = tensor_list['sent_sum']
+            global_rank = tensor_list['global_rank']
+            log.output(f"[CORRECTNESS][{group_label}] Broadcast Source Rank {global_rank}: sent tensor sum = {sent_sum}")
+        elif tensor_list['type'] == 'receiver':
+            received_sum = tensor_list['received_sum']
+            global_rank = tensor_list['global_rank']
+            source_rank = tensor_list['source_rank']
+            log.output(f"[CORRECTNESS][{group_label}] Broadcast Receiver Rank {global_rank}: received from rank {source_rank}, tensor sum = {received_sum}")
+        
+        return  # Exit early for broadcast special handling
+    
     if should_log and group_rank_id is not None:
         group_label = f"{group_type.title()}-Group-{group_rank_id}"
         tensor_sum = float(x.sum())
@@ -91,7 +122,30 @@ def check_group_correctness(context, x, group_type, phase, tensor_list=None, col
                             tensor_sum = float(tensor.sum())
                             log.output(f"[CORRECTNESS][{group_label}]   - Tensor[{i}] sum: {tensor_sum}")
                     elif isinstance(tensor_list, dict):
-                        if 'type' in tensor_list and tensor_list['type'] == 'source':
+                        if 'type' in tensor_list and tensor_list['type'] == 'source' and 'sent_tensor' in tensor_list:
+                            # Broadcast validation - source rank
+                            log.output(f"[CORRECTNESS][{group_label}] Broadcast validation (Source):")
+                            global_rank = tensor_list['global_rank']
+                            group_rank = tensor_list['group_rank']
+                            source_rank = tensor_list['source_rank']
+                            sent_tensor = tensor_list['sent_tensor']
+                            sent_sum = tensor_list['sent_sum']
+                            log.output(f"[CORRECTNESS][{group_label}]   - Source Global Rank {global_rank} (Group Rank {group_rank})")
+                            log.output(f"[CORRECTNESS][{group_label}]   - Sent tensor: {sent_tensor.flatten()[:10].tolist()}... (showing first 10 elements)")
+                            log.output(f"[CORRECTNESS][{group_label}]   - Sent tensor sum: {sent_sum}")
+                        elif 'type' in tensor_list and tensor_list['type'] == 'receiver' and 'received_tensor' in tensor_list:
+                            # Broadcast validation - receiver rank
+                            log.output(f"[CORRECTNESS][{group_label}] Broadcast validation (Receiver):")
+                            global_rank = tensor_list['global_rank']
+                            group_rank = tensor_list['group_rank']
+                            source_rank = tensor_list['source_rank']
+                            received_tensor = tensor_list['received_tensor']
+                            received_sum = tensor_list['received_sum']
+                            log.output(f"[CORRECTNESS][{group_label}]   - Receiver Global Rank {global_rank} (Group Rank {group_rank})")
+                            log.output(f"[CORRECTNESS][{group_label}]   - Source was Global Rank {source_rank}")
+                            log.output(f"[CORRECTNESS][{group_label}]   - Received tensor: {received_tensor.flatten()[:10].tolist()}... (showing first 10 elements)")
+                            log.output(f"[CORRECTNESS][{group_label}]   - Received tensor sum: {received_sum}")
+                        elif 'type' in tensor_list and tensor_list['type'] == 'source' and 'scattered_data' in tensor_list:
                             # Scatter validation - source rank
                             log.output(f"[CORRECTNESS][{group_label}] Scatter validation (Source):")
                             source_rank = tensor_list['source_global_rank']
@@ -103,7 +157,7 @@ def check_group_correctness(context, x, group_type, phase, tensor_list=None, col
                                 value = data['value']
                                 tensor_sum = data['tensor_sum']
                                 log.output(f"[CORRECTNESS][{group_label}]     → To Group Rank {to_rank}: tensor filled with {value}, sum = {tensor_sum}")
-                        elif 'type' in tensor_list and tensor_list['type'] == 'receiver':
+                        elif 'type' in tensor_list and tensor_list['type'] == 'receiver' and 'receiver_global_rank' in tensor_list:
                             # Scatter validation - receiver rank
                             log.output(f"[CORRECTNESS][{group_label}] Scatter validation (Receiver):")
                             global_rank = tensor_list['receiver_global_rank']
