@@ -1,20 +1,29 @@
  
 from contextlib import contextmanager
-from time import perf_counter_ns
+from time import perf_counter
 from collections import defaultdict
 from mpi4py import MPI
-
+import re
 TIMES = defaultdict(list)    
+
+def reset_times():
+    TIMES.clear()
 
 @contextmanager
 def timer(label: str):
-    start = perf_counter_ns()
+    start = perf_counter()
     yield
-    TIMES[label].append(perf_counter_ns() - start)
+    TIMES[label].append(perf_counter() - start)
+
+
 
 def gather_and_print_all_times(logger, ranks_responsible_for_logging, barrier_enabled, title="[TIMERS]"):
+    # ========================================================================
+    # GATHER TIMER DATA FROM ALL RANKS
+    # ========================================================================
     mpi_rank = MPI.COMM_WORLD.Get_rank()
     
+    # Only designated ranks send their timer data
     my_data = None
     if mpi_rank in ranks_responsible_for_logging:
         my_data = {
@@ -22,122 +31,144 @@ def gather_and_print_all_times(logger, ranks_responsible_for_logging, barrier_en
             'timers': dict(TIMES)
         }
     
+    # Gather all timer data to rank 0
     all_data = MPI.COMM_WORLD.gather(my_data, root=0)
-    
+    logger.error(all_data)
     if mpi_rank == 0:
         logger.output("")
         logger.output(f"{title} -------------------------------------------")
         
+        # ========================================================================
+        # CATEGORIZE TIMER DATA BY GROUP TYPE
+        # ========================================================================
         group_timers = {}
         
+        # Process timer data from each rank
         for data in all_data:
             if data is not None:
                 rank = data['rank']
                 timers = data['timers']
                 
+                # Categorize each timer label into groups
                 for label, vals in timers.items():
-                    if "import" in label.lower():
+                    if "import time" == label:
                         group_key = "import"
-                    elif "init" in label.lower():
+                    elif "init time" == label:
                         group_key = "init"
-                    elif "group creation (within)" in label.lower():
-                        group_key = "within_creation"
-                    elif "group creation (across)" in label.lower():
-                        group_key = "across_creation"
-                    elif "within-group-" in label.lower():
-                        import re
-                        match = re.search(r'within-group-(\d+)', label.lower())
+                    elif "Group Creation (Within)" == label:
+                        group_key = "group_creation_within"
+                    elif "Group Creation (Across)" == label:
+                        group_key = "group_creation_across"
+                    elif "(flatview)" == label.lower():
+                        group_key = "flatview"
+                    elif "(within-group-" in label.lower():
+                        match = re.search(r'\(within-group-(\d+)\)', label.lower())
                         if match:
                             group_key = f"within-{match.group(1)}"
                         else:
                             group_key = "within-unknown"
-                    elif "across-group-" in label.lower():
-                        import re
-                        match = re.search(r'across-group-(\d+)', label.lower())
+                    elif "(across-group-" in label.lower():
+                        match = re.search(r'\(across-group-(\d+)\)', label.lower())
                         if match:
                             group_key = f"across-{match.group(1)}"
                         else:
                             group_key = "across-unknown"
-                    elif "flatview" in label.lower():
-                        group_key = "flatview"
-                    elif "total" in label.lower():
-                        group_key = "combined"
                     else:
-                        group_key = "other"
+                        continue
                     
+                    # Initialize group if not exists
                     if group_key not in group_timers:
                         group_timers[group_key] = {}
                     
+                    # Keep timer data from lowest rank for each label
                     if label not in group_timers[group_key] or rank < group_timers[group_key][label]['rank']:
                         group_timers[group_key][label] = {
                             'vals': vals,
                             'rank': rank
                         }
         
+        # ========================================================================
+        # ORGANIZE GROUPS FOR ORDERED OUTPUT
+        # ========================================================================
         group_order = []
         
+        # Sort within-node groups by ID (within-0, within-1, etc.)
         within_groups = [k for k in group_timers.keys() if k.startswith("within-")]
         within_groups.sort(key=lambda x: int(x.split("-")[1]) if x.split("-")[1].isdigit() else 999)
         group_order.extend(within_groups)
         
+        # Sort across-node groups by ID (across-0, across-1, etc.)
         across_groups = [k for k in group_timers.keys() if k.startswith("across-")]
         across_groups.sort(key=lambda x: int(x.split("-")[1]) if x.split("-")[1].isdigit() else 999)
         group_order.extend(across_groups)
         
-        other_groups = [k for k in group_timers.keys() if not k.startswith(("within-", "across-"))]
-        group_order.extend(other_groups)
+        # Add flatview group
+        flatview_groups = [k for k in group_timers.keys() if k == "flatview"]
+        group_order.extend(flatview_groups)
+
         
-        setup_order = ["import", "init", "within_creation", "across_creation", "other"]
+        # ========================================================================
+        # PRINT SETUP TIMERS (import, init, group creation)
+        # ========================================================================
+        setup_order = ["import", "init", "group_creation_within", "group_creation_across"]
         for group_key in setup_order:
             if group_key in group_timers:
                 for label, timer_data in group_timers[group_key].items():
                     vals = timer_data['vals']
                     rank = timer_data['rank']
                     if len(vals) == 1:
-                        logger.output(f"[TIMERS][LOGGING RANK - {rank}] {label:<25}= {vals[0]} ns")
+                        logger.output(f"[TIMERS][LOGGING RANK - {rank}] {label:<25}= {vals[0]:.6f} s")
                     else:
-                        joined = ", ".join(f"{v}" for v in vals)
-                        logger.output(f"[TIMERS][LOGGING RANK - {rank}] {label:<25}= [{joined}] ns")
+                        joined = ", ".join(f"{v:.6f}" for v in vals)
+                        logger.output(f"[TIMERS][LOGGING RANK - {rank}] {label:<25}= [{joined}] s")
         
+        # ========================================================================
+        # PRINT COMMUNICATION TIMERS
+        # ========================================================================
         iteration_data = {}
-        non_iteration_data = {}
         
+        # Process communication groups in order
         for group_key in group_order:
-            if group_key in group_timers and group_key not in setup_order:
+            if group_key in group_timers:
                 for label, timer_data in group_timers[group_key].items():
                     vals = timer_data['vals']
                     rank = timer_data['rank']
                     
+                    # Multi-iteration timers go to iteration table
                     if len(vals) > 1:
                         iteration_data[label] = {'vals': vals, 'rank': rank}
+                    # Single-run timers printed immediately
                     else:
-                        non_iteration_data[label] = {'vals': vals, 'rank': rank}
+                        logger.output(f"[TIMERS][LOGGING RANK - {rank}] {label:<25}= {vals[0]:.6f} s")
         
-        for label, timer_data in non_iteration_data.items():
-            vals = timer_data['vals']
-            rank = timer_data['rank']
-            logger.output(f"[TIMERS][LOGGING RANK - {rank}] {label:<25}= {vals[0]} ns")
-        
+        # ========================================================================
+        # PRINT BARRIER STATUS
+        # ========================================================================
         logger.output("")
         if barrier_enabled:
             logger.info(f"  {title} [BARRIER ENABLED] Timing measurements used MPI barriers for synchronization")
         else:
             logger.info(f"  {title} [BARRIER DISABLED] Warning: Timing without barriers - other collectives may still be in process")
         
+        # ========================================================================
+        # PRINT ITERATION TABLE FOR MULTI-RUN TIMERS
+        # ========================================================================
         if iteration_data:
             logger.output("")
             logger.output("[TIMERS] ITERATION TABLE:")
             
+            # Prepare table structure
             headers = list(iteration_data.keys())
             max_iterations = max(len(data['vals']) for data in iteration_data.values())
-            
             col_width = 20
             
+            # Print timer label header
             header_line1 = f"{'Iteration':<12}"
             for label in headers:
                 header_line1 += f"{label:^{col_width}}"
             logger.output(header_line1)
             
+            # Print rank header  
             header_line2 = f"{'':12}"
             for label in headers:
                 rank = iteration_data[label]['rank']
@@ -145,15 +176,17 @@ def gather_and_print_all_times(logger, ranks_responsible_for_logging, barrier_en
                 header_line2 += f"{rank_str:^{col_width}}"
             logger.output(header_line2)
             
+            # Print separator
             separator = "-" * len(header_line1)
             logger.output(separator)
             
+            # Print data rows
             for i in range(max_iterations):
                 row = f"{i:<12}"
                 for label in headers:
                     vals = iteration_data[label]['vals']
                     if i < len(vals):
-                        row += f"{vals[i]:^{col_width}}"
+                        row += f"{vals[i]:.6f}".center(col_width)
                     else:
                         row += f"{'-':^{col_width}}"
                 logger.output(row)
@@ -161,6 +194,9 @@ def gather_and_print_all_times(logger, ranks_responsible_for_logging, barrier_en
             logger.output(separator)
             logger.output("")
         
+        # ========================================================================
+        # END TIMER REPORT
+        # ========================================================================
         logger.output(f"{title} -------------------------------------------\n")
 
 
@@ -170,9 +206,9 @@ def print_all_times(logger, title="[TIMERS]"):
     
     for label, vals in TIMES.items():
         if len(vals) == 1:
-            logger.output(f"{title} {label:<25}= {vals[0]} ns")
+            logger.output(f"{title} {label:<25}= {vals[0]:.6f} s")
         else:
-            joined = ", ".join(f"{v}" for v in vals)
-            logger.output(f"{title} {label:<25}= [{joined}] ns")
+            joined = ", ".join(f"{v:.6f}" for v in vals)
+            logger.output(f"{title} {label:<25}= [{joined}] s")
 
     logger.output(f"{title} -------------------------------------------\n")

@@ -39,7 +39,7 @@ from dl_comm.comm import setup_communication_groups
 from dl_comm.utils.utility import DLCOMMLogger, Profile
 from dl_comm.config import ConfigValidator, parse_buffer_size
 from dl_comm.comm import COLLECTIVES, OPS_NEED_REDUCE, OP_MAP, DTYPES
-from dl_comm.timer import timer, print_all_times, gather_and_print_all_times
+from dl_comm.timer import timer, print_all_times, gather_and_print_all_times, reset_times
 from dl_comm.analysis import report_ccl_selection, print_all_bandwidths, check_group_correctness
 # ----------------------------------------------------------------------------
 # SETUP FUNCTIONS
@@ -210,9 +210,12 @@ def main(cfg: DictConfig):
             import torch.distributed as dist
 
     # Define barrier function for timing synchronization
-    def time_barrier():
+    def time_barrier(group=None):
         if barrier_enabled:
-            MPI.COMM_WORLD.Barrier()
+            if group is not None:
+                dist.barrier(group=group)
+            else:
+                dist.barrier()
     
     if mpi_rank == 0:
         log.info("")
@@ -397,10 +400,10 @@ def main(cfg: DictConfig):
             
             check_group_correctness(context, x, "across", "before")
             if my_across_group:
-                time_barrier()
+                time_barrier(group=my_across_group)
                 with timer(f"(Across-Group-{across_group_id})"):
                     result = run_across(x, op_across, group=my_across_group, dist=dist)
-                    time_barrier()
+                    time_barrier(group=my_across_group)
             else:
                 result = None
             check_group_correctness(context, x, "across", "after", tensor_list=result, collective_name=coll_name_across)
@@ -455,6 +458,7 @@ def main(cfg: DictConfig):
     DLCOMMLogger.reset()
     MPI.COMM_WORLD.Barrier()   
     dist.destroy_process_group()
+    reset_times()
     
 if __name__ == "__main__":
     main()

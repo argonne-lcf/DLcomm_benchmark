@@ -1,4 +1,5 @@
 import torch
+from mpi4py import MPI
 from omegaconf import DictConfig
 from dl_comm.timer import timer
 
@@ -146,30 +147,32 @@ def setup_communication_groups(cfg: DictConfig, mpi_rank, log, dist=None):
     
     if comm_mode == "flatview":
         
-        # Determine topology information
-        if torch.xpu.is_available():
-            gpus_per_node = torch.xpu.device_count()
-            device_ids = list(range(gpus_per_node))
-        else:
-            gpus_per_node = 1
-            device_ids = ["CPU"]
- 
-        
-        if mpi_rank == 0:
-            log.info(f"[COMM][CONFIG] Flatview: ?? nodes, {gpus_per_node} GPUs per node, Device IDs: {device_ids}")
-            log.info("")
-            log.info("[COMM][GROUP CREATION] Flatview groups:")
- 
-        # CONFIG PARSING and DEVICE ALLOCATION
-        world_group = None  
-        if torch.xpu.is_available():
-            device = torch.device(f"xpu:{mpi_rank % torch.xpu.device_count()}")
-        else:
-            device = torch.device("cpu")
+        # CONFIG PARSING
+        flatview_config = comm_config.flatview
+        num_compute_nodes = flatview_config.num_compute_nodes
+        num_gpus_per_node = flatview_config.num_gpus_per_node
+        gpu_ids_per_node = flatview_config.gpu_ids_per_node
         
         # For flatview, all ranks participate
-        from mpi4py import MPI
+        
         mpi_size = MPI.COMM_WORLD.Get_size()
+        
+        if mpi_rank == 0:
+            log.info(f"[COMM][CONFIG] Flatview: {num_compute_nodes} nodes, {num_gpus_per_node} GPUs per node, Device IDs: {gpu_ids_per_node}")
+            log.info("")
+            log.info(f"[COMM][GROUP CREATION] Flatview groups: All ranks (0-{mpi_size-1}) use world group")
+ 
+        # DEVICE ALLOCATION
+        world_group = None  
+        if torch.xpu.is_available():
+            rank_id_per_node = mpi_rank % num_gpus_per_node
+            device_id = gpu_ids_per_node[rank_id_per_node]
+            device = torch.device(f"xpu:{device_id}")
+        else:
+            device = torch.device("cpu")
+            if mpi_rank == 0:
+                log.info("[COMM] XPU not available, using CPU")
+        
         world_group_ranks = list(range(mpi_size))
 
  
