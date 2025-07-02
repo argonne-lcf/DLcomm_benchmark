@@ -40,7 +40,8 @@ from dl_comm.utils.utility import DLCOMMLogger, Profile
 from dl_comm.config import ConfigValidator, parse_buffer_size
 from dl_comm.comm import COLLECTIVES, OPS_NEED_REDUCE, OP_MAP, DTYPES
 from dl_comm.timer import timer, print_all_times, gather_and_print_all_times, reset_times
-from dl_comm.analysis import report_ccl_selection, print_all_bandwidths, check_group_correctness
+from dl_comm.analysis import report_ccl_selection, print_all_bandwidths
+from dl_comm.analysis.correctness_new import check_collective_correctness
 # ----------------------------------------------------------------------------
 # SETUP FUNCTIONS
 # ----------------------------------------------------------------------------
@@ -292,7 +293,7 @@ def main(cfg: DictConfig):
     if mpi_rank == 0:
         import socket
         MASTER_ADDR = socket.gethostname()
-        MASTER_PORT = 2257
+        MASTER_PORT = 2259
     else:
         MASTER_ADDR = None
         MASTER_PORT = None
@@ -353,28 +354,25 @@ def main(cfg: DictConfig):
             context = {'mpi_rank': mpi_rank, 'cfg': cfg,'log': log, 'iteration': i}
 
             if comm_mode == "flatview":
-                check_group_correctness(context, x, "flatview", "before")
                 time_barrier()
                 with timer("(Flatview)"):
                     result = run_collective(x, op_obj, group=world_group, dist=dist)
                     time_barrier()
-                check_group_correctness(context, x, "flatview", "after", tensor_list=result, collective_name=coll_name)
+                check_collective_correctness(context, x, coll_name, op=op_obj, group=world_group, result_data=result, group_type="Flatview", group_id="All")
 
             elif comm_mode == "within_node":
-                check_group_correctness(context, x, "within", "before")
                 time_barrier()
                 with timer(f"(Within-Group-{within_group_id})"):
                     result = run_collective(x, op_obj, group=my_within_group, dist=dist)
                     time_barrier()
-                check_group_correctness(context, x, "within", "after", tensor_list=result, collective_name=coll_name)
+                check_collective_correctness(context, x, coll_name, op=op_obj, group=my_within_group, result_data=result, group_type="Within", group_id=within_group_id)
 
             elif comm_mode == "across_node":
-                check_group_correctness(context, x, "across", "before")
                 time_barrier()
                 with timer(f"(Across-Group-{across_group_id})"):
                     result = run_collective(x, op_obj, group=my_across_group, dist=dist)
                     time_barrier()
-                check_group_correctness(context, x, "across", "after", tensor_list=result, collective_name=coll_name)
+                check_collective_correctness(context, x, coll_name, op=op_obj, group=my_across_group, result_data=result, group_type="Across", group_id=across_group_id)
 
 
     
@@ -385,12 +383,11 @@ def main(cfg: DictConfig):
             context = {'mpi_rank': mpi_rank, 'cfg': cfg,'log': log, 'iteration': i}
             x = torch.ones(num_elems_within, dtype=torch_dtype_within).to(device, non_blocking=True)
             
-            check_group_correctness(context, x, "within", "before")
             time_barrier()
             with timer(f"(Within-Group-{within_group_id})"):
                 result = run_within(x, op_within, group=my_within_group, dist=dist)
                 time_barrier()
-            check_group_correctness(context, x, "within", "after", tensor_list=result, collective_name=coll_name_within)
+            check_collective_correctness(context, x, coll_name_within, op=op_within, group=my_within_group, result_data=result, group_type="Within", group_id=within_group_id)
 
         # ─── Across-node phase iterations ───────────────────────────
         setup_environment_with_collective(cfg, coll_across_cfg)
@@ -398,15 +395,14 @@ def main(cfg: DictConfig):
             context = {'mpi_rank': mpi_rank, 'cfg': cfg,'log': log, 'iteration': i}
             x = torch.ones(num_elems_across, dtype=torch_dtype_across).to(device, non_blocking=True)
             
-            check_group_correctness(context, x, "across", "before")
             if my_across_group:
                 time_barrier(group=my_across_group)
                 with timer(f"(Across-Group-{across_group_id})"):
                     result = run_across(x, op_across, group=my_across_group, dist=dist)
                     time_barrier(group=my_across_group)
+                check_collective_correctness(context, x, coll_name_across, op=op_across, group=my_across_group, result_data=result, group_type="Across", group_id=across_group_id)
             else:
                 result = None
-            check_group_correctness(context, x, "across", "after", tensor_list=result, collective_name=coll_name_across)
 
         time_barrier()
 

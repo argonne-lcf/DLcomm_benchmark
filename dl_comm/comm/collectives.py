@@ -49,191 +49,79 @@ def _reduce(tensor, op, group=None, dist=None):
     dist.reduce(tensor, dst=smallest_rank, op=op, group=group)
 
 
-@register_collective("broadcast",needs_op=False)      
+@register_collective("broadcast", needs_op=False)      
 def _broadcast(tensor, op, group=None, dist=None):
-    
+
     group_ranks = dist.get_process_group_ranks(group)
     smallest_rank = min(group_ranks)
-    global_rank = dist.get_rank()
-    group_rank = dist.get_rank(group)
-    
-    # Store original data for source verification
-    if global_rank == smallest_rank:
-        original_tensor = tensor.clone()
-    
     dist.broadcast(tensor, src=smallest_rank, group=group)
     
-    # Return verification info
-    if global_rank == smallest_rank:
-        return {
-            'type': 'source',
-            'global_rank': global_rank,
-            'group_rank': group_rank,
-            'source_rank': smallest_rank,
-            'sent_tensor': original_tensor,
-            'sent_sum': float(original_tensor.sum())
-        }
-    else:
-        return {
-            'type': 'receiver',
-            'global_rank': global_rank,
-            'group_rank': group_rank,
-            'source_rank': smallest_rank,
-            'received_tensor': tensor.clone(),
-            'received_sum': float(tensor.sum())
-        }
 
 
 @register_collective("allgather", needs_op=False)
 def _allgather(tensor, op=None, group=None, dist=None):
-    # Create tensor_list internally for benchmark usage
+    
+    
     world_size = dist.get_world_size(group)
     tensor_list = [torch.empty_like(tensor) for _ in range(world_size)]
     dist.all_gather(tensor_list, tensor, group=group)
-    return tensor_list  # Return pure list - no concatenation
-
+ 
+     
 
 @register_collective("reducescatter", needs_op=True)
 def _reduce_scatter(tensor, op, group=None, dist=None):
-    # Simple ReduceScatter testing with ones
     world_size = dist.get_world_size(group)
     global_rank = dist.get_rank()   
-    group_rank = dist.get_rank(group)   
-    
-     
+
     input_list = []
     for i in range(world_size):
         chunk = tensor.clone()  
         input_list.append(chunk)
     
     dist.reduce_scatter(tensor, input_list, op=op, group=group)
-    
-    # Return diagnostic info for validation
-    return {
-        'global_rank': global_rank,
-        'group_rank': group_rank,
-        'my_chunk_index': group_rank,
-        'expected_value': float(world_size)  # Each element should equal world_size after SUM
-    }
+ 
 
 
 @register_collective("gather", needs_op=False)
 def _gather(tensor, op=None, group=None, dist=None):
-    # Find the smallest global rank in the group to use as destination
     group_ranks = dist.get_process_group_ranks(group)
     smallest_rank = min(group_ranks)
     world_size = dist.get_world_size(group)
-    global_rank = dist.get_rank()  # My global rank
+    global_rank = dist.get_rank()
     
     if global_rank == smallest_rank:
-        # I am the destination rank - create gather_list
         gather_list = [torch.empty_like(tensor) for _ in range(world_size)]
         dist.gather(tensor, gather_list, dst=smallest_rank, group=group)
-        return gather_list
     else:
-        # I am not the destination - gather_list must be None
         dist.gather(tensor, None, dst=smallest_rank, group=group)
-        return None
+        
 
 
 @register_collective("scatter", needs_op=False)
 def _scatter(tensor, op=None, group=None, dist=None):
-    # Find the smallest global rank in the group to use as source
     group_ranks = dist.get_process_group_ranks(group)
     smallest_rank = min(group_ranks)
-    global_rank = dist.get_rank()  # My global rank
     world_size = dist.get_world_size(group)
-    group_rank = dist.get_rank(group)
+    global_rank = dist.get_rank()
     
     if global_rank == smallest_rank:
-        # I am the source rank - create scatter_list with unique data for each rank
-        scatter_list = []
-        for i in range(world_size):
-            # Create unique tensor for each rank (filled with group rank number)
-            unique_tensor = torch.full_like(tensor, float(i))
-            scatter_list.append(unique_tensor)
-        
+        scatter_list = [tensor.clone() for _ in range(world_size)]
         dist.scatter(tensor, scatter_list, src=smallest_rank, group=group)
-        
-        # Return info showing what was scattered
-        return {
-            'type': 'source',
-            'source_global_rank': global_rank,
-            'scattered_data': [{'to_group_rank': i, 'value': float(i), 'tensor_sum': float(i * tensor.numel())} 
-                             for i in range(world_size)]
-        }
     else:
-        # I am not the source - scatter_list must be None
         dist.scatter(tensor, None, src=smallest_rank, group=group)
         
-        # Return info showing what I received
-        return {
-            'type': 'receiver',
-            'receiver_global_rank': global_rank,
-            'receiver_group_rank': group_rank,
-            'expected_value': float(group_rank),
-            'received_tensor_sum': float(tensor.sum()),
-            'is_correct': float(tensor.sum()) == float(group_rank * tensor.numel())
-        }
-
+    
 
 @register_collective("alltoall", needs_op=False)
 def _all_to_all(tensor, op=None, group=None, dist=None):
     world_size = dist.get_world_size(group)
-    global_rank = dist.get_rank()
-    group_rank = dist.get_rank(group)
     
-    # Create meaningful input data: each chunk I send has a unique pattern
-    # Chunk for rank i will be filled with value: (my_group_rank * 100 + i)
-    input_tensor_list = []
-    chunk_size = tensor.numel() // world_size
+    input_tensor_list = [tensor.clone() for _ in range(world_size)]
+    output_tensor_list = [torch.empty_like(tensor) for _ in range(world_size)]
     
-    for i in range(world_size):
-        chunk = torch.full((chunk_size,), float(group_rank * 100 + i), 
-                          dtype=tensor.dtype, device=tensor.device)
-        input_tensor_list.append(chunk)
-    
-    # Prepare output buffers
-    output_tensor_list = [torch.empty_like(chunk) for chunk in input_tensor_list]
-    
-    # Perform AllToAll exchange
     dist.all_to_all(output_tensor_list, input_tensor_list, group=group)
-    
-    # Prepare validation information
-    sent_data = []
-    received_data = []
-    
-    for i in range(world_size):
-        # What I sent to rank i
-        sent_value = float(group_rank * 100 + i)
-        sent_data.append({
-            'to_group_rank': i,
-            'sent_value': sent_value,
-            'chunk_sum': sent_value * chunk_size
-        })
-        
-        # What I received from rank i  
-        received_chunk = output_tensor_list[i]
-        received_sum = float(received_chunk.sum())
-        expected_value = float(i * 100 + group_rank)  # What rank i should have sent me
-        expected_sum = expected_value * chunk_size
-        
-        received_data.append({
-            'from_group_rank': i,
-            'expected_value': expected_value,
-            'expected_sum': expected_sum,
-            'received_sum': received_sum,
-            'is_correct': abs(received_sum - expected_sum) < max(abs(expected_sum) * 0.01, 50.0)  # 1% tolerance or 50.0, whichever is larger
-        })
-    
-    return {
-        'global_rank': global_rank,
-        'group_rank': group_rank,
-        'sent_data': sent_data,
-        'received_data': received_data,
-        'concatenated_result': torch.cat(output_tensor_list)
-    }
-
+    return output_tensor_list
+     
 
 @register_collective("barrier", needs_op=False)
 def _barrier(tensor, op=None, group=None, dist=None):

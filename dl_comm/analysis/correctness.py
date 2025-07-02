@@ -1,4 +1,5 @@
- 
+from mpi4py import MPI
+
 _before_values = {}
 
 def check_group_correctness(context, x, group_type, phase, tensor_list=None, collective_name=None):
@@ -213,3 +214,4 @@ def check_group_correctness(context, x, group_type, phase, tensor_list=None, col
                             log.output(f"[CORRECTNESS][{group_label}]   - Actual result sum: {after_value}")
                 
                 del _before_values[group_label]
+                
