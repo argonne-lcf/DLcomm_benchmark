@@ -54,9 +54,11 @@ def _reduce(tensor, op, group=None, dist=None):
 
 @register_collective("broadcast", needs_op=False)      
 def _broadcast(tensor, op, group=None, dist=None):
-
-    group_ranks = dist.get_process_group_ranks(group)
-    smallest_rank = min(group_ranks)
+    if group is None:
+        smallest_rank = 0
+    else:
+        group_ranks = dist.get_process_group_ranks(group)
+        smallest_rank = min(group_ranks)
     dist.broadcast(tensor, src=smallest_rank, group=group)
     
 

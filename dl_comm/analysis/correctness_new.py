@@ -10,6 +10,8 @@ def check_collective_correctness(context, tensor_after, collective_name, op=None
         _check_allreduce(context, tensor_after, op, group, group_type, group_id)
     elif collective_name == "reduce":
         _check_reduce(context, tensor_after, op, group, group_type, group_id)
+    elif collective_name == "broadcast":
+        _check_broadcast(context, tensor_after, op, group, group_type, group_id)
 
 
 def _check_allreduce(context, tensor_after, op, group, group_type, group_id):
@@ -83,3 +85,35 @@ def _check_reduce(context, tensor_after, op, group, group_type, group_id):
             log.output(f"[CORRECTNESS][{group_type}-Group-{group_id}] Reduce verification PASSED - Root rank received correct value")
         else:
             log.output(f"[CORRECTNESS][{group_type}-Group-{group_id}] Reduce verification FAILED - Root rank received incorrect value")
+
+
+def _check_broadcast(context, tensor_after, op, group, group_type, group_id):
+    log = context['log']
+    world_size = dist.get_world_size(group)
+    
+    if group is None:
+        group_ranks = list(range(world_size))
+        src_rank = 0
+    else:
+        group_ranks = dist.get_process_group_ranks(group)
+        src_rank = min(group_ranks)
+    
+    expected_tensor = torch.ones_like(tensor_after)
+    is_correct = torch.allclose(tensor_after, expected_tensor, rtol=1e-6)
+    
+    correct_tensor = torch.tensor([1 if is_correct else 0], dtype=torch.int32).to(tensor_after.device)
+    
+    my_rank = dist.get_rank()
+    
+    if my_rank == src_rank:
+        gathered_results = [torch.zeros_like(correct_tensor) for _ in range(world_size)]
+        dist.gather(correct_tensor, gathered_results, dst=src_rank, group=group)
+        
+        total_correct = sum(result.item() for result in gathered_results)
+        if total_correct == world_size:
+            log.output(f"[CORRECTNESS][{group_type}-Group-{group_id}] Broadcast verification PASSED - All {world_size} ranks received correct values")
+        else:
+            failed_ranks = [i for i, result in enumerate(gathered_results) if result.item() == 0]
+            log.output(f"[CORRECTNESS][{group_type}-Group-{group_id}] Broadcast verification FAILED - Ranks {failed_ranks} received incorrect values")
+    else:
+        dist.gather(correct_tensor, None, dst=src_rank, group=group)
