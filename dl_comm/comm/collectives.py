@@ -44,8 +44,11 @@ def _allreduce(tensor, op, group=None, dist=None):
 
 @register_collective("reduce", needs_op=True)
 def _reduce(tensor, op, group=None, dist=None):
-    group_ranks = dist.get_process_group_ranks(group)
-    smallest_rank = min(group_ranks)
+    if group is None:
+        smallest_rank = 0
+    else:
+        group_ranks = dist.get_process_group_ranks(group)
+        smallest_rank = min(group_ranks)
     dist.reduce(tensor, dst=smallest_rank, op=op, group=group)
 
 

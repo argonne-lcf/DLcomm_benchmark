@@ -8,6 +8,8 @@ def check_collective_correctness(context, tensor_after, collective_name, op=None
         
     if collective_name == "allreduce":
         _check_allreduce(context, tensor_after, op, group, group_type, group_id)
+    elif collective_name == "reduce":
+        _check_reduce(context, tensor_after, op, group, group_type, group_id)
 
 
 def _check_allreduce(context, tensor_after, op, group, group_type, group_id):
@@ -49,3 +51,35 @@ def _check_allreduce(context, tensor_after, op, group, group_type, group_id):
             log.output(f"[CORRECTNESS][{group_type}-Group-{group_id}] AllReduce verification FAILED - Ranks {failed_ranks} received incorrect values")
     else:
         dist.gather(correct_tensor, None, dst=dst_rank, group=group)
+
+
+def _check_reduce(context, tensor_after, op, group, group_type, group_id):
+    log = context['log']
+    world_size = dist.get_world_size(group)
+    
+    if group is None:
+        group_ranks = list(range(world_size))
+        dst_rank = 0
+    else:
+        group_ranks = dist.get_process_group_ranks(group)
+        dst_rank = min(group_ranks)
+    
+    my_rank = dist.get_rank()
+    
+    if my_rank == dst_rank:
+        if op == dist.ReduceOp.SUM:
+            expected_value = world_size
+        elif op == dist.ReduceOp.MAX:
+            expected_value = 1
+        elif op == dist.ReduceOp.MIN:
+            expected_value = 1
+        elif op == dist.ReduceOp.PRODUCT:
+            expected_value = 1
+        
+        expected_tensor = torch.full_like(tensor_after, expected_value)
+        is_correct = torch.allclose(tensor_after, expected_tensor, rtol=1e-6)
+        
+        if is_correct:
+            log.output(f"[CORRECTNESS][{group_type}-Group-{group_id}] Reduce verification PASSED - Root rank received correct value")
+        else:
+            log.output(f"[CORRECTNESS][{group_type}-Group-{group_id}] Reduce verification FAILED - Root rank received incorrect value")
