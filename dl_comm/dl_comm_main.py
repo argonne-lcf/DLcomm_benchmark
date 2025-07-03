@@ -293,7 +293,7 @@ def main(cfg: DictConfig):
     if mpi_rank == 0:
         import socket
         MASTER_ADDR = socket.gethostname()
-        MASTER_PORT = 2259
+        MASTER_PORT = 2221
     else:
         MASTER_ADDR = None
         MASTER_PORT = None
@@ -363,18 +363,16 @@ def main(cfg: DictConfig):
             elif comm_mode == "within_node":
                 time_barrier()
                 with timer(f"(Within-Group-{within_group_id})"):
-                    result = run_collective(x, op_obj, group=my_within_group, dist=dist)
+                    result = run_collective(x, op_obj, group=my_within_group, dist=dist, log=log)
                     time_barrier()
                 check_collective_correctness(context, x, coll_name, op=op_obj, group=my_within_group, result_data=result, group_type="Within", group_id=within_group_id)
 
             elif comm_mode == "across_node":
                 time_barrier()
                 with timer(f"(Across-Group-{across_group_id})"):
-                    result = run_collective(x, op_obj, group=my_across_group, dist=dist)
+                    result = run_collective(x, op_obj, group=my_across_group, dist=dist, log=log)
                     time_barrier()
                 check_collective_correctness(context, x, coll_name, op=op_obj, group=my_across_group, result_data=result, group_type="Across", group_id=across_group_id)
-
-
     
     else:
         # ─── Within-node phase iterations ───────────────────────────
@@ -385,7 +383,7 @@ def main(cfg: DictConfig):
             
             time_barrier()
             with timer(f"(Within-Group-{within_group_id})"):
-                result = run_within(x, op_within, group=my_within_group, dist=dist)
+                result = run_within(x, op_within, group=my_within_group, dist=dist, log=log)
                 time_barrier()
             check_collective_correctness(context, x, coll_name_within, op=op_within, group=my_within_group, result_data=result, group_type="Within", group_id=within_group_id)
 
@@ -398,7 +396,7 @@ def main(cfg: DictConfig):
             if my_across_group:
                 time_barrier(group=my_across_group)
                 with timer(f"(Across-Group-{across_group_id})"):
-                    result = run_across(x, op_across, group=my_across_group, dist=dist)
+                    result = run_across(x, op_across, group=my_across_group, dist=dist, log=log)
                     time_barrier(group=my_across_group)
                 check_collective_correctness(context, x, coll_name_across, op=op_across, group=my_across_group, result_data=result, group_type="Across", group_id=across_group_id)
             else:

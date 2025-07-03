@@ -43,7 +43,7 @@ def _allreduce(tensor, op, group=None, dist=None):
 
 
 @register_collective("reduce", needs_op=True)
-def _reduce(tensor, op, group=None, dist=None):
+def _reduce(tensor, op, group=None, dist=None,log=None):
     if group is None:
         smallest_rank = 0
     else:
@@ -61,17 +61,59 @@ def _broadcast(tensor, op, group=None, dist=None):
         smallest_rank = min(group_ranks)
     dist.broadcast(tensor, src=smallest_rank, group=group)
     
-
+## fix allgather later
 
 @register_collective("allgather", needs_op=False)
-def _allgather(tensor, op=None, group=None, dist=None):
-    
-    
+def _allgather(tensor, op=None, group=None, dist=None, log=None):
+    global_rank = dist.get_rank()
     world_size = dist.get_world_size(group)
+    
+    if log:
+        if group is not None:
+            group_ranks = dist.get_process_group_ranks(group)
+            log.info(f"[ALLGATHER] Global rank {global_rank} entering allgather, group_size={world_size}, group_ranks={sorted(group_ranks)}")
+        else:
+            log.info(f"[ALLGATHER] Global rank {global_rank} entering allgather, group=None, world_size={world_size}")
+        
+        log.info(f"[ALLGATHER] Global rank {global_rank} calling barrier")
+    
+    dist.barrier(group=group)
+    
+    if log:
+        log.info(f"[ALLGATHER] Global rank {global_rank} barrier completed")
+    
     tensor_list = [torch.empty_like(tensor) for _ in range(world_size)]
+    
+    if log:
+        log.info(f"[ALLGATHER] Global rank {global_rank} calling dist.all_gather")
+    
     dist.all_gather(tensor_list, tensor, group=group)
+    
+    if log:
+        log.info(f"[ALLGATHER] Global rank {global_rank} finished allgather")
  
      
+
+@register_collective("gather", needs_op=False)
+def _gather(tensor, op=None, group=None, dist=None, log=None):
+    if group is None:
+        smallest_rank = 0
+    else:
+        group_ranks = dist.get_process_group_ranks(group)
+        smallest_rank = min(group_ranks)
+    world_size = dist.get_world_size(group)
+    global_rank = dist.get_rank()
+    
+    if global_rank == smallest_rank:
+        gather_list = [torch.empty_like(tensor) for _ in range(world_size)]
+        dist.gather(tensor, gather_list, dst=smallest_rank, group=group)
+        return gather_list
+    else:
+        dist.gather(tensor, None, dst=smallest_rank, group=group)
+        return None
+        
+
+
 
 @register_collective("reducescatter", needs_op=True)
 def _reduce_scatter(tensor, op, group=None, dist=None):
@@ -87,25 +129,13 @@ def _reduce_scatter(tensor, op, group=None, dist=None):
  
 
 
-@register_collective("gather", needs_op=False)
-def _gather(tensor, op=None, group=None, dist=None):
-    group_ranks = dist.get_process_group_ranks(group)
-    smallest_rank = min(group_ranks)
-    world_size = dist.get_world_size(group)
-    global_rank = dist.get_rank()
-    
-    if global_rank == smallest_rank:
-        gather_list = [torch.empty_like(tensor) for _ in range(world_size)]
-        dist.gather(tensor, gather_list, dst=smallest_rank, group=group)
-    else:
-        dist.gather(tensor, None, dst=smallest_rank, group=group)
-        
-
-
 @register_collective("scatter", needs_op=False)
 def _scatter(tensor, op=None, group=None, dist=None):
-    group_ranks = dist.get_process_group_ranks(group)
-    smallest_rank = min(group_ranks)
+    if group is None:
+        smallest_rank = 0
+    else:
+        group_ranks = dist.get_process_group_ranks(group)
+        smallest_rank = min(group_ranks)
     world_size = dist.get_world_size(group)
     global_rank = dist.get_rank()
     
