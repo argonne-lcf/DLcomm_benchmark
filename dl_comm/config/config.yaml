@@ -6,7 +6,7 @@ barrier     : on    # on / off - on: adds MPI barrier before timer printing for 
 
   
 comm_group:
-  mode: flatview  # within_node/across_node/combined/flatview -> Only one out of four should be used
+  mode: combined  # within_node/across_node/combined/flatview -> Only one out of four should be used
     
   flatview:
     num_compute_nodes: 2
@@ -62,7 +62,7 @@ comm_group:
       num_gpus_per_node: 12
       gpu_ids_per_node: [0,1,2,3,4,5,6,7, 8, 9, 10, 11]   
       collective:
-        name: gather   # allgather / reducescatter / broadcast
+        name: reducescatter   # allgather / reducescatter / broadcast
         op: sum          # max / min / prod / sum
         scale_up_algorithm: ring
         scale_out_algorithm: ring        # rabinseifner 
@@ -78,7 +78,7 @@ comm_group:
       num_gpus_per_node: 3
       gpu_ids_per_node: [0,1,3] 
       collective:
-        name: gather   # allgather / reducescatter / broadcast
+        name: reducescatter   # allgather / reducescatter / broadcast
         op: sum          # max / min / prod / sum
         scale_up_algorithm: ring
         scale_out_algorithm: rabinseifner        # rabinseifner 

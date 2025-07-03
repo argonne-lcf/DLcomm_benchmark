@@ -131,7 +131,6 @@ def _scatter(tensor, op=None, group=None, dist=None,log=None):
 
 
 
-
 @register_collective("reducescatter", needs_op=True)
 def _reduce_scatter(tensor, op, group=None, dist=None,log=None):
     world_size = dist.get_world_size(group)
@@ -143,10 +142,7 @@ def _reduce_scatter(tensor, op, group=None, dist=None,log=None):
         input_list.append(chunk)
     
     dist.reduce_scatter(tensor, input_list, op=op, group=group)
- 
-
- 
-    
+  
 
 @register_collective("alltoall", needs_op=False)
 def _all_to_all(tensor, op=None, group=None, dist=None,log=None):
