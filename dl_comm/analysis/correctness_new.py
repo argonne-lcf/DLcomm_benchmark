@@ -14,6 +14,8 @@ def check_collective_correctness(context, tensor_after, collective_name, op=None
         _check_broadcast(context, tensor_after, op, group, group_type, group_id)
     elif collective_name == "gather":
         _check_gather(context, tensor_after, op, group, group_type, group_id, result_data)
+    elif collective_name == "scatter":
+        _check_scatter(context, tensor_after, op, group, group_type, group_id)
 
 
 def _check_allreduce(context, tensor_after, op, group, group_type, group_id):
@@ -154,7 +156,35 @@ def _check_gather(context, tensor_after, op, group, group_type, group_id, result
             log.output(f"[CORRECTNESS][{group_type}-Group-{group_id}] Gather verification PASSED - Root rank received correct values from all {world_size} ranks")
         else:
             log.output(f"[CORRECTNESS][{group_type}-Group-{group_id}] Gather verification FAILED - Incorrect values received from ranks {failed_ranks}")
- 
 
 
+def _check_scatter(context, tensor_after, op, group, group_type, group_id):
+    log = context['log']
+    world_size = dist.get_world_size(group)
+    
+    if group is None:
+        src_rank = 0
+    else:
+        group_ranks = dist.get_process_group_ranks(group)
+        src_rank = min(group_ranks)
+    
+    expected_tensor = torch.ones_like(tensor_after)
+    is_correct = torch.allclose(tensor_after, expected_tensor, rtol=1e-6)
+    
+    correct_tensor = torch.tensor([1 if is_correct else 0], dtype=torch.int32).to(tensor_after.device)
+    
+    my_rank = dist.get_rank()
+    
+    if my_rank == src_rank:
+        gathered_results = [torch.zeros_like(correct_tensor) for _ in range(world_size)]
+        dist.gather(correct_tensor, gathered_results, dst=src_rank, group=group)
+        
+        total_correct = sum(result.item() for result in gathered_results)
+        if total_correct == world_size:
+            log.output(f"[CORRECTNESS][{group_type}-Group-{group_id}] Scatter verification PASSED - All {world_size} ranks received correct values")
+        else:
+            failed_ranks = [i for i, result in enumerate(gathered_results) if result.item() == 0]
+            log.output(f"[CORRECTNESS][{group_type}-Group-{group_id}] Scatter verification FAILED - Ranks {failed_ranks} received incorrect values")
+    else:
+        dist.gather(correct_tensor, None, dst=src_rank, group=group)
 

@@ -113,24 +113,8 @@ def _gather(tensor, op=None, group=None, dist=None, log=None):
         return None
         
 
-
-
-@register_collective("reducescatter", needs_op=True)
-def _reduce_scatter(tensor, op, group=None, dist=None):
-    world_size = dist.get_world_size(group)
-    global_rank = dist.get_rank()   
-
-    input_list = []
-    for i in range(world_size):
-        chunk = tensor.clone()  
-        input_list.append(chunk)
-    
-    dist.reduce_scatter(tensor, input_list, op=op, group=group)
- 
-
-
 @register_collective("scatter", needs_op=False)
-def _scatter(tensor, op=None, group=None, dist=None):
+def _scatter(tensor, op=None, group=None, dist=None,log=None):
     if group is None:
         smallest_rank = 0
     else:
@@ -144,11 +128,28 @@ def _scatter(tensor, op=None, group=None, dist=None):
         dist.scatter(tensor, scatter_list, src=smallest_rank, group=group)
     else:
         dist.scatter(tensor, None, src=smallest_rank, group=group)
-        
+
+
+
+
+@register_collective("reducescatter", needs_op=True)
+def _reduce_scatter(tensor, op, group=None, dist=None,log=None):
+    world_size = dist.get_world_size(group)
+    global_rank = dist.get_rank()   
+
+    input_list = []
+    for i in range(world_size):
+        chunk = tensor.clone()  
+        input_list.append(chunk)
+    
+    dist.reduce_scatter(tensor, input_list, op=op, group=group)
+ 
+
+ 
     
 
 @register_collective("alltoall", needs_op=False)
-def _all_to_all(tensor, op=None, group=None, dist=None):
+def _all_to_all(tensor, op=None, group=None, dist=None,log=None):
     world_size = dist.get_world_size(group)
     
     input_tensor_list = [tensor.clone() for _ in range(world_size)]
@@ -159,7 +160,7 @@ def _all_to_all(tensor, op=None, group=None, dist=None):
      
 
 @register_collective("barrier", needs_op=False)
-def _barrier(tensor, op=None, group=None, dist=None):
+def _barrier(tensor, op=None, group=None, dist=None,log=None):
     dist.barrier(group=group)
 
  
