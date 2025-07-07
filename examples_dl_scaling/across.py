@@ -16,8 +16,8 @@ import_timer = t2 - t1
 
 across_config = {
     'num_nodes': 2,
-    'num_gpus': 3,
-    'gpu_ids_per_node': [3, 4, 5]
+    'num_gpus': 2,
+    'gpu_ids_per_node': [3, 4]
 }
 
 num_nodes = across_config['num_nodes']
@@ -35,7 +35,7 @@ if mpi_my_rank == 0:
    master_addr = socket.gethostname()
    sock = socket.socket()
    sock.bind(('',0))
-   master_port = 2345
+   master_port = 2341
 else:
    master_addr = None
    master_port = None
@@ -60,7 +60,7 @@ for i in range(num_gpus):
         rank = node * num_gpus + i
         group_ranks.append(rank)
      
-    across_groups.append(dist.new_group(ranks=group_ranks))
+    across_groups.append(dist.new_group(ranks=group_ranks, use_local_synchronization=True))
 
 my_across_group = across_groups[gpu_index]
 
@@ -88,14 +88,20 @@ MPI.COMM_WORLD.Barrier()
 
 elapsed1 = []
 
-for i in range(50):
+for i in range(2):
     x = torch.ones([1, dim_size], dtype=torch.float32).to(device, non_blocking=True)
-    if i == 0 and mpi_my_rank == 0:
-        print(f"Rank {mpi_my_rank}: Before allreduce - tensor sum: {x.sum()}")
+ 
+    
+    group_size = dist.get_world_size(my_across_group)
+    tensor_list = [torch.empty_like(x) for _ in range(group_size)]
+    
     t5 = perf_counter_ns()
-    dist.all_reduce(x, op=dist.ReduceOp.SUM, group=my_across_group)
-    if i == 0 and mpi_my_rank == 0:
-        print(f"Rank {mpi_my_rank}: After allreduce - tensor sum: {x.sum()}")
-    MPI.COMM_WORLD.Barrier()
+    dist.all_gather(tensor_list, x, group=my_across_group)
     t6 = perf_counter_ns()
+    
+ 
+     
     elapsed1.append(t6 - t5)
+
+
+    #export FI_MR_CACHE_MONITOR=userfaultfd

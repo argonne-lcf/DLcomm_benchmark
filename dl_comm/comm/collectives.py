@@ -38,7 +38,7 @@ def register_collective(name: str, needs_op: bool = False):
     return decorator
 
 @register_collective("allreduce", needs_op=True)
-def _allreduce(tensor, op, group=None, dist=None):
+def _allreduce(tensor, op, group=None, dist=None, log=None):
     dist.all_reduce(tensor, op=op, group=group)
 
 
@@ -53,7 +53,7 @@ def _reduce(tensor, op, group=None, dist=None,log=None):
 
 
 @register_collective("broadcast", needs_op=False)      
-def _broadcast(tensor, op, group=None, dist=None):
+def _broadcast(tensor, op, group=None, dist=None, log=None):
     if group is None:
         smallest_rank = 0
     else:
@@ -61,38 +61,14 @@ def _broadcast(tensor, op, group=None, dist=None):
         smallest_rank = min(group_ranks)
     dist.broadcast(tensor, src=smallest_rank, group=group)
     
-## fix allgather later
+ 
 
 @register_collective("allgather", needs_op=False)
 def _allgather(tensor, op=None, group=None, dist=None, log=None):
-    global_rank = dist.get_rank()
     world_size = dist.get_world_size(group)
-    
-    if log:
-        if group is not None:
-            group_ranks = dist.get_process_group_ranks(group)
-            log.info(f"[ALLGATHER] Global rank {global_rank} entering allgather, group_size={world_size}, group_ranks={sorted(group_ranks)}")
-        else:
-            log.info(f"[ALLGATHER] Global rank {global_rank} entering allgather, group=None, world_size={world_size}")
-        
-        log.info(f"[ALLGATHER] Global rank {global_rank} calling barrier")
-    
-    dist.barrier(group=group)
-    
-    if log:
-        log.info(f"[ALLGATHER] Global rank {global_rank} barrier completed")
-    
     tensor_list = [torch.empty_like(tensor) for _ in range(world_size)]
-    
-    if log:
-        log.info(f"[ALLGATHER] Global rank {global_rank} calling dist.all_gather")
-    
     dist.all_gather(tensor_list, tensor, group=group)
-    
-    if log:
-        log.info(f"[ALLGATHER] Global rank {global_rank} finished allgather")
- 
-     
+    return tensor_list
 
 @register_collective("gather", needs_op=False)
 def _gather(tensor, op=None, group=None, dist=None, log=None):

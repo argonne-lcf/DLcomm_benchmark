@@ -3,7 +3,7 @@ Analysis package for DL-COMM benchmarking results.
 """
 
 from .ccl_parser import parse_ccl_selection, report_ccl_selection
-from .bandwidth import bytes_per_rank, bytes_per_coll, print_all_bandwidths
+from .bandwidth import  print_all_bandwidths
 from .correctness import check_group_correctness
 
 __all__ = [

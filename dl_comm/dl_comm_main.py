@@ -40,7 +40,7 @@ from dl_comm.utils.utility import DLCOMMLogger, Profile
 from dl_comm.config import ConfigValidator, parse_buffer_size
 from dl_comm.comm import COLLECTIVES, OPS_NEED_REDUCE, OP_MAP, DTYPES
 from dl_comm.timer import timer, print_all_times, gather_and_print_all_times, reset_times
-from dl_comm.analysis import report_ccl_selection, print_all_bandwidths
+from dl_comm.analysis import report_ccl_selection, print_all_bandwidths 
 from dl_comm.analysis.correctness_new import check_collective_correctness
 # ----------------------------------------------------------------------------
 # SETUP FUNCTIONS
@@ -201,7 +201,7 @@ def main(cfg: DictConfig):
     # ----------------------------------------------------------------------------
     # FRAMEWORK-SPECIFIC IMPORTS
     # ----------------------------------------------------------------------------
-
+    # TO DO: Add versions logging
     if cfg.framework == "pytorch" and cfg.ccl_backend == "xccl":
         # timer func defined in ./timer/timer.py
         with timer("import time"):
@@ -293,7 +293,7 @@ def main(cfg: DictConfig):
     if mpi_rank == 0:
         import socket
         MASTER_ADDR = socket.gethostname()
-        MASTER_PORT = 2221
+        MASTER_PORT = 2223
     else:
         MASTER_ADDR = None
         MASTER_PORT = None
@@ -411,17 +411,11 @@ def main(cfg: DictConfig):
     # Gather all timer data from responsible ranks and let rank 0 print organized output
     gather_and_print_all_times(log, ranks_responsible_for_logging, barrier_enabled)
     
-    # Only rank 0 prints bandwidth analysis
+    # Gather bandwidth data from responsible ranks and let rank 0 print organized output
+    print_all_bandwidths(log, cfg, mpi_size, ranks_responsible_for_logging)
+    
+    # Only rank 0 prints remaining analysis
     if mpi_rank == 0:
-        # print_all_bandwidths func defined in ./analysis/bandwidth.py
-        if comm_mode != "combined":
-            print_all_bandwidths(log, buffer_in_bytes, coll_name)
-        else:
-            # For combined mode, report both buffer sizes
-            log.info("[BANDWIDTH] Combined mode - reporting within-node bandwidth:")
-            print_all_bandwidths(log, buffer_within_bytes, coll_name_within)
-            log.info("[BANDWIDTH] Combined mode - reporting across-node bandwidth:")
-            print_all_bandwidths(log, buffer_across_bytes, coll_name_across)
 
         log.info("-------------------------------------------------------------------------")
         log.info("[MPI] Job complete")

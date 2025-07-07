@@ -15,8 +15,8 @@ import_timer = t2 - t1
 
 within_config = {
     'num_nodes': 2,
-    'num_gpus': 4,
-    'gpu_ids_per_node': [ 8, 9, 10, 11]
+    'num_gpus': 2,
+    'gpu_ids_per_node': [ 8, 9 ]
 }
 
 num_nodes = within_config['num_nodes']
@@ -98,12 +98,15 @@ elapsed1 = []
 
 for i in range(50):
     x = torch.ones([1, dim_size], dtype=torch.float32).to(device, non_blocking=True)
-    if i == 0 and mpi_my_rank == 0:
-        print(f"Rank {mpi_my_rank}: Before allreduce - tensor sum: {x.sum()}")
+    
+    group_size = dist.get_world_size(my_within_group)
+    tensor_list = [torch.empty_like(x) for _ in range(group_size)]
+    
     t5 = perf_counter_ns()
-    dist.all_reduce(x, op=dist.ReduceOp.SUM,group=my_within_group)
-    if i == 0 and mpi_my_rank == 0:
-        print(f"Rank {mpi_my_rank}: After allreduce - tensor sum: {x.sum()}")
-    MPI.COMM_WORLD.Barrier()
+    dist.all_gather(tensor_list, x, group=my_within_group)
     t6 = perf_counter_ns()
+    
+ 
+    MPI.COMM_WORLD.Barrier()
+ 
     elapsed1.append(t6 - t5)
