@@ -11,7 +11,7 @@ authors = [
     { name = "Kaushik Velusamy", email = "kaushikvelusamy@gmail.com" }
 ]
 readme = "README.md"
-license = { file = "LICENSE" }
+# license = { file = "LICENSE" }  
 requires-python = ">=3.8"
 keywords = ["deep-learning", "gpu", "communication", "benchmark", "mpi", "distributed", "pytorch", "ccl"]
 classifiers = [

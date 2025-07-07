@@ -37,7 +37,7 @@ from omegaconf import DictConfig, OmegaConf
 # dl_comm packages
 from dl_comm.comm import setup_communication_groups
 from dl_comm.utils.utility import DLCOMMLogger, Profile
-from dl_comm.config import ConfigValidator, parse_buffer_size
+from dl_comm.config import ConfigValidator, parse_buffer_size, print_system_info
 from dl_comm.comm import COLLECTIVES, OPS_NEED_REDUCE, OP_MAP, DTYPES
 from dl_comm.timer import timer, print_all_times, gather_and_print_all_times, reset_times
 from dl_comm.analysis import report_ccl_selection, print_all_bandwidths 
@@ -220,42 +220,9 @@ def main(cfg: DictConfig):
     # ----------------------------------------------------------------------------
     # SYSTEM INFORMATION LOGGING
     # ----------------------------------------------------------------------------
-    if mpi_rank == 0:
-        log.info("")
-        log.info("[SYSTEM] System Information")
-        log.info("[SYSTEM] ------------------------------------------------------")
-        
-        # PyTorch version and location
-        log.info(f"[SYSTEM] PyTorch Version      : {torch.__version__}")
-        log.info(f"[SYSTEM] PyTorch Location     : {torch.__file__}")
-        
-        # CCL version and location
-        try:
-            import oneccl_bindings_for_pytorch as ccl
-            log.info(f"[SYSTEM] CCL Location         : {ccl.__file__}")
-            if hasattr(ccl, '__version__'):
-                log.info(f"[SYSTEM] CCL Version          : {ccl.__version__}")
-        except:
-            log.info(f"[SYSTEM] CCL                  : Not available")
-        
-        # Intel Extension for PyTorch
-        try:
-            import intel_extension_for_pytorch as ipex
-            log.info(f"[SYSTEM] IPEX Location        : {ipex.__file__}")
-            if hasattr(ipex, '__version__'):
-                log.info(f"[SYSTEM] IPEX Version         : {ipex.__version__}")
-        except:
-            log.info(f"[SYSTEM] IPEX                 : Not available")
-        
-        # Environment variables  
-        log.info("")
-        log.info("[SYSTEM] Relevant Environment Variables:")
-        env_vars = sorted([k for k in os.environ.keys() if 'CCL' in k or 'FI_' in k])
-        for var in env_vars:
-            log.info(f"[SYSTEM] {var:<25} = {os.environ[var]}")
-        
-        log.info("[SYSTEM] ------------------------------------------------------")
-        log.info("")
+
+    # print_system_info defined in ./config/system_info.py
+    print_system_info(log, mpi_rank)
     
     if mpi_rank == 0:
         log.info("")
