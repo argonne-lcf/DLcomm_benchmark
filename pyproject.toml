@@ -1,21 +1,66 @@
 [build-system]
-requires    = ["setuptools>=61.0"]
+requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name        = "DLcomm"
-version     = "0.1.0"
-description = "My cool package"
-authors     = [
-                { name="Musa Cim",         email="musaoguzhancim@gmail.com" }
-                { name="Kaushik Velusamy", email="kaushikvelusamy@gmail.com" }
-              ]
-readme       = "README.md"
-license      = { file = "LICENSE" }
-dependencies = []
+name = "DLcomm"
+version = "0.1.0"
+description = "Distributed GPU Communication Benchmarking Framework for Deep Learning"
+authors = [
+    { name = "Musa Cim", email = "musaoguzhancim@gmail.com" },
+    { name = "Kaushik Velusamy", email = "kaushikvelusamy@gmail.com" }
+]
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.8"
+keywords = ["deep-learning", "gpu", "communication", "benchmark", "mpi", "distributed", "pytorch", "ccl"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: System :: Distributed Computing",
+    "Topic :: System :: Benchmark",
+    "Operating System :: POSIX :: Linux",
+]
+dependencies = [
+    "torch>=1.12.0",
+    "mpi4py>=3.1.0",
+    "hydra-core>=1.1.0",
+    "omegaconf>=2.1.0",
+    "pytz>=2021.1",
+]
 
 [project.urls]
-Homepage     = "https://github.com/argonne-lcf/DLcomm_benchmark"
+Homepage = "https://github.com/argonne-lcf/DLcomm_benchmark"
+Documentation = "https://github.com/argonne-lcf/DLcomm_benchmark"
+Repository = "https://github.com/argonne-lcf/DLcomm_benchmark"
+"Bug Tracker" = "https://github.com/argonne-lcf/DLcomm_benchmark/issues"
+
+[project.scripts]
+dlcomm = "dl_comm.dl_comm_main:main"
+
+[project.optional-dependencies]
+intel = [
+    "intel-extension-for-pytorch",
+    "oneccl-bindings-for-pytorch"
+]
+dev = [
+    "pytest>=6.0",
+    "black>=22.0",
+    "flake8>=4.0",
+    "mypy>=0.950",
+]
 
 [tool.setuptools.packages.find]
-where        = ["."]
+where = ["."]
+include = ["dl_comm*"]
+
+[tool.setuptools.package-data]
+"dl_comm" = ["config/*.yaml", "config/*.json"]
