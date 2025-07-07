@@ -201,7 +201,6 @@ def main(cfg: DictConfig):
     # ----------------------------------------------------------------------------
     # FRAMEWORK-SPECIFIC IMPORTS
     # ----------------------------------------------------------------------------
-    # TO DO: Add versions logging
     if cfg.framework == "pytorch" and cfg.ccl_backend == "xccl":
         # timer func defined in ./timer/timer.py
         with timer("import time"):
@@ -217,6 +216,46 @@ def main(cfg: DictConfig):
                 dist.barrier(group=group)
             else:
                 dist.barrier()
+    
+    # ----------------------------------------------------------------------------
+    # SYSTEM INFORMATION LOGGING
+    # ----------------------------------------------------------------------------
+    if mpi_rank == 0:
+        log.info("")
+        log.info("[SYSTEM] System Information")
+        log.info("[SYSTEM] ------------------------------------------------------")
+        
+        # PyTorch version and location
+        log.info(f"[SYSTEM] PyTorch Version      : {torch.__version__}")
+        log.info(f"[SYSTEM] PyTorch Location     : {torch.__file__}")
+        
+        # CCL version and location
+        try:
+            import oneccl_bindings_for_pytorch as ccl
+            log.info(f"[SYSTEM] CCL Location         : {ccl.__file__}")
+            if hasattr(ccl, '__version__'):
+                log.info(f"[SYSTEM] CCL Version          : {ccl.__version__}")
+        except:
+            log.info(f"[SYSTEM] CCL                  : Not available")
+        
+        # Intel Extension for PyTorch
+        try:
+            import intel_extension_for_pytorch as ipex
+            log.info(f"[SYSTEM] IPEX Location        : {ipex.__file__}")
+            if hasattr(ipex, '__version__'):
+                log.info(f"[SYSTEM] IPEX Version         : {ipex.__version__}")
+        except:
+            log.info(f"[SYSTEM] IPEX                 : Not available")
+        
+        # Environment variables  
+        log.info("")
+        log.info("[SYSTEM] Relevant Environment Variables:")
+        env_vars = sorted([k for k in os.environ.keys() if 'CCL' in k or 'FI_' in k])
+        for var in env_vars:
+            log.info(f"[SYSTEM] {var:<25} = {os.environ[var]}")
+        
+        log.info("[SYSTEM] ------------------------------------------------------")
+        log.info("")
     
     if mpi_rank == 0:
         log.info("")
