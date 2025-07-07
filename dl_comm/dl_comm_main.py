@@ -41,7 +41,7 @@ from dl_comm.config import ConfigValidator, parse_buffer_size, print_system_info
 from dl_comm.comm import COLLECTIVES, OPS_NEED_REDUCE, OP_MAP, DTYPES
 from dl_comm.timer import timer, print_all_times, gather_and_print_all_times, reset_times
 from dl_comm.analysis import report_ccl_selection, print_all_bandwidths 
-from dl_comm.analysis.correctness_new import check_collective_correctness
+from dl_comm.analysis.correctness import check_collective_correctness
 # ----------------------------------------------------------------------------
 # SETUP FUNCTIONS
 # ----------------------------------------------------------------------------
