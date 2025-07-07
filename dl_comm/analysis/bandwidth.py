@@ -9,7 +9,7 @@ def calculate_group_bandwidth(group_size, buffer_size, time_seconds):
     return bandwidth_bytes_per_sec
 
 
-def print_all_bandwidths(logger, cfg, mpi_size, ranks_responsible_for_logging):
+def print_all_bandwidths(logger, cfg, mpi_size, ranks_responsible_for_logging, phase_filter=None):
     from mpi4py import MPI
     
     mpi_rank = MPI.COMM_WORLD.Get_rank()
@@ -25,7 +25,9 @@ def print_all_bandwidths(logger, cfg, mpi_size, ranks_responsible_for_logging):
     
     if mpi_rank == 0:
         logger.output("")
-        logger.output("[BANDWIDTH] -------------------------------------------")
+         
+        title = "[BANDWIDTH]"
+        logger.output(f"{title} -------------------------------------------")
         
         comm_mode = cfg.comm_group.mode
         group_bandwidths = {}
@@ -68,6 +70,12 @@ def print_all_bandwidths(logger, cfg, mpi_size, ranks_responsible_for_logging):
                         match = re.search(r'\(across-group-(\d+)\)', label.lower())
                         group_key = f"across-{match.group(1)}"
                     else:
+                        continue
+                    
+                    # Apply phase filtering
+                    if phase_filter == "within" and not group_key.startswith("within-"):
+                        continue
+                    elif phase_filter == "across" and not group_key.startswith("across-"):
                         continue
                     
                     if group_key not in group_timers:
@@ -125,19 +133,20 @@ def print_all_bandwidths(logger, cfg, mpi_size, ranks_responsible_for_logging):
                         'rank': rank
                     }
         
-        logger.output("[BANDWIDTH] Communication Group Bandwidths:")
+        logger.output(f"{title.replace(' -------------------------------------------', '')} Communication Group Bandwidths:")
         logger.output("")
         
         for group_name, data in group_bandwidths.items():
-            logger.output(f"[BANDWIDTH] {group_name}:")
-            logger.output(f"[BANDWIDTH]   Group Size     : {data['group_size']} GPUs")
-            logger.output(f"[BANDWIDTH]   Buffer Size    : {data['buffer_size']} bytes")
-            logger.output(f"[BANDWIDTH]   Time (iter 0)  : {data['time']:.6f} s")
-            logger.output(f"[BANDWIDTH]   Bandwidth      : {data['bandwidth']:.0f} bytes/s")
-            logger.output(f"[BANDWIDTH]   Logging Rank   : {data['rank']}")
+            bandwidth_prefix = title.replace(' -------------------------------------------', '').replace('[', '').replace(']', '')
+            logger.output(f"[{bandwidth_prefix}] {group_name}:")
+            logger.output(f"[{bandwidth_prefix}]   Group Size     : {data['group_size']} GPUs")
+            logger.output(f"[{bandwidth_prefix}]   Buffer Size    : {data['buffer_size']} bytes")
+            logger.output(f"[{bandwidth_prefix}]   Time (iter 0)  : {data['time']:.6f} s")
+            logger.output(f"[{bandwidth_prefix}]   Bandwidth      : {data['bandwidth']:.0f} bytes/s")
+            logger.output(f"[{bandwidth_prefix}]   Logging Rank   : {data['rank']}")
             logger.output("")
         
-        logger.output("[BANDWIDTH] -------------------------------------------")
+        logger.output(f"{title} -------------------------------------------")
         logger.output("")
 
 

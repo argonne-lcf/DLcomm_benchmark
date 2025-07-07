@@ -246,17 +246,18 @@ def main(cfg: DictConfig):
             across_gpus = cfg.comm_group.combined.across_node.num_gpus_per_node
             log.info(f"[CONFIG] Within               : {within_nodes} nodes x {within_gpus} GPUs")
             log.info(f"[CONFIG] Across               : {across_nodes} nodes x {across_gpus} GPUs")
+            log.info("[CONFIG] ------------------------------------------------------")
+            log.info("")
         else:
             mode_cfg = getattr(cfg.comm_group, comm_mode)
             nodes = mode_cfg.num_compute_nodes
             gpus = mode_cfg.num_gpus_per_node
             log.info(f"[CONFIG] Topology             : {nodes} nodes x {gpus} GPUs")
-        log.info("[CONFIG] ------------------------------------------------------")
-        log.info("")
-        
-        log.info("[CONFIG] Communication Group Details")
-        log.info("[CONFIG] ------------------------------------------------------")
-        if comm_mode != "combined":
+            log.info("[CONFIG] ------------------------------------------------------")
+            log.info("")
+            
+            log.info("[CONFIG] Communication Group Details")
+            log.info("[CONFIG] ------------------------------------------------------")
             log.info(f"[CONFIG] Collective Name      : {coll_name}")
             log.info(f"[CONFIG] Operation            : {op_name if op_obj else 'N/A'}")
             log.info(f"[CONFIG] Scale Up Algorithm   : {coll_cfg.scale_up_algorithm}")
@@ -266,31 +267,8 @@ def main(cfg: DictConfig):
             log.info(f"[CONFIG] Buffer Size          : {coll_cfg.payload.buffer_size} ({buffer_in_bytes} bytes)")
             log.info(f"[CONFIG] Iterations           : {iters}")
             log.info(f"[CONFIG] Verify Correctness   : {enable_correctness}")
-        else:
-            log.info("[CONFIG] Within-Node Phase:")
-            log.info(f"[CONFIG]   Collective         : {coll_name_within}")
-            log.info(f"[CONFIG]   Operation          : {op_name_within if op_within else 'N/A'}")
-            log.info(f"[CONFIG]   Scale Up Algorithm : {coll_within_cfg.scale_up_algorithm}")
-            log.info(f"[CONFIG]   Scale Out Algorithm: {coll_within_cfg.scale_out_algorithm}")
-            log.info(f"[CONFIG]   Data Type          : {dtype_str_within}")
-            log.info(f"[CONFIG]   Element Count      : {coll_within_cfg.payload.count}")
-            log.info(f"[CONFIG]   Buffer Size        : {coll_within_cfg.payload.buffer_size} ({buffer_within_bytes} bytes)")
-            log.info(f"[CONFIG]   Iterations         : {iters_within}")
-            log.info(f"[CONFIG]   Verify Correctness : {enable_correctness_within}")
+            log.info("[CONFIG] ------------------------------------------------------")
             log.info("")
-            log.info("[CONFIG] Across-Node Phase:")
-            log.info(f"[CONFIG]   Collective         : {coll_name_across}")
-            log.info(f"[CONFIG]   Operation          : {op_name_across if op_across else 'N/A'}")
-            log.info(f"[CONFIG]   Scale Up Algorithm : {coll_across_cfg.scale_up_algorithm}")
-            log.info(f"[CONFIG]   Scale Out Algorithm: {coll_across_cfg.scale_out_algorithm}")
-            log.info(f"[CONFIG]   Data Type          : {dtype_str_across}")
-            log.info(f"[CONFIG]   Element Count      : {coll_across_cfg.payload.count}")
-            log.info(f"[CONFIG]   Buffer Size        : {coll_across_cfg.payload.buffer_size} ({buffer_across_bytes} bytes)")
-            log.info(f"[CONFIG]   Iterations         : {iters_across}")
-            log.info(f"[CONFIG]   Verify Correctness : {enable_correctness_across}")
-        
-        log.info("[CONFIG] ------------------------------------------------------")
-        log.info("")
    
     # ----------------------------------------------------------------------------
     # MPI RANK COORDINATION
@@ -341,9 +319,12 @@ def main(cfg: DictConfig):
  
     MPI.COMM_WORLD.Barrier()
     
+    # Print setup times (import, init) before launching profiling job
+    gather_and_print_all_times(log, ranks_responsible_for_logging, barrier_enabled, "[TIMERS - SETUP]", "setup")
+    
     if mpi_rank == 0:
-        log.info("")
-        log.info("[MPI] Launching profiling job")
+        log.output("")
+        log.output("[MPI] Launching profiling job")
 
     # ----------------------------------------------------------------------------
     #  COLLECTIVE OP EXECUTION
@@ -381,6 +362,24 @@ def main(cfg: DictConfig):
                 check_collective_correctness(context, x, coll_name, op=op_obj, group=my_across_group, result_data=result, group_type="Across", group_id=across_group_id)
     
     else:
+        # ═══════════════════════════════════════════════════════════════════════════
+        
+        if mpi_rank == 0:
+            log.info("")
+            log.info("[CONFIG] ═══════════════════════════════════════════════════════")
+            log.info("[CONFIG] WITHIN-NODE PHASE")
+            log.info(f"[CONFIG] Collective Name      : {coll_name_within}")
+            log.info(f"[CONFIG] Operation            : {op_name_within if op_within else 'N/A'}")
+            log.info(f"[CONFIG] Scale Up Algorithm   : {coll_within_cfg.scale_up_algorithm}")
+            log.info(f"[CONFIG] Scale Out Algorithm  : {coll_within_cfg.scale_out_algorithm}")
+            log.info(f"[CONFIG] Data Type            : {dtype_str_within}")
+            log.info(f"[CONFIG] Element Count        : {coll_within_cfg.payload.count}")
+            log.info(f"[CONFIG] Buffer Size          : {coll_within_cfg.payload.buffer_size} ({buffer_within_bytes} bytes)")
+            log.info(f"[CONFIG] Iterations           : {iters_within}")
+            log.info(f"[CONFIG] Verify Correctness   : {enable_correctness_within}")
+            log.info("[CONFIG] ═══════════════════════════════════════════════════════")
+            log.info("")
+
         # ─── Within-node phase iterations ───────────────────────────
         setup_environment_with_collective(cfg, coll_within_cfg)
         for i in range(iters_within):
@@ -392,6 +391,28 @@ def main(cfg: DictConfig):
                 result = run_within(x, op_within, group=my_within_group, dist=dist, log=log)
                 time_barrier()
             check_collective_correctness(context, x, coll_name_within, op=op_within, group=my_within_group, result_data=result, group_type="Within", group_id=within_group_id)
+
+        # ─── Within-node phase reporting ───────────────────────────
+        gather_and_print_all_times(log, ranks_responsible_for_logging, barrier_enabled, "[TIMERS]", "within")
+        print_all_bandwidths(log, cfg, mpi_size, ranks_responsible_for_logging, "within")
+
+        # ═══════════════════════════════════════════════════════════════════════════
+
+        if mpi_rank == 0:
+            log.info("")
+            log.info("[CONFIG] ═══════════════════════════════════════════════════════")
+            log.info("[CONFIG] ACROSS-NODE PHASE")
+            log.info(f"[CONFIG] Collective Name      : {coll_name_across}")
+            log.info(f"[CONFIG] Operation            : {op_name_across if op_across else 'N/A'}")
+            log.info(f"[CONFIG] Scale Up Algorithm   : {coll_across_cfg.scale_up_algorithm}")
+            log.info(f"[CONFIG] Scale Out Algorithm  : {coll_across_cfg.scale_out_algorithm}")
+            log.info(f"[CONFIG] Data Type            : {dtype_str_across}")
+            log.info(f"[CONFIG] Element Count        : {coll_across_cfg.payload.count}")
+            log.info(f"[CONFIG] Buffer Size          : {coll_across_cfg.payload.buffer_size} ({buffer_across_bytes} bytes)")
+            log.info(f"[CONFIG] Iterations           : {iters_across}")
+            log.info(f"[CONFIG] Verify Correctness   : {enable_correctness_across}")
+            log.info("[CONFIG] ═══════════════════════════════════════════════════════")
+            log.info("")
 
         # ─── Across-node phase iterations ───────────────────────────
         setup_environment_with_collective(cfg, coll_across_cfg)
@@ -408,17 +429,23 @@ def main(cfg: DictConfig):
             else:
                 result = None
 
+        # ─── Across-node phase reporting ───────────────────────────
+        gather_and_print_all_times(log, ranks_responsible_for_logging, barrier_enabled, "[TIMERS]", "across")
+        print_all_bandwidths(log, cfg, mpi_size, ranks_responsible_for_logging, "across")
+
         time_barrier()
 
     # ----------------------------------------------------------------------------
-    #  REPORTING
+    #  REPORTING (FOR SINGLE-PHASE MODES ONLY)
     # ----------------------------------------------------------------------------
   
-    # Gather all timer data from responsible ranks and let rank 0 print organized output
-    gather_and_print_all_times(log, ranks_responsible_for_logging, barrier_enabled)
-    
-    # Gather bandwidth data from responsible ranks and let rank 0 print organized output
-    print_all_bandwidths(log, cfg, mpi_size, ranks_responsible_for_logging)
+    # Only single-phase modes need final reporting (combined mode already reported)
+    if comm_mode != "combined":
+        # Gather all timer data from responsible ranks and let rank 0 print organized output
+        gather_and_print_all_times(log, ranks_responsible_for_logging, barrier_enabled)
+        
+        # Gather bandwidth data from responsible ranks and let rank 0 print organized output
+        print_all_bandwidths(log, cfg, mpi_size, ranks_responsible_for_logging)
     
     # Only rank 0 prints remaining analysis
     if mpi_rank == 0:
