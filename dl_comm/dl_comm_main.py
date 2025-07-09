@@ -102,6 +102,7 @@ def main(cfg: DictConfig):
     # ----------------------------------------------------------------------------
 
     framework       = cfg.framework
+    ccl_backend     = cfg.ccl_backend
     comm_mode       = cfg.comm_group.mode
     barrier_enabled = cfg.barrier
 
@@ -201,13 +202,16 @@ def main(cfg: DictConfig):
     # ----------------------------------------------------------------------------
     # FRAMEWORK-SPECIFIC IMPORTS
     # ----------------------------------------------------------------------------
-    if cfg.framework == "pytorch" and cfg.ccl_backend == "xccl":
+    if cfg.framework == "pytorch":
         # timer func defined in ./timer/timer.py
         with timer("import time"):
-            import intel_extension_for_pytorch
-            import oneccl_bindings_for_pytorch
             import torch.nn.parallel
             import torch.distributed as dist
+            
+            # Intel-specific imports for CCL backends
+            if ccl_backend in ["xccl", "ccl"]:
+                import intel_extension_for_pytorch
+                import oneccl_bindings_for_pytorch
 
     # Define barrier function for timing synchronization
     def time_barrier(group=None):
@@ -295,7 +299,7 @@ def main(cfg: DictConfig):
     MPI.COMM_WORLD.Barrier()
     with timer("init time"):
         dist.init_process_group(
-            backend="ccl",
+            backend=ccl_backend,
             init_method='env://',
             world_size=mpi_size,
             rank=mpi_rank,
@@ -393,7 +397,7 @@ def main(cfg: DictConfig):
             check_collective_correctness(context, x, coll_name_within, op=op_within, group=my_within_group, result_data=result, group_type="Within", group_id=within_group_id)
 
         # ─── Within-node phase reporting ───────────────────────────
-        gather_and_print_all_times(log, ranks_responsible_for_logging, barrier_enabled, "[TIMERS]", "within")
+        gather_and_print_all_times(log, ranks_responsible_for_logging, barrier_enabled, "[TIMERS]", "within", coll_name_within)
         print_all_bandwidths(log, cfg, mpi_size, ranks_responsible_for_logging, "within")
 
         # ═══════════════════════════════════════════════════════════════════════════
@@ -430,7 +434,7 @@ def main(cfg: DictConfig):
                 result = None
 
         # ─── Across-node phase reporting ───────────────────────────
-        gather_and_print_all_times(log, ranks_responsible_for_logging, barrier_enabled, "[TIMERS]", "across")
+        gather_and_print_all_times(log, ranks_responsible_for_logging, barrier_enabled, "[TIMERS]", "across", coll_name_across)
         print_all_bandwidths(log, cfg, mpi_size, ranks_responsible_for_logging, "across")
 
         time_barrier()
@@ -442,7 +446,7 @@ def main(cfg: DictConfig):
     # Only single-phase modes need final reporting (combined mode already reported)
     if comm_mode != "combined":
         # Gather all timer data from responsible ranks and let rank 0 print organized output
-        gather_and_print_all_times(log, ranks_responsible_for_logging, barrier_enabled)
+        gather_and_print_all_times(log, ranks_responsible_for_logging, barrier_enabled, "[TIMERS]", None, coll_name)
         
         # Gather bandwidth data from responsible ranks and let rank 0 print organized output
         print_all_bandwidths(log, cfg, mpi_size, ranks_responsible_for_logging)

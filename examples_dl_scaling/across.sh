@@ -26,6 +26,7 @@ export OMP_NUM_THREADS=7
 
 export PALS_PING_PERIOD=480
 export PALS_RPC_TIMEOUT=480
+export TORCH_DISABLE_PROCESS_GROUP_WRAPPER=1
 
 
 mpiexec --envall -np 4 -ppn 2 \

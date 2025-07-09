@@ -70,6 +70,14 @@ collective:
 
 ```
 
+### Important Note for PyTorch Users
+
+**Backend Naming**: The `ccl_backend` field naming depends on your PyTorch version:
+- **PyTorch < 2.7**: Use `ccl_backend: ccl` for Intel oneCCL
+- **PyTorch 2.7+**: Use `ccl_backend: xccl` for Intel oneCCL
+
+Make sure to use the correct backend name for your PyTorch version to avoid initialization errors.
+
 ## How to contribute
 
 ## Citation and Reference

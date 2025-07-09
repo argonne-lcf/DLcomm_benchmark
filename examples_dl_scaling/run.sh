@@ -1,4 +1,3 @@
-export CPU_BIND="list:2-8:10-16:18-24:26-32:34-40:42-48:54-60:62-68:70-76:78-84:86-92:94-100"
 export MASTER_ADDR=$(hostname)
 export MASTER_PORT=$((RANDOM + 1024))
 
@@ -10,11 +9,10 @@ export CCL_ATL_TRANSPORT=mpi # Required by Aurora mpich
 
 export CCL_OP_SYNC=1
 export CCL_ENABLE_AUTO_CACHE=0
-export CCL_ZE_CACHE_OPEN_IPC_HANDLES_THRESHOLD=4096
 
 export FI_CXI_DEFAULT_CQ_SIZE=1048576
 export FI_CXI_RX_MATCH_MODE=hybrid
-export FI_MR_CACHE_MONITOR=kdreg2 #disabled
+export FI_MR_CACHE_MONITOR=kdreg2
 export FI_CXI_OFLOW_BUF_SIZE=8388608
 export FI_CXI_CQ_FILL_PERCENT=30
 
@@ -30,4 +28,5 @@ export PALS_RPC_TIMEOUT=480
 mpiexec --envall -np 24 -ppn 12 \
     --cpu-bind $CPU_BIND \
     python \
-    "/home/mcim/workspace/gpu-comm-bench/examples_dl_scaling/test.py"
+    "/home/mcim/workspace/gpu-comm-bench/examples_dl_scaling/k_all.py"
+    # "/lus/flare/projects/Aurora_deployment/eku/tests/test_comm/kaushick_allgather_repro.py"

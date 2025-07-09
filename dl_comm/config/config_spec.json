@@ -2,7 +2,7 @@
     "framework": ["pytorch", "jax", "tensorflow"],
     "ccl_debug": ["on", "off"],
     "backend": {
-      "pytorch": ["xccl", "mpi","nccl"],
+      "pytorch": ["xccl", "ccl", "mpi","nccl"],
       "jax": ["xla"],
       "tensorflow": ["xccl"]
     },

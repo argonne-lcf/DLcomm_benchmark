@@ -1,6 +1,6 @@
 framework  : pytorch  # tensorflow / jax / titan / monarch
-ccl_backend : xccl   # rccl / nccl
-ccl_debug   : off # on / off - enables CCL debug logging and algorithm selection reporting
+ccl_backend : ccl   # rccl / nccl / xccl (Note: PyTorch 2.7+ users should use 'xccl' instead of 'ccl' for Intel oneCCL)
+ccl_debug   : on # on / off - enables CCL debug logging and algorithm selection reporting
 use_profiler: unitrace
 barrier     : on    # on / off - on: adds MPI barrier before timer printing for accurate timing, off: only rank 0 prints (other collectives may still be in process)
 
@@ -78,7 +78,7 @@ comm_group:
       num_gpus_per_node: 3
       gpu_ids_per_node: [0,1,3] 
       collective:
-        name: gather   # allgather / reducescatter / broadcast
+        name: allgather   # allgather / reducescatter / broadcast
         op: sum          # max / min / prod / sum
         scale_up_algorithm: ring
         scale_out_algorithm: topo        # rabinseifner 
