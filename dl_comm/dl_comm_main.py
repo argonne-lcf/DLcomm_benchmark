@@ -46,16 +46,10 @@ from dl_comm.analysis.correctness import check_collective_correctness
 # SETUP FUNCTIONS
 # ----------------------------------------------------------------------------
 
-def setup_environment_with_collective(cfg: DictConfig, coll_cfg):
-    # CCL environment variables
-    os.environ["CCL_ATL_TRANSPORT"] = "mpi"
-    os.environ["CCL_ATL_SHM"] = "0"
+def setup_collective_algorithms(cfg: DictConfig, coll_cfg, comm_mode: str):
+
     if cfg.ccl_debug:
         os.environ["CCL_LOG_LEVEL"] = "debug"
-    os.environ["CCL_PROCESS_LAUNCHER"] = "pmix"
-    os.environ["TORCH_CPP_LOG_LEVEL"] = "error"
-    os.environ["FI_MR_CACHE_MONITOR"] = "userfaultfd"
-
     scale_up_override = f"CCL_{coll_cfg.name.upper()}"
     os.environ[scale_up_override] = coll_cfg.scale_up_algorithm
 
@@ -65,6 +59,7 @@ def setup_environment_with_collective(cfg: DictConfig, coll_cfg):
 # ----------------------------------------------------------------------------
 # MAIN FUNCTION
 # ----------------------------------------------------------------------------
+
 
 @hydra.main(config_path="config", config_name="config", version_base=None)
 def main(cfg: DictConfig):
@@ -281,7 +276,7 @@ def main(cfg: DictConfig):
     if mpi_rank == 0:
         import socket
         MASTER_ADDR = socket.gethostname()
-        MASTER_PORT = 2223
+        MASTER_PORT = 2219
     else:
         MASTER_ADDR = None
         MASTER_PORT = None
@@ -305,6 +300,14 @@ def main(cfg: DictConfig):
             rank=mpi_rank,
             timeout=datetime.timedelta(seconds=3600)
         )
+
+    # ----------------------------------------------------------------------------
+    # ENVIRONMENT SETUP
+    # ----------------------------------------------------------------------------
+    
+    
+    if comm_mode != "combined":
+        setup_collective_algorithms(cfg, coll_cfg, comm_mode)
 
     # ----------------------------------------------------------------------------
     # COMMUNICATION GROUP SETUP
@@ -338,7 +341,6 @@ def main(cfg: DictConfig):
 
     # Single-phase (flatview / within_node / across_node)
     if comm_mode != "combined":
-        setup_environment_with_collective(cfg, coll_cfg)
         for i in range(iters):
            
             x = torch.ones(num_elems, dtype=torch_dtype).to(device, non_blocking=True)
@@ -385,7 +387,8 @@ def main(cfg: DictConfig):
             log.info("")
 
         # ─── Within-node phase iterations ───────────────────────────
-        setup_environment_with_collective(cfg, coll_within_cfg)
+        setup_collective_algorithms(cfg, coll_within_cfg, "within_node")
+ 
         for i in range(iters_within):
             context = {'mpi_rank': mpi_rank, 'cfg': cfg,'log': log, 'iteration': i}
             x = torch.ones(num_elems_within, dtype=torch_dtype_within).to(device, non_blocking=True)
@@ -399,6 +402,8 @@ def main(cfg: DictConfig):
         # ─── Within-node phase reporting ───────────────────────────
         gather_and_print_all_times(log, ranks_responsible_for_logging, barrier_enabled, "[TIMERS]", "within", coll_name_within)
         print_all_bandwidths(log, cfg, mpi_size, ranks_responsible_for_logging, "within")
+
+ 
 
         # ═══════════════════════════════════════════════════════════════════════════
 
@@ -418,8 +423,10 @@ def main(cfg: DictConfig):
             log.info("[CONFIG] ═══════════════════════════════════════════════════════")
             log.info("")
 
+
         # ─── Across-node phase iterations ───────────────────────────
-        setup_environment_with_collective(cfg, coll_across_cfg)
+        setup_collective_algorithms(cfg, coll_across_cfg, "across_node")
+ 
         for i in range(iters_across):
             context = {'mpi_rank': mpi_rank, 'cfg': cfg,'log': log, 'iteration': i}
             x = torch.ones(num_elems_across, dtype=torch_dtype_across).to(device, non_blocking=True)

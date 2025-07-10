@@ -63,7 +63,7 @@ def setup_communication_groups(cfg: DictConfig, mpi_rank, log, dist=None):
                     log.info(f"[COMM][GROUP CREATION][Within Group-{node}] Ranks: {group_ranks}, Logging: rank {responsible_rank}")
                 
                 # Only create group if current rank belongs to it
-                group = dist.new_group(ranks=group_ranks)
+                group = dist.new_group(ranks=group_ranks,use_local_synchronization=True)
                 if mpi_rank in group_ranks:
                     my_within_group = group
                     within_group_id = node
@@ -128,7 +128,7 @@ def setup_communication_groups(cfg: DictConfig, mpi_rank, log, dist=None):
                     log.info(f"[COMM][GROUP CREATION][Across Group-{i}] Ranks: {group_ranks}, Logging: rank {responsible_rank}")
                 
                 # Only create group if current rank belongs to it
-                group = dist.new_group(ranks=group_ranks)
+                group = dist.new_group(ranks=group_ranks,use_local_synchronization=True)
                 if mpi_rank in group_ranks:
                     my_across_group = group
                     across_group_id = i

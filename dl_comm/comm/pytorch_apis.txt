@@ -1,0 +1,63 @@
+torch.float16
+torch.bfloat16
+torch.float32
+torch.float64
+torch.int32
+torch.int64
+
+torch.ones(size, dtype=None, device=None, requires_grad=False)
+torch.rand(size, dtype=None, device=None, requires_grad=False)
+torch.empty_like(input, dtype=None, device=None, requires_grad=False)
+torch.zeros_like(input, dtype=None, device=None, requires_grad=False)
+torch.full_like(input, fill_value, dtype=None, device=None)
+torch.tensor(data, dtype=None, device=None, requires_grad=False)
+
+torch.device(device)
+
+torch.allclose(input, other, rtol=1e-05, atol=1e-08)
+
+tensor.to(device=None, dtype=None, non_blocking=False)
+tensor.clone()
+tensor.sum(dim=None, keepdim=False)
+tensor.item()
+
+torch.__version__
+
+torch.distributed.init_process_group(backend, init_method=None, timeout=None, world_size=-1, rank=-1)
+torch.distributed.destroy_process_group(group=None)
+torch.distributed.new_group(ranks=None, timeout=None, backend=None, pg_options=None, use_local_synchronization=False)
+torch.distributed.get_process_group_ranks(group)
+
+torch.distributed.get_rank(group=None)
+torch.distributed.get_world_size(group=None)
+
+torch.distributed.all_reduce(tensor, op=ReduceOp.SUM, group=None, async_op=False)
+torch.distributed.reduce(tensor, dst, op=ReduceOp.SUM, group=None, async_op=False)
+torch.distributed.broadcast(tensor, src, group=None, async_op=False)
+torch.distributed.all_gather(tensor_list, tensor, group=None, async_op=False)
+torch.distributed.gather(tensor, gather_list=None, dst=0, group=None, async_op=False)
+torch.distributed.scatter(tensor, scatter_list=None, src=0, group=None, async_op=False)
+torch.distributed.reduce_scatter(output, input_list, op=ReduceOp.SUM, group=None, async_op=False)
+torch.distributed.all_to_all(output_tensor_list, input_tensor_list, group=None, async_op=False)
+torch.distributed.barrier(group=None, async_op=False, device_ids=None)
+
+torch.distributed.ReduceOp.SUM
+torch.distributed.ReduceOp.MAX
+torch.distributed.ReduceOp.MIN
+torch.distributed.ReduceOp.PRODUCT
+
+torch.distributed.group.WORLD
+
+torch.xpu.is_available()
+torch.xpu.device_count()
+
+torch.cuda.is_available()
+torch.cuda.device_count()
+torch.cuda.get_device_name(device=None)
+torch.cuda.get_device_properties(device)
+
+torch.version.cuda
+
+import torch
+import torch.nn.parallel
+import torch.distributed as dist

@@ -1,16 +1,34 @@
 import os
+import socket
 from mpi4py import MPI
 import torch
 import torch.distributed as dist
 import intel_extension_for_pytorch
 import oneccl_bindings_for_pytorch
 
-os.environ['RANK'] = str(MPI.COMM_WORLD.Get_rank())
-os.environ['WORLD_SIZE'] = str(MPI.COMM_WORLD.Get_size())
+mpi_rank = MPI.COMM_WORLD.Get_rank()
+mpi_size = MPI.COMM_WORLD.Get_size()
 
+os.environ['RANK'] = str(mpi_rank)
+os.environ['WORLD_SIZE'] = str(mpi_size)
+
+# Setup MASTER_ADDR and MASTER_PORT
+if mpi_rank == 0:
+    master_addr = socket.gethostname()
+    master_port = 2342
+else:
+    master_addr = None
+    master_port = None
+
+master_addr = MPI.COMM_WORLD.bcast(master_addr, root=0)
+master_port = MPI.COMM_WORLD.bcast(master_port, root=0)
+os.environ["MASTER_ADDR"] = master_addr
+os.environ["MASTER_PORT"] = str(master_port)
+
+MPI.COMM_WORLD.Barrier()
 
 # 1. Initialize distributed environment
-dist.init_process_group(backend='ccl')
+dist.init_process_group(backend='ccl', init_method='env://', world_size=mpi_size, rank=mpi_rank)
 rank = dist.get_rank()
 world_size = dist.get_world_size()
 loc_size = 12
