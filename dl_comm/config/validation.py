@@ -1,4 +1,5 @@
 import torch
+import torch.distributed as dist
 from omegaconf import DictConfig
 
 
@@ -176,6 +177,40 @@ class ConfigValidator:
          
         has_errors = False
         
+        # Validate distributed backend availability
+        backend = cfg.ccl_backend.lower()
+        
+        if backend == "nccl":
+            try:
+                if not dist.is_nccl_available():
+                    if mpi_rank == 0:
+                        log.error("[VALIDATION] NCCL backend requested but not available")
+                    has_errors = True
+            except AttributeError:
+                if mpi_rank == 0:
+                    log.warning("[VALIDATION] Cannot check NCCL availability (API not available)")
+        
+        elif backend == "mpi":
+            try:
+                if not dist.is_mpi_available():
+                    if mpi_rank == 0:
+                        log.error("[VALIDATION] MPI backend requested but not available")
+                    has_errors = True
+            except AttributeError:
+                if mpi_rank == 0:
+                    log.warning("[VALIDATION] Cannot check MPI availability (API not available)")
+        
+        elif backend in ["ccl", "xccl"]:
+            try: 
+                if not torch.distributed.distributed_c10d.is_xccl_available():
+                    if mpi_rank == 0:
+                        log.error("[VALIDATION] CCL/XCCL backend requested but not available")
+                    has_errors = True
+            except (AttributeError, ImportError):
+                if mpi_rank == 0:
+                    log.warning("[VALIDATION] Cannot check CCL/XCCL availability (API not available)")
+
+                    
  
         if torch.xpu.is_available():
             available_devices = torch.xpu.device_count()

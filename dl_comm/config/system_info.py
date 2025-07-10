@@ -59,6 +59,39 @@ def print_system_info(log, mpi_rank):
             log.info(f"[SYSTEM] Is XPU available: {torch.xpu.is_available()}")
             log.info(f"[SYSTEM] XPU device count: {torch.xpu.device_count()}")
         
+        # Distributed Backend Availability
+        log.info("")
+        log.info("[SYSTEM] Distributed Backend Availability:")
+        
+        # NCCL Backend
+        try:
+            import torch.distributed as dist
+            nccl_available = dist.is_nccl_available()
+            log.info(f"[SYSTEM] NCCL backend available: {nccl_available}")
+        except AttributeError:
+            log.info("[SYSTEM] NCCL backend available: Unknown (API not available)")
+        except Exception:
+            log.info("[SYSTEM] NCCL backend available: Error checking")
+        
+        # MPI Backend
+        try:
+            mpi_available = dist.is_mpi_available()
+            log.info(f"[SYSTEM] MPI backend available: {mpi_available}")
+        except AttributeError:
+            log.info("[SYSTEM] MPI backend available: Unknown (API not available)")
+        except Exception:
+            log.info("[SYSTEM] MPI backend available: Error checking")
+        
+        # XCCL Backend (Intel CCL)
+        try:
+            from torch.distributed import distributed_c10d
+            xccl_available = distributed_c10d.is_xccl_available()
+            log.info(f"[SYSTEM] XCCL backend available: {xccl_available}")
+        except AttributeError:
+            log.info("[SYSTEM] XCCL backend available: Unknown (API not available)")
+        except Exception:
+            log.info("[SYSTEM] XCCL backend available: Error checking")
+        
         # Library Versions
         log.info("")
         log.info("[SYSTEM] Versions of relevant libraries:")
