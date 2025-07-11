@@ -1,12 +1,12 @@
 # Deep Learning Communication (DLcomm) Benchmark
 
-This README provides an abbreviated documentation of the DL_COMM_code. Please refer to ... for full user documentation.
+**DLComm** is a communication benchmark designed for Deep Learning and AI workloads. Collective communication performance is often the primary bottleneck in AI training, inference, reasoning, and large-scale applications. DLComm emulates the communication patterns of the latest large language models (LLMs) and AI applications at scale, specifically targeting deployments of 50,000 GPUs and beyond.
 
-## Overview
+The benchmark is provided as an executable that can be configured to test various communication patterns within different AI distributed runtime frameworks. It uses a modular design to support all levels of communicator groups across GPUs, with flexible configurations for payload sizes, AI frameworks, and collective communication backends. DLComm enables testing on diverse systems, supports modifying scale-up and scale-out algorithms, and verifies correctness after communication operations.
 
-DL COMM is a lightweight benchmark for testing common communication patterns in large‐scale deep‐learning ( all‐reduce, broadcast, all‐gather). You run it from a single executable and configure everything with a simple YAML file. It’s modular—so adding new frameworks, back-ends, or algorithms is easy. DL COMM reports per‐iteration latency and bandwidth.
+Unlike traditional communication benchmarks, DLComm is built with the philosophy of reflecting real-world communication performance of the application as accurately as possible. It captures the interplay between Python runtimes, AI frameworks, and collective communication libraries (CCL) to provide insights that are directly relevant to actual AI workloads.
 
-update - x axis is num_gpus_per_node and y axis is num_compute_nodes
+The below gif shows a simple model of how different collective communications are performed over a group of GPUs. Update the below gif with a note - x axis is num_gpus_per_node and y axis is num_compute_nodes. Each sqaure is a GPU on a compute node. Each blinking bright rectangles could represent different collectives executing in an order.
 
 ![Alt text](tools/dl_comm_logo.gif)
 
@@ -22,7 +22,7 @@ pip install DLcomm
 
 Workload characteristics for DL COMM are specified by a YAML configuration file. The main configuration file is located at `dl_comm/config/config.yaml`. A sample configuration file is also available in the `examples/config.yaml` for reference.
 
-Below is an example configuration file 
+Below is an example configuration file
 
 ```yaml
 framework  : pytorch  # tensorflow / jax / titan / monarch
@@ -33,7 +33,7 @@ barrier     : on    # on / off - on: adds MPI barrier before timer printing for 
 
 comm_group:
   mode: combined # within_node/across_node/combined/flatview -> Only one out of four should be used
-    
+  
   flatview:
     num_compute_nodes: 2
     num_gpus_per_node: 12
@@ -87,6 +87,7 @@ comm_group:
 ### Important Note for PyTorch Users
 
 **Backend Naming**: The `ccl_backend` field naming depends on your PyTorch version:
+
 - **PyTorch < 2.7**: Use `ccl_backend: ccl` for Intel oneCCL
 - **PyTorch 2.7+**: Use `ccl_backend: xccl` for Intel oneCCL
 
@@ -94,7 +95,7 @@ Make sure to use the correct backend name for your PyTorch version to avoid init
 
 ## How to contribute
 
-We welcome contributions from the community to the benchmark code. 
+We welcome contributions from the community to the benchmark code.
 If you would like to contribute, please submit an issue to https://github.com/argonne-lcf/DLcomm_benchmark/issues, and contact ALCF DLCOMM team, Kaushik Velusamy at kaushik.v@anl.gov , Musa Cim at mtc5693@psu.edu
 
 ## Citation and Reference
