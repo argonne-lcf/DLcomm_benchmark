@@ -20,6 +20,8 @@ def check_collective_correctness(context, tensor_after, collective_name, op=None
         _check_reducescatter(context, tensor_after, op, group, group_type, group_id)
     elif collective_name == "alltoall":
         _check_alltoall(context, tensor_after, op, group, group_type, group_id, result_data)
+    elif collective_name == "alltoallsingle":
+        _check_alltoallsingle(context, tensor_after, op, group, group_type, group_id, result_data)
     elif collective_name == "allgather":
         _check_allgather(context, tensor_after, op, group, group_type, group_id, result_data)
 
@@ -273,6 +275,43 @@ def _check_alltoall(context, tensor_after, op, group, group_type, group_id, resu
         else:
             failed_ranks = [i for i, result in enumerate(gathered_results) if result.item() == 0]
             log.output(f"[CORRECTNESS][{group_type}-Group-{group_id}] AllToAll verification [FAILED] - Ranks {failed_ranks} received incorrect values")
+    else:
+        dist.gather(correct_tensor, None, dst=dst_rank, group=group)
+
+
+def _check_alltoallsingle(context, tensor_after, op, group, group_type, group_id, result_data):
+    log = context['log']
+    world_size = dist.get_world_size(group)
+    
+    if group is None:
+        dst_rank = 0
+    else:
+        group_ranks = dist.get_process_group_ranks(group)
+        dst_rank = min(group_ranks)
+    
+    my_rank = dist.get_rank()
+    
+    if result_data is None:
+        if my_rank == dst_rank:
+            log.output(f"[CORRECTNESS][{group_type}-Group-{group_id}] AllToAllSingle verification [FAILED] - No result data available")
+        return
+    
+    # For alltoallsingle, result_data should be a single tensor, not a list
+    expected_tensor = torch.ones_like(tensor_after)
+    all_correct = torch.allclose(result_data, expected_tensor, rtol=1e-6)
+    
+    correct_tensor = torch.tensor([1 if all_correct else 0], dtype=torch.int32).to(tensor_after.device)
+    
+    if my_rank == dst_rank:
+        gathered_results = [torch.zeros_like(correct_tensor) for _ in range(world_size)]
+        dist.gather(correct_tensor, gathered_results, dst=dst_rank, group=group)
+        
+        total_correct = sum(result.item() for result in gathered_results)
+        if total_correct == world_size:
+            log.output(f"[CORRECTNESS][{group_type}-Group-{group_id}] AllToAllSingle verification [PASSED] - All {world_size} ranks received correct values")
+        else:
+            failed_ranks = [i for i, result in enumerate(gathered_results) if result.item() == 0]
+            log.output(f"[CORRECTNESS][{group_type}-Group-{group_id}] AllToAllSingle verification [FAILED] - Ranks {failed_ranks} received incorrect values")
     else:
         dist.gather(correct_tensor, None, dst=dst_rank, group=group)
 

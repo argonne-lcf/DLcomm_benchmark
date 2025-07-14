@@ -61,11 +61,12 @@ def setup_collective_algorithms(cfg: DictConfig, coll_cfg, comm_mode: str):
 # ----------------------------------------------------------------------------
 
 
-@hydra.main(config_path="config", config_name="config", version_base=None)
+@hydra.main(config_path=None, config_name="config", version_base=None)
 def main(cfg: DictConfig):
 
     mpi_rank = MPI.COMM_WORLD.Get_rank()
     mpi_size = MPI.COMM_WORLD.Get_size()
+    
 
     # ----------------------------------------------------------------------------
     # LOGGER INITIALIZATION
@@ -91,6 +92,14 @@ def main(cfg: DictConfig):
     if mpi_rank == 0:
         log.info("-------------------------------------------------------------------------")
         log.info("[CONFIG] Loading schema and validating user YAML")
+        
+        I 
+        log.info(f"[DEBUG] Current working directory: {os.getcwd()}")
+        log.info(f"[DEBUG] Script location: {os.path.dirname(os.path.abspath(__file__))}")
+        log.info(f"[DEBUG] Config mode: {cfg.comm_group.mode}")
+        if hasattr(cfg.comm_group, 'flatview') and cfg.comm_group.mode == 'flatview':
+            log.info(f"[DEBUG] Flatview collective: {cfg.comm_group.flatview.collective.name}")
+        log.info(f"[DEBUG] Config loaded successfully")
 
     # ----------------------------------------------------------------------------
     # EXTRACT CONFIG VALUES

@@ -6,7 +6,7 @@
       "jax": ["xla"],
       "tensorflow": ["xccl"]
     },
-    "collective": ["allreduce", "broadcast", "gather", "scatter", "allgather", "reduce", "barrier"],
+    "collective": ["allreduce", "broadcast", "gather", "scatter", "allgather", "reduce", "barrier", "alltoall", "alltoallsingle"],
     "op": {
       "allreduce": ["sum", "max", "min", "prod"],
       "reduce": ["sum", "max", "min", "prod"],
@@ -14,7 +14,9 @@
       "gather": [null],
       "scatter": [null],
       "allgather": [null],
-      "barrier": [null]
+      "barrier": [null],
+      "alltoall": [null],
+      "alltoallsingle": [null]
     },
     "algo": {
       "allreduce": ["ring", "tree", "recursive_doubling", "topo"],

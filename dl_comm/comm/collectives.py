@@ -129,6 +129,15 @@ def _all_to_all(tensor, op=None, group=None, dist=None,log=None):
     
     dist.all_to_all(output_tensor_list, input_tensor_list, group=group)
     return output_tensor_list
+
+
+@register_collective("alltoallsingle", needs_op=False)
+def _all_to_all_single(tensor, op=None, group=None, dist=None, log=None):
+
+  
+    output_tensor = torch.empty_like(tensor)
+    dist.all_to_all_single(output_tensor, tensor, group=group)
+    return output_tensor
      
 
 @register_collective("barrier", needs_op=False)
