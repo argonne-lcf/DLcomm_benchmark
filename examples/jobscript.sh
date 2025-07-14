@@ -11,14 +11,16 @@
 
 module load frameworks
 
-WORKDIR=$(pwd)
+# Use the directory where the script is located (portable for any user)
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+EXAMPLES_DIR="$SCRIPT_DIR"
+WORKDIR="$EXAMPLES_DIR"
 cd "$WORKDIR"
 
-echo "Job started at: $(date)"
-echo "Job ID: $PBS_JOBID"
-echo "Working directory: $PBS_O_WORKDIR"
-echo "Node list:"
-cat $PBS_NODEFILE
+# Add parent directory to PYTHONPATH so Python can find dl_comm module
+export PYTHONPATH="$WORKDIR/..:$PYTHONPATH"
+
+
 
 NNODES=`wc -l < $PBS_NODEFILE`
 
@@ -57,7 +59,7 @@ export FI_CXI_CQ_FILL_PERCENT=30
 
 # Create timestamped directory for this run
 RUN_TIMESTAMP=$(date '+%Y%m%d_%H%M%S')
-RUN_LOG_DIR="$WORKDIR/logs/run_${RUN_TIMESTAMP}"
+RUN_LOG_DIR="$EXAMPLES_DIR/logs/run_${RUN_TIMESTAMP}"
 mkdir -p "$RUN_LOG_DIR"
 
  
@@ -68,12 +70,10 @@ export DL_COMM_LOG_DIR="$RUN_LOG_DIR"
 mpiexec --np ${NRANKS} \
         -ppn ${RANKS_PER_NODE} \
         --cpu-bind ${CPU_BINDING} \
-        python3 -m dl_comm.dl_comm_main 2>&1 | tee "$TERMINAL_LOG_FILE"
+        python3 -m dl_comm.dl_comm_main --config-path="$EXAMPLES_DIR" --config-name=config 2>&1 | tee "$TERMINAL_LOG_FILE"
 
 EXIT_STATUS=${PIPESTATUS[0]}
 
-echo "Job completed at: $(date)"
-echo "Exit status: $EXIT_STATUS"
 
  
 exit $EXIT_STATUS
