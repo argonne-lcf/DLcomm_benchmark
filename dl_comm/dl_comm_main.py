@@ -93,7 +93,7 @@ def main(cfg: DictConfig):
         log.info("-------------------------------------------------------------------------")
         log.info("[CONFIG] Loading schema and validating user YAML")
         
-        I 
+
         log.info(f"[DEBUG] Current working directory: {os.getcwd()}")
         log.info(f"[DEBUG] Script location: {os.path.dirname(os.path.abspath(__file__))}")
         log.info(f"[DEBUG] Config mode: {cfg.comm_group.mode}")

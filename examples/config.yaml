@@ -1,4 +1,4 @@
-framework  : pytorch  # tensorflow / jax / titan / monarch
+framework  : pytorch  # tensorflow / jax / monarch
 ccl_backend : ccl   # rccl / nccl / xccl (Note: PyTorch 2.7+ users should use 'xccl' instead of 'ccl' for Intel oneCCL)
 ccl_debug   : off # on / off - enables CCL debug logging and algorithm selection reporting
 use_profiler: unitrace
