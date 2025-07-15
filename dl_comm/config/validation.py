@@ -18,6 +18,48 @@ def parse_buffer_size(size_str: str) -> int:
         raise ValueError(f"payload.size='{size_str}' has unknown format. Use '1GB', '1MB', '512KB' etc")
 
 
+def adjust_buffer_size_for_group_divisibility(buffer_bytes: int, group_size: int, collective_name: str, elem_size: int, log=None, mpi_rank: int = 0) -> tuple[int, str]:
+    
+    collectives_needing_divisibility = ["alltoallsingle"]
+    
+
+    if collective_name.lower() not in collectives_needing_divisibility:
+        return buffer_bytes, ""
+    
+    num_elems = buffer_bytes // elem_size
+    
+    if num_elems % group_size != 0:
+        remainder = num_elems % group_size
+        
+        adjusted_elems_up = num_elems + (group_size - remainder)
+        adjusted_bytes_up = adjusted_elems_up * elem_size
+        
+        adjusted_elems_down = num_elems - remainder
+        adjusted_bytes_down = adjusted_elems_down * elem_size
+        
+        diff_up = abs(adjusted_bytes_up - buffer_bytes)
+        diff_down = abs(adjusted_bytes_down - buffer_bytes)
+        
+        if diff_up <= diff_down and adjusted_elems_up > 0:
+            adjusted_bytes = adjusted_bytes_up
+            adjusted_elems = adjusted_elems_up
+            direction = "up"
+        elif adjusted_elems_down > 0:
+            adjusted_bytes = adjusted_bytes_down
+            adjusted_elems = adjusted_elems_down
+            direction = "down"
+        else:
+            adjusted_bytes = adjusted_bytes_up
+            adjusted_elems = adjusted_elems_up
+            direction = "up"
+        
+        adjustment_msg = f"[BUFFER ADJUSTMENT] {collective_name}: Adjusted buffer size from {buffer_bytes} bytes ({num_elems} elements) to {adjusted_bytes} bytes ({adjusted_elems} elements) - rounded {direction} to be divisible by group size {group_size}"
+        
+        return adjusted_bytes, adjustment_msg
+    
+    return buffer_bytes, ""
+
+
 
 
 class ConfigValidator:

@@ -37,7 +37,7 @@ from omegaconf import DictConfig, OmegaConf
 # dl_comm packages
 from dl_comm.comm import setup_communication_groups
 from dl_comm.utils.utility import DLCOMMLogger, Profile
-from dl_comm.config import ConfigValidator, parse_buffer_size, print_system_info
+from dl_comm.config import ConfigValidator, parse_buffer_size, print_system_info, adjust_buffer_size_for_group_divisibility
 from dl_comm.comm import COLLECTIVES, OPS_NEED_REDUCE, OP_MAP, DTYPES
 from dl_comm.timer import timer, print_all_times, gather_and_print_all_times, reset_times
 from dl_comm.analysis import report_ccl_selection, print_all_bandwidths 
@@ -140,6 +140,19 @@ def main(cfg: DictConfig):
         # compute buffer/count
         buffer_in_bytes = parse_buffer_size(coll_cfg.payload.buffer_size)
         torch_dtype, elem_size = DTYPES[dtype_str]
+        
+        # Calculate group size for buffer adjustment
+        if comm_mode == "flatview":
+            group_size = mpi_size
+        elif comm_mode == "within_node":
+            group_size = mode_cfg.num_gpus_per_node
+        elif comm_mode == "across_node":
+            group_size = mode_cfg.num_compute_nodes
+        else:
+            group_size = mpi_size
+            
+        # Adjust buffer size for operations requiring group divisibility
+        buffer_in_bytes, adjustment_msg = adjust_buffer_size_for_group_divisibility(buffer_in_bytes, group_size, coll_name, elem_size, log, mpi_rank)
         num_elems = buffer_in_bytes // elem_size
 
         # lookup collective fn and op
@@ -158,6 +171,12 @@ def main(cfg: DictConfig):
 
         buffer_within_bytes = parse_buffer_size(coll_within_cfg.payload.buffer_size)
         torch_dtype_within, elem_size_within = DTYPES[dtype_str_within]
+        
+        # Calculate within-node group size for buffer adjustment
+        within_group_size = within_mode_cfg.num_gpus_per_node
+        
+        # Adjust buffer size for operations requiring group divisibility
+        buffer_within_bytes, adjustment_msg_within = adjust_buffer_size_for_group_divisibility(buffer_within_bytes, within_group_size, coll_name_within, elem_size_within, log, mpi_rank)
         num_elems_within   = buffer_within_bytes // elem_size_within
 
         run_within = COLLECTIVES[coll_name_within]
@@ -173,6 +192,12 @@ def main(cfg: DictConfig):
 
         buffer_across_bytes = parse_buffer_size(coll_across_cfg.payload.buffer_size)
         torch_dtype_across, elem_size_across = DTYPES[dtype_str_across]
+        
+        # Calculate across-node group size for buffer adjustment
+        across_group_size = across_mode_cfg.num_compute_nodes
+        
+        # Adjust buffer size for operations requiring group divisibility
+        buffer_across_bytes, adjustment_msg_across = adjust_buffer_size_for_group_divisibility(buffer_across_bytes, across_group_size, coll_name_across, elem_size_across, log, mpi_rank)
         num_elems_across   = buffer_across_bytes // elem_size_across
 
         run_across = COLLECTIVES[coll_name_across]
@@ -276,6 +301,8 @@ def main(cfg: DictConfig):
             log.info(f"[CONFIG] Iterations           : {iters}")
             log.info(f"[CONFIG] Verify Correctness   : {enable_correctness}")
             log.info("[CONFIG] ------------------------------------------------------")
+            if adjustment_msg:
+                log.info(adjustment_msg)
             log.info("")
    
     # ----------------------------------------------------------------------------
@@ -393,6 +420,8 @@ def main(cfg: DictConfig):
             log.info(f"[CONFIG] Iterations           : {iters_within}")
             log.info(f"[CONFIG] Verify Correctness   : {enable_correctness_within}")
             log.info("[CONFIG] ═══════════════════════════════════════════════════════")
+            if adjustment_msg_within:
+                log.info(adjustment_msg_within)
             log.info("")
 
         # ─── Within-node phase iterations ───────────────────────────
@@ -410,7 +439,8 @@ def main(cfg: DictConfig):
 
         # ─── Within-node phase reporting ───────────────────────────
         gather_and_print_all_times(log, ranks_responsible_for_logging, barrier_enabled, "[TIMERS]", "within", coll_name_within)
-        print_all_bandwidths(log, cfg, mpi_size, ranks_responsible_for_logging, "within")
+        adjusted_buffer_sizes_within = {'within': buffer_within_bytes}
+        print_all_bandwidths(log, cfg, mpi_size, ranks_responsible_for_logging, "within", adjusted_buffer_sizes_within)
 
  
 
@@ -430,6 +460,8 @@ def main(cfg: DictConfig):
             log.info(f"[CONFIG] Iterations           : {iters_across}")
             log.info(f"[CONFIG] Verify Correctness   : {enable_correctness_across}")
             log.info("[CONFIG] ═══════════════════════════════════════════════════════")
+            if adjustment_msg_across:
+                log.info(adjustment_msg_across)
             log.info("")
 
 
@@ -451,7 +483,8 @@ def main(cfg: DictConfig):
 
         # ─── Across-node phase reporting ───────────────────────────
         gather_and_print_all_times(log, ranks_responsible_for_logging, barrier_enabled, "[TIMERS]", "across", coll_name_across)
-        print_all_bandwidths(log, cfg, mpi_size, ranks_responsible_for_logging, "across")
+        adjusted_buffer_sizes_across = {'across': buffer_across_bytes}
+        print_all_bandwidths(log, cfg, mpi_size, ranks_responsible_for_logging, "across", adjusted_buffer_sizes_across)
 
         time_barrier()
 
@@ -465,7 +498,15 @@ def main(cfg: DictConfig):
         gather_and_print_all_times(log, ranks_responsible_for_logging, barrier_enabled, "[TIMERS]", None, coll_name)
         
         # Gather bandwidth data from responsible ranks and let rank 0 print organized output
-        print_all_bandwidths(log, cfg, mpi_size, ranks_responsible_for_logging)
+        if comm_mode == "flatview":
+            adjusted_buffer_sizes_single = {'flatview': buffer_in_bytes}
+        elif comm_mode == "within_node":
+            adjusted_buffer_sizes_single = {'within': buffer_in_bytes}
+        elif comm_mode == "across_node":
+            adjusted_buffer_sizes_single = {'across': buffer_in_bytes}
+        else:
+            adjusted_buffer_sizes_single = None
+        print_all_bandwidths(log, cfg, mpi_size, ranks_responsible_for_logging, None, adjusted_buffer_sizes_single)
     
     # Only rank 0 prints remaining analysis
     if mpi_rank == 0:

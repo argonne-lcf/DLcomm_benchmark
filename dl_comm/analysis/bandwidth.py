@@ -9,7 +9,7 @@ def calculate_group_bandwidth(group_size, buffer_size, time_seconds):
     return bandwidth_bytes_per_sec
 
 
-def print_all_bandwidths(logger, cfg, mpi_size, ranks_responsible_for_logging, phase_filter=None):
+def print_all_bandwidths(logger, cfg, mpi_size, ranks_responsible_for_logging, phase_filter=None, adjusted_buffer_sizes=None):
     from mpi4py import MPI
     
     mpi_rank = MPI.COMM_WORLD.Get_rank()
@@ -33,25 +33,30 @@ def print_all_bandwidths(logger, cfg, mpi_size, ranks_responsible_for_logging, p
         group_bandwidths = {}
         
         buffer_configs = {}
-        if comm_mode == "flatview":
-            coll_cfg = cfg.comm_group.flatview.collective
-            buffer_in_bytes = parse_buffer_size(coll_cfg.payload.buffer_size)
-            buffer_configs['flatview'] = buffer_in_bytes
-        elif comm_mode == "within_node":
-            coll_cfg = cfg.comm_group.within_node.collective
-            buffer_in_bytes = parse_buffer_size(coll_cfg.payload.buffer_size)
-            buffer_configs['within'] = buffer_in_bytes
-        elif comm_mode == "across_node":
-            coll_cfg = cfg.comm_group.across_node.collective
-            buffer_in_bytes = parse_buffer_size(coll_cfg.payload.buffer_size)
-            buffer_configs['across'] = buffer_in_bytes
-        elif comm_mode == "combined":
-            coll_within_cfg = cfg.comm_group.combined.within_node.collective
-            coll_across_cfg = cfg.comm_group.combined.across_node.collective
-            buffer_within_bytes = parse_buffer_size(coll_within_cfg.payload.buffer_size)
-            buffer_across_bytes = parse_buffer_size(coll_across_cfg.payload.buffer_size)
-            buffer_configs['within'] = buffer_within_bytes
-            buffer_configs['across'] = buffer_across_bytes
+        if adjusted_buffer_sizes:
+            # Use the adjusted buffer sizes passed from main
+            buffer_configs = adjusted_buffer_sizes
+        else:
+            # Fallback to parsing from config (original behavior)
+            if comm_mode == "flatview":
+                coll_cfg = cfg.comm_group.flatview.collective
+                buffer_in_bytes = parse_buffer_size(coll_cfg.payload.buffer_size)
+                buffer_configs['flatview'] = buffer_in_bytes
+            elif comm_mode == "within_node":
+                coll_cfg = cfg.comm_group.within_node.collective
+                buffer_in_bytes = parse_buffer_size(coll_cfg.payload.buffer_size)
+                buffer_configs['within'] = buffer_in_bytes
+            elif comm_mode == "across_node":
+                coll_cfg = cfg.comm_group.across_node.collective
+                buffer_in_bytes = parse_buffer_size(coll_cfg.payload.buffer_size)
+                buffer_configs['across'] = buffer_in_bytes
+            elif comm_mode == "combined":
+                coll_within_cfg = cfg.comm_group.combined.within_node.collective
+                coll_across_cfg = cfg.comm_group.combined.across_node.collective
+                buffer_within_bytes = parse_buffer_size(coll_within_cfg.payload.buffer_size)
+                buffer_across_bytes = parse_buffer_size(coll_across_cfg.payload.buffer_size)
+                buffer_configs['within'] = buffer_within_bytes
+                buffer_configs['across'] = buffer_across_bytes
         
         group_timers = {}
         
