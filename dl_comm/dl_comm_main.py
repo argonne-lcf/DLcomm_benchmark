@@ -243,12 +243,31 @@ def main(cfg: DictConfig):
                 import oneccl_bindings_for_pytorch
 
     # Define barrier function for timing synchronization
-    def time_barrier(group=None):
+    def time_barrier(group=None, debug_name="unknown"):
         if barrier_enabled:
+            import time
             if group is not None:
-                dist.barrier(group=group)
+                log.debug(f"[BARRIER][RANK {mpi_rank}] Entering group barrier for {debug_name}, group type: {type(group)}")
+                try:
+                    start_time = time.time()
+                    dist.barrier(group=group)
+                    end_time = time.time()
+                    log.debug(f"[BARRIER][RANK {mpi_rank}] Completed group barrier for {debug_name} in {end_time-start_time:.3f}s")
+                except Exception as e:
+                    log.error(f"[BARRIER][RANK {mpi_rank}] Failed group barrier for {debug_name}: {e}")
+                    raise
             else:
-                dist.barrier()
+                log.debug(f"[BARRIER][RANK {mpi_rank}] Entering world barrier for {debug_name}")
+                try:
+                    start_time = time.time()
+                    dist.barrier()
+                    end_time = time.time()
+                    log.debug(f"[BARRIER][RANK {mpi_rank}] Completed world barrier for {debug_name} in {end_time-start_time:.3f}s")
+                except Exception as e:
+                    log.error(f"[BARRIER][RANK {mpi_rank}] Failed world barrier for {debug_name}: {e}")
+                    raise
+        else:
+            log.debug(f"[BARRIER][RANK {mpi_rank}] Skipped barrier for {debug_name} (barriers disabled)")
     
     # ----------------------------------------------------------------------------
     # SYSTEM INFORMATION LOGGING
@@ -312,7 +331,7 @@ def main(cfg: DictConfig):
     if mpi_rank == 0:
         import socket
         MASTER_ADDR = socket.gethostname()
-        MASTER_PORT = 2219
+        MASTER_PORT = 2240
     else:
         MASTER_ADDR = None
         MASTER_PORT = None
@@ -349,15 +368,26 @@ def main(cfg: DictConfig):
     # COMMUNICATION GROUP SETUP
     # ----------------------------------------------------------------------------
 
-    # setup_communication_groups defined in ./comm/comm_setup.py
-    comm_info = setup_communication_groups(cfg, mpi_rank, log, dist)
-    my_within_group = comm_info['my_within_group']
-    my_across_group = comm_info['my_across_group'] 
-    world_group = comm_info['world_group']
-    device = comm_info['device']
-    within_group_id = comm_info['within_group_id']
-    across_group_id = comm_info['across_group_id']
-    ranks_responsible_for_logging = comm_info['ranks_responsible_for_logging']
+    # For combined mode, skip initial setup and do it before each phase
+    if comm_mode != "combined":
+        # setup_communication_groups defined in ./comm/comm_setup.py
+        comm_info = setup_communication_groups(cfg, mpi_rank, log, dist)
+        my_within_group = comm_info['my_within_group']
+        my_across_group = comm_info['my_across_group'] 
+        world_group = comm_info['world_group']
+        device = comm_info['device']
+        within_group_id = comm_info['within_group_id']
+        across_group_id = comm_info['across_group_id']
+        ranks_responsible_for_logging = comm_info['ranks_responsible_for_logging']
+    else:
+        # Initialize variables for combined mode - will be set in each phase
+        my_within_group = None
+        my_across_group = None
+        world_group = None
+        device = None
+        within_group_id = None
+        across_group_id = None
+        ranks_responsible_for_logging = set([0])
    
  
     MPI.COMM_WORLD.Barrier()
@@ -424,17 +454,24 @@ def main(cfg: DictConfig):
                 log.info(adjustment_msg_within)
             log.info("")
 
-        # ─── Within-node phase iterations ───────────────────────────
+        # ─── Within-node phase setup ───────────────────────────
+        # Setup communication groups for within-node phase
+        within_comm_info = setup_communication_groups(cfg, mpi_rank, log, dist, force_mode="within_node")
+        my_within_group = within_comm_info['my_within_group']
+        device = within_comm_info['device']  # Use device from within-node setup
+        within_group_id = within_comm_info['within_group_id']
+        ranks_responsible_for_logging.update(within_comm_info['ranks_responsible_for_logging'])
+        
         setup_collective_algorithms(cfg, coll_within_cfg, "within_node")
  
         for i in range(iters_within):
             context = {'mpi_rank': mpi_rank, 'cfg': cfg,'log': log, 'iteration': i}
             x = torch.ones(num_elems_within, dtype=torch_dtype_within).to(device, non_blocking=True)
             
-            time_barrier()
+            time_barrier(debug_name=f"within-start-iter-{i}")
             with timer(f"(Within-Group-{within_group_id})"):
                 result = run_within(x, op_within, group=my_within_group, dist=dist, log=log)
-                time_barrier()
+                time_barrier(debug_name=f"within-end-iter-{i}")
             check_collective_correctness(context, x, coll_name_within, op=op_within, group=my_within_group, result_data=result, group_type="Within", group_id=within_group_id)
 
         # ─── Within-node phase reporting ───────────────────────────
@@ -465,7 +502,14 @@ def main(cfg: DictConfig):
             log.info("")
 
 
-        # ─── Across-node phase iterations ───────────────────────────
+        # ─── Across-node phase setup ───────────────────────────
+        # Setup communication groups for across-node phase
+        across_comm_info = setup_communication_groups(cfg, mpi_rank, log, dist, force_mode="across_node")
+        my_across_group = across_comm_info['my_across_group']
+        device = across_comm_info['device']  # Use device from across-node setup
+        across_group_id = across_comm_info['across_group_id']
+        ranks_responsible_for_logging.update(across_comm_info['ranks_responsible_for_logging'])
+        
         setup_collective_algorithms(cfg, coll_across_cfg, "across_node")
  
         for i in range(iters_across):
@@ -473,12 +517,14 @@ def main(cfg: DictConfig):
             x = torch.ones(num_elems_across, dtype=torch_dtype_across).to(device, non_blocking=True)
             
             if my_across_group:
-                time_barrier(group=my_across_group)
+                log.debug(f"[BARRIER][RANK {mpi_rank}] About to enter across-group barrier for iter {i}, group_id={across_group_id}")
+                time_barrier(group=my_across_group, debug_name=f"across-start-iter-{i}-group-{across_group_id}")
                 with timer(f"(Across-Group-{across_group_id})"):
                     result = run_across(x, op_across, group=my_across_group, dist=dist, log=log)
-                    time_barrier(group=my_across_group)
+                    time_barrier(group=my_across_group, debug_name=f"across-end-iter-{i}-group-{across_group_id}")
                 check_collective_correctness(context, x, coll_name_across, op=op_across, group=my_across_group, result_data=result, group_type="Across", group_id=across_group_id)
             else:
+                log.debug(f"[BARRIER][RANK {mpi_rank}] Skipping across-group barriers for iter {i} (not in any across group)")
                 result = None
 
         # ─── Across-node phase reporting ───────────────────────────

@@ -4,11 +4,11 @@ from omegaconf import DictConfig
 from dl_comm.timer import timer
 
 
-def setup_communication_groups(cfg: DictConfig, mpi_rank, log, dist=None):
+def setup_communication_groups(cfg: DictConfig, mpi_rank, log, dist=None, force_mode=None):
  
     
     comm_config = cfg.comm_group
-    comm_mode = comm_config.mode
+    comm_mode = force_mode if force_mode else comm_config.mode
     
     my_within_group = None
     my_across_group = None
@@ -27,7 +27,7 @@ def setup_communication_groups(cfg: DictConfig, mpi_rank, log, dist=None):
     # WITHIN NODE MODE
     # ----------------------------------------------------------------------------
     
-    if comm_mode == "within_node" or comm_mode == "combined":
+    if comm_mode == "within_node":
         if mpi_rank == 0:
             log.info(f"[COMM][CONFIG] Setting up communication groups for mode: Within")
 
@@ -67,6 +67,9 @@ def setup_communication_groups(cfg: DictConfig, mpi_rank, log, dist=None):
                 if mpi_rank in group_ranks:
                     my_within_group = group
                     within_group_id = node
+                    log.debug(f"[COMM][RANK {mpi_rank}] Assigned to within-group {node}, group_ranks: {group_ranks}")
+                else:
+                    log.debug(f"[COMM][RANK {mpi_rank}] NOT in within-group {node}, group_ranks: {group_ranks}")
         
         # Calculate the ranks for this rank's within-group
         within_group_ranks = []
@@ -75,15 +78,22 @@ def setup_communication_groups(cfg: DictConfig, mpi_rank, log, dist=None):
                 rank = within_group_id * num_gpus_per_node + gpu
                 within_group_ranks.append(rank)
 
-        # DEVICE ALLOCATION
+        # DEVICE ALLOCATION - WITHIN NODE
         rank_id_per_node = mpi_rank % num_gpus_per_node
-        if torch.xpu.is_available():
+        if cfg.ccl_backend == "nccl" and torch.cuda.is_available():
+            device_id = gpu_ids_per_node[rank_id_per_node]
+            device = torch.device(f"cuda:{device_id}")
+            torch.cuda.set_device(device_id)
+            log.debug(f"[COMM][RANK {mpi_rank}] WITHIN device assignment: rank_id_per_node={rank_id_per_node}, device_id={device_id}, device={device}")
+        elif cfg.ccl_backend in ["ccl", "xccl"] and torch.xpu.is_available():
             device_id = gpu_ids_per_node[rank_id_per_node]
             device = torch.device(f"xpu:{device_id}")
+            log.debug(f"[COMM][RANK {mpi_rank}] WITHIN device assignment: rank_id_per_node={rank_id_per_node}, device_id={device_id}, device={device}")
         else:
             device = torch.device('cpu')
+            log.debug(f"[COMM][RANK {mpi_rank}] WITHIN device assignment: using CPU device")
             if mpi_rank == 0:
-                log.info("[COMM] XPU not available, using CPU")
+                log.info("[COMM] Using CPU device")
 
         if mpi_rank == 0:
             log.info(f"[COMM][GROUP CREATION] Created {num_compute_nodes} within-node groups")
@@ -92,7 +102,7 @@ def setup_communication_groups(cfg: DictConfig, mpi_rank, log, dist=None):
     # ACROSS NODE MODE
     # ----------------------------------------------------------------------------
     
-    if comm_mode == "across_node" or comm_mode == "combined":
+    if comm_mode == "across_node":
         if mpi_rank == 0:
             log.info("")
             log.info(f"[COMM][CONFIG] Setting up communication groups for mode: Across")
@@ -132,6 +142,9 @@ def setup_communication_groups(cfg: DictConfig, mpi_rank, log, dist=None):
                 if mpi_rank in group_ranks:
                     my_across_group = group
                     across_group_id = i
+                    log.debug(f"[COMM][RANK {mpi_rank}] Assigned to across-group {i}, group_ranks: {group_ranks}")
+                else:
+                    log.debug(f"[COMM][RANK {mpi_rank}] NOT in across-group {i}, group_ranks: {group_ranks}")
         
         # Calculate the ranks for this rank's across-group
         across_group_ranks = []
@@ -140,15 +153,22 @@ def setup_communication_groups(cfg: DictConfig, mpi_rank, log, dist=None):
                 rank = node * num_gpus_per_node + across_group_id
                 across_group_ranks.append(rank)
 
-        # DEVICE ALLOCATION
+        # DEVICE ALLOCATION - ACROSS NODE
         rank_id_per_node = mpi_rank % num_gpus_per_node
-        if torch.xpu.is_available():
+        if cfg.ccl_backend == "nccl" and torch.cuda.is_available():
+            device_id = gpu_ids_per_node[rank_id_per_node]
+            device = torch.device(f"cuda:{device_id}")
+            torch.cuda.set_device(device_id)
+            log.debug(f"[COMM][RANK {mpi_rank}] ACROSS device assignment: rank_id_per_node={rank_id_per_node}, device_id={device_id}, device={device}")
+        elif cfg.ccl_backend in ["ccl", "xccl"] and torch.xpu.is_available():
             device_id = gpu_ids_per_node[rank_id_per_node]
             device = torch.device(f"xpu:{device_id}")
+            log.debug(f"[COMM][RANK {mpi_rank}] ACROSS device assignment: rank_id_per_node={rank_id_per_node}, device_id={device_id}, device={device}")
         else:
             device = torch.device('cpu')
+            log.debug(f"[COMM][RANK {mpi_rank}] ACROSS device assignment: using CPU device")
             if mpi_rank == 0:
-                log.info("[COMM] XPU not available, using CPU")
+                log.info("[COMM] Using CPU device")
 
         if mpi_rank == 0:
             log.info(f"[COMM][GROUP CREATION] Created {num_gpus_per_node} across-node groups")
@@ -177,18 +197,31 @@ def setup_communication_groups(cfg: DictConfig, mpi_rank, log, dist=None):
  
         # DEVICE ALLOCATION
         world_group = None  
-        if torch.xpu.is_available():
-            rank_id_per_node = mpi_rank % num_gpus_per_node
+        rank_id_per_node = mpi_rank % num_gpus_per_node
+        if cfg.ccl_backend == "nccl" and torch.cuda.is_available():
+            device_id = gpu_ids_per_node[rank_id_per_node]
+            device = torch.device(f"cuda:{device_id}")
+            torch.cuda.set_device(device_id)
+        elif cfg.ccl_backend in ["ccl", "xccl"] and torch.xpu.is_available():
             device_id = gpu_ids_per_node[rank_id_per_node]
             device = torch.device(f"xpu:{device_id}")
         else:
             device = torch.device("cpu")
             if mpi_rank == 0:
-                log.info("[COMM] XPU not available, using CPU")
+                log.info("[COMM] Using CPU device")
         
         world_group_ranks = list(range(mpi_size))
 
  
+
+    # Final debug summary
+    log.debug(f"[COMM][RANK {mpi_rank}] FINAL SUMMARY:")
+    log.debug(f"[COMM][RANK {mpi_rank}]   comm_mode: {comm_mode}")
+    log.debug(f"[COMM][RANK {mpi_rank}]   within_group: {my_within_group is not None}, within_group_id: {within_group_id}")
+    log.debug(f"[COMM][RANK {mpi_rank}]   across_group: {my_across_group is not None}, across_group_id: {across_group_id}")
+    log.debug(f"[COMM][RANK {mpi_rank}]   device: {device}")
+    log.debug(f"[COMM][RANK {mpi_rank}]   within_group_ranks: {within_group_ranks}")
+    log.debug(f"[COMM][RANK {mpi_rank}]   across_group_ranks: {across_group_ranks}")
 
     return {
         'my_within_group': my_within_group,

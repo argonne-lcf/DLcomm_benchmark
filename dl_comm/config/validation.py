@@ -254,7 +254,9 @@ class ConfigValidator:
 
                     
  
-        if torch.xpu.is_available():
+        if torch.cuda.is_available():
+            available_devices = torch.cuda.device_count()
+        elif torch.xpu.is_available():
             available_devices = torch.xpu.device_count()
         else:
             available_devices = 1   
