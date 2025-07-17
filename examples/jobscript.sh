@@ -9,15 +9,20 @@
 #PBS -o /dev/null
 
 
+# Activate PyTorch 2.8 environment
+source /opt/aurora/24.347.0/oneapi/intel-conda-miniforge/etc/profile.d/conda.sh
+conda activate /lus/flare/projects/datascience_collab/mcim/for-musa/sam_build/conda_pt2.8
+
+# Load frameworks after conda to ensure missing modules are available
 module load frameworks
 
-# Use the directory where the script is located (portable for any user)
+# 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 EXAMPLES_DIR="$SCRIPT_DIR"
 WORKDIR="$EXAMPLES_DIR"
 cd "$WORKDIR"
 
-# Add parent directory to PYTHONPATH so Python can find dl_comm module
+# 
 export PYTHONPATH="$WORKDIR/..:$PYTHONPATH"
 
 
@@ -26,7 +31,7 @@ NNODES=`wc -l < $PBS_NODEFILE`
 
 
  
-RANKS_PER_NODE=12
+RANKS_PER_NODE=4
 NRANKS=$(( NNODES * RANKS_PER_NODE ))
 
  

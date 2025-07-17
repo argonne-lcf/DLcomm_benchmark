@@ -243,32 +243,12 @@ def main(cfg: DictConfig):
                 import oneccl_bindings_for_pytorch
 
     # Define barrier function for timing synchronization
-    def time_barrier(group=None, debug_name="unknown"):
+    def time_barrier(group=None):
         if barrier_enabled:
-            import time
             if group is not None:
-                log.debug(f"[BARRIER][RANK {mpi_rank}] Entering group barrier for {debug_name}, group type: {type(group)}")
-                try:
-                    start_time = time.time()
-                    dist.barrier(group=group)
-                    end_time = time.time()
-                    log.debug(f"[BARRIER][RANK {mpi_rank}] Completed group barrier for {debug_name} in {end_time-start_time:.3f}s")
-                except Exception as e:
-                    log.error(f"[BARRIER][RANK {mpi_rank}] Failed group barrier for {debug_name}: {e}")
-                    raise
+                dist.barrier(group=group)
             else:
-                log.debug(f"[BARRIER][RANK {mpi_rank}] Entering world barrier for {debug_name}")
-                try:
-                    start_time = time.time()
-                    dist.barrier()
-                    end_time = time.time()
-                    log.debug(f"[BARRIER][RANK {mpi_rank}] Completed world barrier for {debug_name} in {end_time-start_time:.3f}s")
-                except Exception as e:
-                    log.error(f"[BARRIER][RANK {mpi_rank}] Failed world barrier for {debug_name}: {e}")
-                    raise
-        else:
-            log.debug(f"[BARRIER][RANK {mpi_rank}] Skipped barrier for {debug_name} (barriers disabled)")
-    
+                dist.barrier()
     # ----------------------------------------------------------------------------
     # SYSTEM INFORMATION LOGGING
     # ----------------------------------------------------------------------------
@@ -468,10 +448,10 @@ def main(cfg: DictConfig):
             context = {'mpi_rank': mpi_rank, 'cfg': cfg,'log': log, 'iteration': i}
             x = torch.ones(num_elems_within, dtype=torch_dtype_within).to(device, non_blocking=True)
             
-            time_barrier(debug_name=f"within-start-iter-{i}")
+            time_barrier()
             with timer(f"(Within-Group-{within_group_id})"):
                 result = run_within(x, op_within, group=my_within_group, dist=dist, log=log)
-                time_barrier(debug_name=f"within-end-iter-{i}")
+                time_barrier()
             check_collective_correctness(context, x, coll_name_within, op=op_within, group=my_within_group, result_data=result, group_type="Within", group_id=within_group_id)
 
         # ─── Within-node phase reporting ───────────────────────────
@@ -517,14 +497,12 @@ def main(cfg: DictConfig):
             x = torch.ones(num_elems_across, dtype=torch_dtype_across).to(device, non_blocking=True)
             
             if my_across_group:
-                log.debug(f"[BARRIER][RANK {mpi_rank}] About to enter across-group barrier for iter {i}, group_id={across_group_id}")
-                time_barrier(group=my_across_group, debug_name=f"across-start-iter-{i}-group-{across_group_id}")
+                time_barrier(group=my_across_group)
                 with timer(f"(Across-Group-{across_group_id})"):
                     result = run_across(x, op_across, group=my_across_group, dist=dist, log=log)
-                    time_barrier(group=my_across_group, debug_name=f"across-end-iter-{i}-group-{across_group_id}")
+                    time_barrier(group=my_across_group)
                 check_collective_correctness(context, x, coll_name_across, op=op_across, group=my_across_group, result_data=result, group_type="Across", group_id=across_group_id)
             else:
-                log.debug(f"[BARRIER][RANK {mpi_rank}] Skipping across-group barriers for iter {i} (not in any across group)")
                 result = None
 
         # ─── Across-node phase reporting ───────────────────────────

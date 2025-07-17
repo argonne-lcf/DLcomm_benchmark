@@ -67,9 +67,7 @@ def setup_communication_groups(cfg: DictConfig, mpi_rank, log, dist=None, force_
                 if mpi_rank in group_ranks:
                     my_within_group = group
                     within_group_id = node
-                    log.debug(f"[COMM][RANK {mpi_rank}] Assigned to within-group {node}, group_ranks: {group_ranks}")
-                else:
-                    log.debug(f"[COMM][RANK {mpi_rank}] NOT in within-group {node}, group_ranks: {group_ranks}")
+                 
         
         # Calculate the ranks for this rank's within-group
         within_group_ranks = []
@@ -84,19 +82,17 @@ def setup_communication_groups(cfg: DictConfig, mpi_rank, log, dist=None, force_
             device_id = gpu_ids_per_node[rank_id_per_node]
             device = torch.device(f"cuda:{device_id}")
             torch.cuda.set_device(device_id)
-            log.debug(f"[COMM][RANK {mpi_rank}] WITHIN device assignment: rank_id_per_node={rank_id_per_node}, device_id={device_id}, device={device}")
         elif cfg.ccl_backend in ["ccl", "xccl"] and torch.xpu.is_available():
             device_id = gpu_ids_per_node[rank_id_per_node]
             device = torch.device(f"xpu:{device_id}")
-            log.debug(f"[COMM][RANK {mpi_rank}] WITHIN device assignment: rank_id_per_node={rank_id_per_node}, device_id={device_id}, device={device}")
         else:
             device = torch.device('cpu')
-            log.debug(f"[COMM][RANK {mpi_rank}] WITHIN device assignment: using CPU device")
             if mpi_rank == 0:
                 log.info("[COMM] Using CPU device")
 
         if mpi_rank == 0:
             log.info(f"[COMM][GROUP CREATION] Created {num_compute_nodes} within-node groups")
+            log.info("")
 
     # ----------------------------------------------------------------------------
     # ACROSS NODE MODE
@@ -142,10 +138,7 @@ def setup_communication_groups(cfg: DictConfig, mpi_rank, log, dist=None, force_
                 if mpi_rank in group_ranks:
                     my_across_group = group
                     across_group_id = i
-                    log.debug(f"[COMM][RANK {mpi_rank}] Assigned to across-group {i}, group_ranks: {group_ranks}")
-                else:
-                    log.debug(f"[COMM][RANK {mpi_rank}] NOT in across-group {i}, group_ranks: {group_ranks}")
-        
+                 
         # Calculate the ranks for this rank's across-group
         across_group_ranks = []
         if across_group_id is not None:
@@ -159,20 +152,17 @@ def setup_communication_groups(cfg: DictConfig, mpi_rank, log, dist=None, force_
             device_id = gpu_ids_per_node[rank_id_per_node]
             device = torch.device(f"cuda:{device_id}")
             torch.cuda.set_device(device_id)
-            log.debug(f"[COMM][RANK {mpi_rank}] ACROSS device assignment: rank_id_per_node={rank_id_per_node}, device_id={device_id}, device={device}")
         elif cfg.ccl_backend in ["ccl", "xccl"] and torch.xpu.is_available():
             device_id = gpu_ids_per_node[rank_id_per_node]
             device = torch.device(f"xpu:{device_id}")
-            log.debug(f"[COMM][RANK {mpi_rank}] ACROSS device assignment: rank_id_per_node={rank_id_per_node}, device_id={device_id}, device={device}")
         else:
             device = torch.device('cpu')
-            log.debug(f"[COMM][RANK {mpi_rank}] ACROSS device assignment: using CPU device")
             if mpi_rank == 0:
                 log.info("[COMM] Using CPU device")
 
         if mpi_rank == 0:
             log.info(f"[COMM][GROUP CREATION] Created {num_gpus_per_node} across-node groups")
-
+            log.info("")
 
     # ----------------------------------------------------------------------------
     # FLATVIEW MODE
@@ -214,14 +204,6 @@ def setup_communication_groups(cfg: DictConfig, mpi_rank, log, dist=None, force_
 
  
 
-    # Final debug summary
-    log.debug(f"[COMM][RANK {mpi_rank}] FINAL SUMMARY:")
-    log.debug(f"[COMM][RANK {mpi_rank}]   comm_mode: {comm_mode}")
-    log.debug(f"[COMM][RANK {mpi_rank}]   within_group: {my_within_group is not None}, within_group_id: {within_group_id}")
-    log.debug(f"[COMM][RANK {mpi_rank}]   across_group: {my_across_group is not None}, across_group_id: {across_group_id}")
-    log.debug(f"[COMM][RANK {mpi_rank}]   device: {device}")
-    log.debug(f"[COMM][RANK {mpi_rank}]   within_group_ranks: {within_group_ranks}")
-    log.debug(f"[COMM][RANK {mpi_rank}]   across_group_ranks: {across_group_ranks}")
 
     return {
         'my_within_group': my_within_group,
