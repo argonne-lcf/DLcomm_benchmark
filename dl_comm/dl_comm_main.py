@@ -243,12 +243,13 @@ def main(cfg: DictConfig):
                 import oneccl_bindings_for_pytorch
 
     # Define barrier function for timing synchronization
-    def time_barrier(group=None):
+    def time_barrier(group=None, device=None):
         if barrier_enabled:
-            if group is not None:
-                dist.barrier(group=group)
+            if group is not None and device is not None:
+                dist.barrier(group=group,device_ids=[device.index])
             else:
                 dist.barrier()
+    
     # ----------------------------------------------------------------------------
     # SYSTEM INFORMATION LOGGING
     # ----------------------------------------------------------------------------
@@ -311,7 +312,7 @@ def main(cfg: DictConfig):
     if mpi_rank == 0:
         import socket
         MASTER_ADDR = socket.gethostname()
-        MASTER_PORT = 2240
+        MASTER_PORT = 2243
     else:
         MASTER_ADDR = None
         MASTER_PORT = None
@@ -382,7 +383,6 @@ def main(cfg: DictConfig):
     # ----------------------------------------------------------------------------
     #  COLLECTIVE OP EXECUTION
     # ----------------------------------------------------------------------------
-
  
 
     # Single-phase (flatview / within_node / across_node)
@@ -448,10 +448,10 @@ def main(cfg: DictConfig):
             context = {'mpi_rank': mpi_rank, 'cfg': cfg,'log': log, 'iteration': i}
             x = torch.ones(num_elems_within, dtype=torch_dtype_within).to(device, non_blocking=True)
             
-            time_barrier()
+            time_barrier(group=my_within_group,device=device)
             with timer(f"(Within-Group-{within_group_id})"):
                 result = run_within(x, op_within, group=my_within_group, dist=dist, log=log)
-                time_barrier()
+                time_barrier(group=my_within_group,device=device)
             check_collective_correctness(context, x, coll_name_within, op=op_within, group=my_within_group, result_data=result, group_type="Within", group_id=within_group_id)
 
         # ─── Within-node phase reporting ───────────────────────────
@@ -481,6 +481,8 @@ def main(cfg: DictConfig):
                 log.info(adjustment_msg_across)
             log.info("")
 
+        #Wait for within to finish for sequiental exec
+        time_barrier() 
 
         # ─── Across-node phase setup ───────────────────────────
         # Setup communication groups for across-node phase
@@ -497,10 +499,10 @@ def main(cfg: DictConfig):
             x = torch.ones(num_elems_across, dtype=torch_dtype_across).to(device, non_blocking=True)
             
             if my_across_group:
-                time_barrier(group=my_across_group)
+                time_barrier(group=my_across_group,device=device)
                 with timer(f"(Across-Group-{across_group_id})"):
                     result = run_across(x, op_across, group=my_across_group, dist=dist, log=log)
-                    time_barrier(group=my_across_group)
+                    time_barrier(group=my_across_group,device=device)
                 check_collective_correctness(context, x, coll_name_across, op=op_across, group=my_across_group, result_data=result, group_type="Across", group_id=across_group_id)
             else:
                 result = None
@@ -515,7 +517,7 @@ def main(cfg: DictConfig):
     # ----------------------------------------------------------------------------
     #  REPORTING (FOR SINGLE-PHASE MODES ONLY)
     # ----------------------------------------------------------------------------
-  
+
     # Only single-phase modes need final reporting (combined mode already reported)
     if comm_mode != "combined":
         # Gather all timer data from responsible ranks and let rank 0 print organized output
