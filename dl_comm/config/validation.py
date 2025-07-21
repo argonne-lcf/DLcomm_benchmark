@@ -91,13 +91,39 @@ class ConfigValidator:
 
         # comm_group validation
         comm_group = cfg.comm_group
-        comm_mode = comm_group.mode
+        comm_mode_raw = comm_group.mode
         valid_modes = ["within_node", "across_node", "combined", "flatview"]
         
-        if comm_mode not in valid_modes:
-            if mpi_rank == 0:
-                log.error(f"[VALIDATION] Invalid comm_mode '{comm_mode}'. Valid: {valid_modes}")
-            has_errors = True
+        # Handle both single mode (string) and multiple modes (list)
+        if isinstance(comm_mode_raw, (list, tuple)) or hasattr(comm_mode_raw, '__iter__') and not isinstance(comm_mode_raw, str):
+            # Multiple modes - validate each one
+            modes_to_validate = list(comm_mode_raw)
+            if not modes_to_validate:  # Empty list
+                if mpi_rank == 0:
+                    log.error("[VALIDATION] Mode list cannot be empty")
+                has_errors = True
+            else:
+                # Validate each mode in the list
+                for mode in modes_to_validate:
+                    if mode not in valid_modes:
+                        if mpi_rank == 0:
+                            log.error(f"[VALIDATION] Invalid mode '{mode}' in mode list. Valid: {valid_modes}")
+                        has_errors = True
+                # Check for duplicate modes
+                if len(modes_to_validate) != len(set(modes_to_validate)):
+                    if mpi_rank == 0:
+                        log.error("[VALIDATION] Duplicate modes found in mode list")
+                    has_errors = True
+                # For validation purposes, use the first mode for buffer size checking
+                comm_mode = modes_to_validate[0]
+        else:
+            # Single mode (backward compatibility)
+            modes_to_validate = [comm_mode_raw]
+            if comm_mode_raw not in valid_modes:
+                if mpi_rank == 0:
+                    log.error(f"[VALIDATION] Invalid comm_mode '{comm_mode_raw}'. Valid: {valid_modes}")
+                has_errors = True
+            comm_mode = comm_mode_raw
         
         # Mode-specific validation
         if comm_mode == "within_node":

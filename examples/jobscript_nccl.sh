@@ -31,7 +31,7 @@ fi
 
  
 # Polaris has 4 NVIDIA A100 GPUs per node
-RANKS_PER_NODE=4  # 4 GPUs per node
+RANKS_PER_NODE=3  # 4 GPUs per node
 NRANKS=$(( NNODES * RANKS_PER_NODE ))
 
 # Explicitly disable GPU-aware MPI to avoid GTL library issue

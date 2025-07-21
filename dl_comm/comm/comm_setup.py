@@ -8,7 +8,17 @@ def setup_communication_groups(cfg: DictConfig, mpi_rank, log, dist=None, force_
  
     
     comm_config = cfg.comm_group
-    comm_mode = force_mode if force_mode else comm_config.mode
+    if force_mode:
+        comm_mode = force_mode
+    else:
+        # Handle both single mode and list of modes - take first valid mode for setup
+        raw_mode = comm_config.mode
+        if isinstance(raw_mode, (list, tuple)) or (hasattr(raw_mode, '__iter__') and not isinstance(raw_mode, str)):
+            # For list of modes, we need the current mode from the main loop
+            # This function should be called with force_mode when in multi-mode
+            raise ValueError("setup_communication_groups() requires force_mode when using multi-mode configuration")
+        else:
+            comm_mode = raw_mode
     
     my_within_group = None
     my_across_group = None
