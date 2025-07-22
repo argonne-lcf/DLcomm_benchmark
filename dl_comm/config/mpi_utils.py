@@ -29,4 +29,4 @@ def validate_mpi_configuration(cfg, mpi_size, mpi_rank, log):
         log.info(f"[MPI][VALIDATION] World size: {mpi_size}, Max required: {max_ranks} (mode: {max_mode})")
         log.info(f"[MPI][VALIDATION] Mode requirements: {requirements}")
     
-    return max_ranks, requirements
+    return max_ranks 

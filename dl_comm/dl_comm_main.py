@@ -168,14 +168,14 @@ def main(cfg: DictConfig):
     # TORCH DISTRIBUTED INIT (once per execution)
     # ----------------------------------------------------------------------------
     
-    max_ranks_needed, mode_requirements = validate_mpi_configuration(cfg, mpi_size, mpi_rank, log)
+    max_mpi_size_needed = validate_mpi_configuration(cfg, mpi_size, mpi_rank, log)
      
     MPI.COMM_WORLD.Barrier()
     with timer("init time"):
         dist.init_process_group(
             backend=ccl_backend,
             init_method='env://',
-            world_size=max_ranks_needed,
+            world_size=max_mpi_size_needed,
             rank=mpi_rank,
             timeout=datetime.timedelta(seconds=3600)
         )
