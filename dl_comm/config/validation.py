@@ -66,7 +66,7 @@ class ConfigValidator:
     def __init__(self, spec: dict):
         self.spec = spec
 
-    def validate(self, cfg: DictConfig, mpi_rank: int, log):
+    def validate(self, cfg: DictConfig, implementation_config, comm_mode: str, mpi_rank: int, log):
      
         has_errors = False
         buffer_bytes = None
@@ -89,50 +89,24 @@ class ConfigValidator:
         # Buffer size validation - extract from active communication mode
         buffer_bytes = None
 
-        # comm_group validation
-        comm_group = cfg.comm_group
-        comm_mode_raw = comm_group.mode
+        # comm_group validation using new implementation structure
+        comm_groups = implementation_config.comm_groups
         valid_modes = ["within_node", "across_node", "flatview"]
         
-        # Handle both single mode (string) and multiple modes (list)
-        if isinstance(comm_mode_raw, (list, tuple)) or hasattr(comm_mode_raw, '__iter__') and not isinstance(comm_mode_raw, str):
-            # Multiple modes - validate each one
-            modes_to_validate = list(comm_mode_raw)
-            if not modes_to_validate:  # Empty list
-                if mpi_rank == 0:
-                    log.error("[VALIDATION] Mode list cannot be empty")
-                has_errors = True
-            else:
-                # Validate each mode in the list
-                for mode in modes_to_validate:
-                    if mode not in valid_modes:
-                        if mpi_rank == 0:
-                            log.error(f"[VALIDATION] Invalid mode '{mode}' in mode list. Valid: {valid_modes}")
-                        has_errors = True
-                # Check for duplicate modes
-                if len(modes_to_validate) != len(set(modes_to_validate)):
-                    if mpi_rank == 0:
-                        log.error("[VALIDATION] Duplicate modes found in mode list")
-                    has_errors = True
-                # For validation purposes, use the first mode for buffer size checking
-                comm_mode = modes_to_validate[0]
-        else:
-            # Single mode (backward compatibility)
-            modes_to_validate = [comm_mode_raw]
-            if comm_mode_raw not in valid_modes:
-                if mpi_rank == 0:
-                    log.error(f"[VALIDATION] Invalid comm_mode '{comm_mode_raw}'. Valid: {valid_modes}")
-                has_errors = True
-            comm_mode = comm_mode_raw
+        # Validate the specific mode passed to this function
+        if comm_mode not in valid_modes:
+            if mpi_rank == 0:
+                log.error(f"[VALIDATION] Invalid comm_mode '{comm_mode}'. Valid: {valid_modes}")
+            has_errors = True
         
         # Mode-specific validation
         if comm_mode == "within_node":
-            if not hasattr(comm_group, 'within_node'):
+            if not hasattr(comm_groups, 'within_node'):
                 if mpi_rank == 0:
                     log.error("[VALIDATION] comm_mode 'within_node' requires 'within_node' configuration")
                 has_errors = True
             else:
-                within_config = comm_group.within_node
+                within_config = comm_groups.within_node
                 if not hasattr(within_config, 'num_gpus_per_node') or not hasattr(within_config, 'gpu_ids_per_node'):
                     if mpi_rank == 0:
                         log.error("[VALIDATION] within_node config requires 'num_gpus_per_node' and 'gpu_ids_per_node'")
@@ -149,12 +123,12 @@ class ConfigValidator:
                             has_errors = True
         
         elif comm_mode == "across_node":
-            if not hasattr(comm_group, 'across_node'):
+            if not hasattr(comm_groups, 'across_node'):
                 if mpi_rank == 0:
                     log.error("[VALIDATION] comm_mode 'across_node' requires 'across_node' configuration")
                 has_errors = True
             else:
-                across_config = comm_group.across_node
+                across_config = comm_groups.across_node
                 if not hasattr(across_config, 'num_compute_nodes') or not hasattr(across_config, 'num_gpus_per_node') or not hasattr(across_config, 'gpu_ids_per_node'):
                     if mpi_rank == 0:
                         log.error("[VALIDATION] across_node config requires 'num_compute_nodes', 'num_gpus_per_node' and 'gpu_ids_per_node'")
@@ -171,12 +145,12 @@ class ConfigValidator:
                             has_errors = True
         
         elif comm_mode == "flatview":
-            if not hasattr(comm_group, 'flatview'):
+            if not hasattr(comm_groups, 'flatview'):
                 if mpi_rank == 0:
                     log.error("[VALIDATION] comm_mode 'flatview' requires 'flatview' configuration")
                 has_errors = True
             else:
-                flatview_config = comm_group.flatview
+                flatview_config = comm_groups.flatview
                 # Validate buffer size
                 if hasattr(flatview_config, 'collective'):
                     if hasattr(flatview_config.collective, 'payload') and hasattr(flatview_config.collective.payload, 'buffer_size'):
@@ -200,7 +174,7 @@ class ConfigValidator:
 
         return (True, buffer_bytes)
 
-    def validate_runtime(self, cfg: DictConfig, mpi_size: int, mpi_rank: int, log):
+    def validate_runtime(self, cfg: DictConfig, mode_cfg, comm_mode: str, mpi_size: int, mpi_rank: int, log):
          
         has_errors = False
         
@@ -265,14 +239,12 @@ class ConfigValidator:
                     log.error(f"[VALIDATION] {mode_name}: Need {num_gpus} GPUs per node but only {available_devices} available")
                 has_errors = True
         
-        comm_config = cfg.comm_group
-        comm_mode = comm_config.mode
-         
+        # Use the passed mode_cfg directly instead of extracting from cfg
         if comm_mode == "within_node":
-            validate_basic_config(comm_config.within_node, "Within-node mode")
+            validate_basic_config(mode_cfg, "Within-node mode")
             
         elif comm_mode == "across_node":
-            validate_basic_config(comm_config.across_node, "Across-node mode")
+            validate_basic_config(mode_cfg, "Across-node mode")
             
         
          

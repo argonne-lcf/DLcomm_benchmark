@@ -9,7 +9,7 @@ def calculate_group_bandwidth(group_size, buffer_size, time_seconds):
     return bandwidth_bytes_per_sec
 
 
-def print_all_bandwidths(logger, cfg, mpi_size, ranks_responsible_for_logging, phase_filter=None, adjusted_buffer_sizes=None):
+def print_all_bandwidths(logger, cfg, mpi_size, ranks_responsible_for_logging, phase_filter=None, adjusted_buffer_sizes=None, current_comm_mode=None, current_mode_cfg=None):
     from mpi4py import MPI
     
     mpi_rank = MPI.COMM_WORLD.Get_rank()
@@ -29,15 +29,18 @@ def print_all_bandwidths(logger, cfg, mpi_size, ranks_responsible_for_logging, p
         title = "[BANDWIDTH]"
         logger.output(f"{title} -------------------------------------------")
         
-        comm_mode = cfg.comm_group.mode
         group_bandwidths = {}
         
         buffer_configs = {}
         if adjusted_buffer_sizes:
             # Use the adjusted buffer sizes passed from main
             buffer_configs = adjusted_buffer_sizes
+            # Use the current mode passed from main
+            comm_mode = current_comm_mode
         else:
             # Fallback to parsing from config (original behavior)
+            # Only access comm_group if adjusted_buffer_sizes is not provided
+            comm_mode = cfg.comm_group.mode if hasattr(cfg, 'comm_group') else None
             if comm_mode == "flatview":
                 coll_cfg = cfg.comm_group.flatview.collective
                 buffer_in_bytes = parse_buffer_size(coll_cfg.payload.buffer_size)
@@ -112,7 +115,10 @@ def print_all_bandwidths(logger, cfg, mpi_size, ranks_responsible_for_logging, p
                     
                 elif group_key.startswith("within-"):
                     group_id = group_key.split("-")[1]
-                    within_mode_cfg = cfg.comm_group.combined.within_node if comm_mode == "combined" else cfg.comm_group.within_node
+                    if current_mode_cfg and comm_mode == "within_node":
+                        within_mode_cfg = current_mode_cfg
+                    else:
+                        within_mode_cfg = cfg.comm_group.combined.within_node if comm_mode == "combined" else cfg.comm_group.within_node
                     group_size = within_mode_cfg.num_gpus_per_node
                     buffer_size = buffer_configs.get('within', 0)
                     bandwidth = calculate_group_bandwidth(group_size, buffer_size, first_iteration_time)
@@ -126,7 +132,10 @@ def print_all_bandwidths(logger, cfg, mpi_size, ranks_responsible_for_logging, p
                         
                 elif group_key.startswith("across-"):
                     group_id = group_key.split("-")[1]
-                    across_mode_cfg = cfg.comm_group.combined.across_node if comm_mode == "combined" else cfg.comm_group.across_node
+                    if current_mode_cfg and comm_mode == "across_node":
+                        across_mode_cfg = current_mode_cfg
+                    else:
+                        across_mode_cfg = cfg.comm_group.combined.across_node if comm_mode == "combined" else cfg.comm_group.across_node
                     group_size = across_mode_cfg.num_compute_nodes
                     buffer_size = buffer_configs.get('across', 0)
                     bandwidth = calculate_group_bandwidth(group_size, buffer_size, first_iteration_time)

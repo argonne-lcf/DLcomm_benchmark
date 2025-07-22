@@ -1,0 +1,62 @@
+framework  : pytorch  # tensorflow / jax / monarch
+ccl_backend : nccl   # rccl / nccl / xccl (Note: PyTorch 2.7+ users should use 'xccl' instead of 'ccl' for Intel oneCCL)
+ccl_debug   : off # on / off - enables CCL debug logging and algorithm selection reporting
+use_profiler: unitrace
+barrier     : on    # on / off - on: adds MPI barrier before timer printing for accurate timing, off: only rank 0 prints (other collectives may still be in process)
+
+  
+comm_group:
+  mode: [flatview, within_node, across_node]  # Can be single mode or list of modes
+  # Examples:
+  # mode: flatview                           # Single mode 
+  # mode: [flatview, within_node]            # Multi-mode execution
+  # mode: [flatview, within_node, across_node] # All modes
+    
+  flatview:
+    num_compute_nodes: 2
+    num_gpus_per_node: 3
+    gpu_ids_per_node: [1,2,3]   
+    collective:
+      name: reduce   # allgather / reducescatter / broadcast / alltoall / alltoallsingle
+      op: sum          # max / min / prod / sum
+      scale_up_algorithm: topo
+      scale_out_algorithm: ring        # rabinseifner 
+      iterations: 5
+      payload:
+        dtype: bfloat16  # float64 / int32 / int64 / bfloat16 / float8 / float32
+        count: 1024
+        buffer_size: 2KB # 4096  # in Bytes -> float32(4B) x 1024 elements
+    verify_correctness: on
+    
+  within_node: 
+    num_compute_nodes: 2 
+    num_gpus_per_node: 4
+    gpu_ids_per_node:  [0,1,2,3]   
+    collective:
+      name: allgather   # allgather / reducescatter / broadcast / alltoall / alltoallsingle
+      op:           # max / min / prod / sum
+      scale_up_algorithm: ring
+      scale_out_algorithm: ring        # rabinseifner 
+      iterations: 5
+      payload:
+        dtype: bfloat16  # float64 / int32 / int64 / bfloat16 / float8 / float32
+        count: 1024
+        buffer_size: 2KB # 4096  # in Bytes -> float32(4B) x 1024 elements
+    verify_correctness: on
+
+  across_node: 
+    num_compute_nodes: 2
+    num_gpus_per_node: 4
+    gpu_ids_per_node: [0,1,2,3]   
+    collective:
+      name: allgather   # allgather / reducescatter / broadcast / alltoall / alltoallsingle
+      op: sum          # max / min / prod / sum
+      scale_up_algorithm: topo
+      scale_out_algorithm: topo        # rabinseifner 
+      iterations: 5
+      payload:
+        dtype: bfloat16  # float64 / int32 / int64 / bfloat16 / float8 / float32
+        count: 1024
+        buffer_size: 2KB # 4096  # in Bytes -> float32(4B) x 1024 elements
+    verify_correctness: on
+
