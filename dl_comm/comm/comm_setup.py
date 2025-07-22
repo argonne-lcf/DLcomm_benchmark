@@ -43,10 +43,7 @@ def setup_communication_groups(cfg: DictConfig, mpi_rank, log, dist=None, force_
 
 
         # CONFIG PARSING
-        if comm_mode == "combined":
-            within_config = comm_config.combined.within_node
-        else:
-            within_config = comm_config.within_node
+        within_config = comm_config.within_node
         num_gpus_per_node = within_config.num_gpus_per_node
         num_compute_nodes = within_config.num_compute_nodes
         gpu_ids_per_node = within_config.gpu_ids_per_node
@@ -115,10 +112,7 @@ def setup_communication_groups(cfg: DictConfig, mpi_rank, log, dist=None, force_
             log.info("")
             log.info(f"[COMM][CONFIG] Setting up communication groups for mode: Across")
         # CONFIG PARSING
-        if comm_mode == "combined":
-            across_config = comm_config.combined.across_node
-        else:
-            across_config = comm_config.across_node
+        across_config = comm_config.across_node
         num_compute_nodes = across_config.num_compute_nodes
         num_gpus_per_node = across_config.num_gpus_per_node
         gpu_ids_per_node = across_config.gpu_ids_per_node

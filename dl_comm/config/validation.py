@@ -92,7 +92,7 @@ class ConfigValidator:
         # comm_group validation
         comm_group = cfg.comm_group
         comm_mode_raw = comm_group.mode
-        valid_modes = ["within_node", "across_node", "combined", "flatview"]
+        valid_modes = ["within_node", "across_node", "flatview"]
         
         # Handle both single mode (string) and multiple modes (list)
         if isinstance(comm_mode_raw, (list, tuple)) or hasattr(comm_mode_raw, '__iter__') and not isinstance(comm_mode_raw, str):
@@ -169,47 +169,6 @@ class ConfigValidator:
                             if mpi_rank == 0:
                                 log.error(f"[VALIDATION] Across-node: {e}")
                             has_errors = True
-        
-        elif comm_mode == "combined":
-            if not hasattr(comm_group, 'combined'):
-                if mpi_rank == 0:
-                    log.error("[VALIDATION] comm_mode 'combined' requires 'combined' configuration")
-                has_errors = True
-            else:
-                combined_config = comm_group.combined
-                if not hasattr(combined_config, 'within_node') or not hasattr(combined_config, 'across_node'):
-                    if mpi_rank == 0:
-                        log.error("[VALIDATION] combined config requires both 'within_node' and 'across_node' sub-configurations")
-                    has_errors = True
-                
-                buffer_within_bytes = None
-                buffer_across_bytes = None
-                
-                if hasattr(combined_config, 'within_node') and hasattr(combined_config.within_node, 'collective'):
-                    # Validate within-node buffer size
-                    if hasattr(combined_config.within_node.collective, 'payload') and hasattr(combined_config.within_node.collective.payload, 'buffer_size'):
-                        try:
-                            buffer_within_bytes = parse_buffer_size(combined_config.within_node.collective.payload.buffer_size)
-                        except ValueError as e:
-                            if mpi_rank == 0:
-                                log.error(f"[VALIDATION] Combined within-node: {e}")
-                            has_errors = True
-                
-                if hasattr(combined_config, 'across_node') and hasattr(combined_config.across_node, 'collective'):
-                    # Validate across-node buffer size
-                    if hasattr(combined_config.across_node.collective, 'payload') and hasattr(combined_config.across_node.collective.payload, 'buffer_size'):
-                        try:
-                            buffer_across_bytes = parse_buffer_size(combined_config.across_node.collective.payload.buffer_size)
-                        except ValueError as e:
-                            if mpi_rank == 0:
-                                log.error(f"[VALIDATION] Combined across-node: {e}")
-                            has_errors = True
-                
-                # For combined mode, use within_node buffer size as primary (main app re-parses both anyway)
-                if buffer_within_bytes is not None:
-                    buffer_bytes = buffer_within_bytes
-                elif buffer_across_bytes is not None:
-                    buffer_bytes = buffer_across_bytes
         
         elif comm_mode == "flatview":
             if not hasattr(comm_group, 'flatview'):
@@ -314,8 +273,6 @@ class ConfigValidator:
         elif comm_mode == "across_node":
             validate_basic_config(comm_config.across_node, "Across-node mode")
             
-        elif comm_mode == "combined":
-            validate_basic_config(comm_config.combined.within_node, "Combined mode")
         
          
         
