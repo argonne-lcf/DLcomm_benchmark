@@ -85,19 +85,25 @@ def setup_communication_groups(cfg: DictConfig, mpi_rank, log, dist=None, force_
                 within_group_ranks.append(rank)
 
         # DEVICE ALLOCATION - WITHIN NODE
-        rank_id_per_node = mpi_rank % num_gpus_per_node
-        if cfg.ccl_backend == "nccl" and torch.cuda.is_available():
-            device_id = gpu_ids_per_node[rank_id_per_node]
-            device = torch.device(f"cuda:{device_id}")
-            torch.cuda.set_device(device_id)
-           
-        elif cfg.ccl_backend in ["ccl", "xccl"] and torch.xpu.is_available():
-            device_id = gpu_ids_per_node[rank_id_per_node]
-            device = torch.device(f"xpu:{device_id}")
+        mpi_size_of_comm_group = num_compute_nodes * num_gpus_per_node
+        if mpi_rank < mpi_size_of_comm_group:
+            rank_id_per_node = mpi_rank % num_gpus_per_node
+            if cfg.ccl_backend == "nccl" and torch.cuda.is_available():
+                device_id = gpu_ids_per_node[rank_id_per_node]
+                device = torch.device(f"cuda:{device_id}")
+                torch.cuda.set_device(device_id)
+               
+            elif cfg.ccl_backend in ["ccl", "xccl"] and torch.xpu.is_available():
+                device_id = gpu_ids_per_node[rank_id_per_node]
+                device = torch.device(f"xpu:{device_id}")
+            else:
+                device = torch.device('cpu')
+                if mpi_rank == 0:
+                    log.info("[COMM] Using CPU device")
         else:
+            # Excluded ranks use CPU device
             device = torch.device('cpu')
-            if mpi_rank == 0:
-                log.info("[COMM] Using CPU device")
+            log.info(f"[COMM] Rank {mpi_rank} excluded from within_node groups, using CPU device")
 
         if mpi_rank == 0:
             log.info(f"[COMM][GROUP CREATION] Created {num_compute_nodes} within-node groups")
@@ -155,21 +161,26 @@ def setup_communication_groups(cfg: DictConfig, mpi_rank, log, dist=None, force_
                 across_group_ranks.append(rank)
 
         # DEVICE ALLOCATION - ACROSS NODE
-        rank_id_per_node = mpi_rank % num_gpus_per_node
-        if cfg.ccl_backend == "nccl" and torch.cuda.is_available():
-            device_id = gpu_ids_per_node[rank_id_per_node]
-            device = torch.device(f"cuda:{device_id}")
-            torch.cuda.set_device(device_id)
-      
-        elif cfg.ccl_backend in ["ccl", "xccl"] and torch.xpu.is_available():
-            device_id = gpu_ids_per_node[rank_id_per_node]
-            device = torch.device(f"xpu:{device_id}")
+        mpi_size_of_comm_group = num_compute_nodes * num_gpus_per_node
+        if mpi_rank < mpi_size_of_comm_group:
+            rank_id_per_node = mpi_rank % num_gpus_per_node
+            if cfg.ccl_backend == "nccl" and torch.cuda.is_available():
+                device_id = gpu_ids_per_node[rank_id_per_node]
+                device = torch.device(f"cuda:{device_id}")
+                torch.cuda.set_device(device_id)
+          
+            elif cfg.ccl_backend in ["ccl", "xccl"] and torch.xpu.is_available():
+                device_id = gpu_ids_per_node[rank_id_per_node]
+                device = torch.device(f"xpu:{device_id}")
 
+            else:
+                device = torch.device('cpu')
+                if mpi_rank == 0:
+                    log.info("[COMM] Using CPU device")
         else:
+            # Excluded ranks use CPU device
             device = torch.device('cpu')
-
-            if mpi_rank == 0:
-                log.info("[COMM] Using CPU device")
+            log.info(f"[COMM] Rank {mpi_rank} excluded from across_node groups, using CPU device")
 
         if mpi_rank == 0:
             log.info(f"[COMM][GROUP CREATION] Created {num_gpus_per_node} across-node groups")
@@ -199,18 +210,24 @@ def setup_communication_groups(cfg: DictConfig, mpi_rank, log, dist=None, force_
  
         # DEVICE ALLOCATION
         world_group = None  
-        rank_id_per_node = mpi_rank % num_gpus_per_node
-        if cfg.ccl_backend == "nccl" and torch.cuda.is_available():
-            device_id = gpu_ids_per_node[rank_id_per_node]
-            device = torch.device(f"cuda:{device_id}")
-            torch.cuda.set_device(device_id)
-        elif cfg.ccl_backend in ["ccl", "xccl"] and torch.xpu.is_available():
-            device_id = gpu_ids_per_node[rank_id_per_node]
-            device = torch.device(f"xpu:{device_id}")
+        mpi_size_of_comm_group = num_compute_nodes * num_gpus_per_node
+        if mpi_rank < mpi_size_of_comm_group:
+            rank_id_per_node = mpi_rank % num_gpus_per_node
+            if cfg.ccl_backend == "nccl" and torch.cuda.is_available():
+                device_id = gpu_ids_per_node[rank_id_per_node]
+                device = torch.device(f"cuda:{device_id}")
+                torch.cuda.set_device(device_id)
+            elif cfg.ccl_backend in ["ccl", "xccl"] and torch.xpu.is_available():
+                device_id = gpu_ids_per_node[rank_id_per_node]
+                device = torch.device(f"xpu:{device_id}")
+            else:
+                device = torch.device("cpu")
+                if mpi_rank == 0:
+                    log.info("[COMM] Using CPU device")
         else:
-            device = torch.device("cpu")
-            if mpi_rank == 0:
-                log.info("[COMM] Using CPU device")
+            # Excluded ranks use CPU device
+            device = torch.device('cpu')
+            log.info(f"[COMM] Rank {mpi_rank} excluded from flatview groups, using CPU device")
         
         world_group_ranks = list(range(mpi_size))
 

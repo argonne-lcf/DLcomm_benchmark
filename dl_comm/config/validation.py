@@ -253,10 +253,11 @@ class ConfigValidator:
             
              
             expected_total_ranks = num_nodes * num_gpus
-            if expected_total_ranks != mpi_size:
-                if mpi_rank == 0:
-                    log.error(f"[VALIDATION] {mode_name}: Expected {expected_total_ranks} total ranks but got {mpi_size}")
-                has_errors = True
+            # Disabled rank count validation
+            # if expected_total_ranks != mpi_size:
+            #     if mpi_rank == 0:
+            #         log.error(f"[VALIDATION] {mode_name}: Expected {expected_total_ranks} total ranks but got {mpi_size}")
+            #     has_errors = True
             
    
             if available_devices < num_gpus:

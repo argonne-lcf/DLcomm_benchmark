@@ -1,7 +1,12 @@
 def calculate_max_ranks_needed(cfg):
     mode_requirements = {}
+  
+    active_modes = cfg.comm_group.mode
+    if isinstance(active_modes, str):
+        active_modes = [active_modes]
     
-    for mode_name in ['flatview', 'within_node', 'across_node']:
+ 
+    for mode_name in active_modes:
         if hasattr(cfg.comm_group, mode_name):
             mode_config = getattr(cfg.comm_group, mode_name)
             total_ranks = mode_config.num_compute_nodes * len(mode_config.gpu_ids_per_node)
