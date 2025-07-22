@@ -137,7 +137,7 @@ def main(cfg: DictConfig):
             if group is not None and device is not None:
                 dist.barrier(group=group,device_ids=[device.index])
             else:
-                dist.barrier()
+                MPI.COMM_WORLD.Barrier()
     
     # ----------------------------------------------------------------------------
     # SYSTEM INFORMATION LOGGING (once per execution)
@@ -424,17 +424,17 @@ def main(cfg: DictConfig):
                     check_collective_correctness(context, x, coll_name, op=op_obj, group=world_group, result_data=result, group_type="Flatview", group_id="All")
 
                 elif comm_mode == "within_node":
-                    time_barrier()
+                    time_barrier(group=my_within_group, device=device)
                     with timer(f"(Within-Group-{within_group_id})"):
                         result = run_collective(x, op_obj, group=my_within_group, dist=dist, log=log)
-                        time_barrier()
+                        time_barrier(group=my_within_group, device=device)
                     check_collective_correctness(context, x, coll_name, op=op_obj, group=my_within_group, result_data=result, group_type="Within", group_id=within_group_id)
 
                 elif comm_mode == "across_node":
-                    time_barrier()
+                    time_barrier(group=my_across_group , device=device)
                     with timer(f"(Across-Group-{across_group_id})"):
                         result = run_collective(x, op_obj, group=my_across_group, dist=dist, log=log)
-                        time_barrier()
+                        time_barrier(group=my_across_group,  device=device)
                     check_collective_correctness(context, x, coll_name, op=op_obj, group=my_across_group, result_data=result, group_type="Across", group_id=across_group_id)
         
         else:
