@@ -37,7 +37,7 @@ from omegaconf import DictConfig, OmegaConf
 # dl_comm packages
 from dl_comm.comm import setup_communication_groups
 from dl_comm.utils.utility import DLCOMMLogger, Profile
-from dl_comm.config import ConfigValidator, parse_buffer_size, print_system_info, adjust_buffer_size_for_group_divisibility
+from dl_comm.config import ConfigValidator, parse_buffer_size, print_system_info, adjust_buffer_size_for_group_divisibility, validate_mpi_configuration
 from dl_comm.comm import COLLECTIVES, OPS_NEED_REDUCE, OP_MAP, DTYPES
 from dl_comm.timer import timer, print_all_times, gather_and_print_all_times, reset_times
 from dl_comm.analysis import report_ccl_selection, print_all_bandwidths 
@@ -167,13 +167,15 @@ def main(cfg: DictConfig):
     # ----------------------------------------------------------------------------
     # TORCH DISTRIBUTED INIT (once per execution)
     # ----------------------------------------------------------------------------
+    
+    max_ranks_needed, mode_requirements = validate_mpi_configuration(cfg, mpi_size, mpi_rank, log)
      
     MPI.COMM_WORLD.Barrier()
     with timer("init time"):
         dist.init_process_group(
             backend=ccl_backend,
             init_method='env://',
-            world_size=mpi_size,
+            world_size=max_ranks_needed,
             rank=mpi_rank,
             timeout=datetime.timedelta(seconds=3600)
         )
