@@ -6,7 +6,7 @@ barrier     : on    # on / off - on: adds MPI barrier before timer printing for 
 
   
 comm_group:
-  mode: [ within_node ,across_node]  # Can be single mode or list of modes
+  mode: [flatview, within_node, across_node]  # Can be single mode or list of modes
   # Examples:
   # mode: flatview                           # Single mode (backward compatible)
   # mode: [flatview, within_node]            # Multi-mode execution
@@ -14,8 +14,8 @@ comm_group:
     
   flatview:
     num_compute_nodes: 2
-    num_gpus_per_node: 4
-    gpu_ids_per_node: [0,1,2,3]   
+    num_gpus_per_node: 3
+    gpu_ids_per_node: [1,2,3]   
     collective:
       name: reduce   # allgather / reducescatter / broadcast / alltoall / alltoallsingle
       op: sum          # max / min / prod / sum
@@ -46,8 +46,8 @@ comm_group:
 
   across_node: 
     num_compute_nodes: 2
-    num_gpus_per_node: 2
-    gpu_ids_per_node: [0,1]   
+    num_gpus_per_node: 4
+    gpu_ids_per_node: [0,1,2,3]   
     collective:
       name: allgather   # allgather / reducescatter / broadcast / alltoall / alltoallsingle
       op: sum          # max / min / prod / sum
