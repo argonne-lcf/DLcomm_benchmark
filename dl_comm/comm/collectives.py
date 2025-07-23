@@ -128,6 +128,7 @@ def _all_to_all(tensor, op=None, group=None, dist=None,log=None):
     output_tensor_list = [torch.empty_like(tensor) for _ in range(world_size)]
     
     dist.all_to_all(output_tensor_list, input_tensor_list, group=group)
+    
     return output_tensor_list
 
 

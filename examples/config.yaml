@@ -5,20 +5,39 @@ use_profiler: unitrace
 barrier     : on    # on / off - on: adds MPI barrier before timer printing for accurate timing, off: only rank 0 prints (other collectives may still be in process)
 
   
-order_of_run: [allgather-within, allreduce-within, allreduce-across, gather-across, Flat-reduce]  # Can be single implementation or list of implementations
+order_of_run: [ULYSS-alltoallsingle, SP-FSDP-allgather, SP-FSDP-reducescatter, grad-sync ]  # Can be single implementation or list of implementations
 # Examples:
 # order_of_run: ULYSS                      # Single implementation
 # order_of_run: [ULYSS, SP]                # Multi-implementation execution
 # order_of_run: [ULYSS, SP, Flat]          # All implementations
 
 implementations:
-  - name: allgather-within
+  - name: ULYSS-alltoallsingle
     comm_groups:
 
       within_node: 
         num_compute_nodes: 2 
-        num_gpus_per_node: 4
-        gpu_ids_per_node:  [0,1,2,3]   
+        num_gpus_per_node: 2
+        gpu_ids_per_node:  [0,3]   
+        collective:
+          name: alltoallsingle   # allgather / reducescatter / broadcast / alltoall / alltoallsingle
+          op:           # max / min / prod / sum
+          scale_up_algorithm: ring
+          scale_out_algorithm: ring        # rabinseifner 
+          iterations: 5
+          payload:
+            dtype: bfloat16  # float64 / int32 / int64 / bfloat16 / float8 / float32
+            count: 1024
+            buffer_size: 2KB # 4096  # in Bytes -> float32(4B) x 1024 elements
+        verify_correctness: on
+
+  - name: SP-FSDP-allgather
+    comm_groups:
+
+      within_node: 
+        num_compute_nodes: 2 
+        num_gpus_per_node: 7
+        gpu_ids_per_node:  [0,1,2,3,10,11,12]   
         collective:
           name: allgather   # allgather / reducescatter / broadcast / alltoall / alltoallsingle
           op:           # max / min / prod / sum
@@ -31,16 +50,35 @@ implementations:
             buffer_size: 2KB # 4096  # in Bytes -> float32(4B) x 1024 elements
         verify_correctness: on
 
-  - name: allreduce-within
+  - name: SP-FSDP-reducescatter
     comm_groups:
 
       within_node: 
         num_compute_nodes: 2 
-        num_gpus_per_node: 4
-        gpu_ids_per_node:  [0,1,2,3]   
+        num_gpus_per_node: 2
+        gpu_ids_per_node:  [0,9]   
+        collective:
+          name: reducescatter  # allgather / reducescatter / broadcast / alltoall / alltoallsingle
+          op:       min     # max / min / prod / sum
+          scale_up_algorithm: ring
+          scale_out_algorithm: ring        # rabinseifner 
+          iterations: 5
+          payload:
+            dtype: bfloat16  # float64 / int32 / int64 / bfloat16 / float8 / float32
+            count: 1024
+            buffer_size: 2KB # 4096  # in Bytes -> float32(4B) x 1024 elements
+        verify_correctness: on
+
+  - name: grad-sync
+    comm_groups:
+
+      across_node: 
+        num_compute_nodes: 2 
+        num_gpus_per_node: 5
+        gpu_ids_per_node:  [3,9,10,11,12]   
         collective:
           name: allreduce   # allgather / reducescatter / broadcast / alltoall / alltoallsingle
-          op:  min         # max / min / prod / sum
+          op:     min      # max / min / prod / sum
           scale_up_algorithm: ring
           scale_out_algorithm: ring        # rabinseifner 
           iterations: 5
@@ -49,80 +87,4 @@ implementations:
             count: 1024
             buffer_size: 2KB # 4096  # in Bytes -> float32(4B) x 1024 elements
         verify_correctness: on
-
-  - name: allreduce-across
-    comm_groups:
-
-      across_node: 
-        num_compute_nodes: 2 
-        num_gpus_per_node: 4
-        gpu_ids_per_node:  [0,1,2,3]   
-        collective:
-          name: allreduce   # allgather / reducescatter / broadcast / alltoall / alltoallsingle
-          op:    max       # max / min / prod / sum
-          scale_up_algorithm: ring
-          scale_out_algorithm: ring        # rabinseifner 
-          iterations: 5
-          payload:
-            dtype: bfloat16  # float64 / int32 / int64 / bfloat16 / float8 / float32
-            count: 1024
-            buffer_size: 2KB # 4096  # in Bytes -> float32(4B) x 1024 elements
-        verify_correctness: on
-
-  - name: allreduce-across
-    comm_groups:
-
-      across_node: 
-        num_compute_nodes: 2 
-        num_gpus_per_node: 4
-        gpu_ids_per_node:  [0,1,2,3]   
-        collective:
-          name: scatter   # allgather / reducescatter / broadcast / alltoall / alltoallsingle
-          op:           # max / min / prod / sum
-          scale_up_algorithm: ring
-          scale_out_algorithm: ring        # rabinseifner 
-          iterations: 5
-          payload:
-            dtype: bfloat16  # float64 / int32 / int64 / bfloat16 / float8 / float32
-            count: 1024
-            buffer_size: 2KB # 4096  # in Bytes -> float32(4B) x 1024 elements
-        verify_correctness: on
-
-  - name: gather-across
-    comm_groups:
-
-      across_node: 
-        num_compute_nodes: 2 
-        num_gpus_per_node: 4
-        gpu_ids_per_node:  [0,1,2,3]   
-        collective:
-          name: gather   # allgather / reducescatter / broadcast / alltoall / alltoallsingle
-          op:           # max / min / prod / sum
-          scale_up_algorithm: ring
-          scale_out_algorithm: ring        # rabinseifner 
-          iterations: 5
-          payload:
-            dtype: bfloat16  # float64 / int32 / int64 / bfloat16 / float8 / float32
-            count: 1024
-            buffer_size: 2KB # 4096  # in Bytes -> float32(4B) x 1024 elements
-        verify_correctness: on
-
-
-  - name: Flat-reduce
-    comm_groups:
-      flatview:
-        num_compute_nodes: 2
-        num_gpus_per_node: 3
-        gpu_ids_per_node: [1,2,3]   
-        collective:
-          name: reduce   # allgather / reducescatter / broadcast / alltoall / alltoallsingle
-          op: sum          # max / min / prod / sum
-          scale_up_algorithm: topo
-          scale_out_algorithm: ring        # rabinseifner 
-          iterations: 5
-          payload:
-            dtype: bfloat16  # float64 / int32 / int64 / bfloat16 / float8 / float32
-            count: 1024
-            buffer_size: 2KB # 4096  # in Bytes -> float32(4B) x 1024 elements
-        verify_correctness: on
-      
+ 

@@ -49,6 +49,8 @@ def setup_communication_groups(mode_cfg, mpi_rank, log, dist=None, force_mode=No
             
             if torch.cuda.is_available():
                 available_devices = torch.cuda.device_count()
+            elif torch.xpu.is_available():
+                available_devices = torch.xpu.device_count()
             else:
                 available_devices = 1
             
@@ -56,11 +58,11 @@ def setup_communication_groups(mode_cfg, mpi_rank, log, dist=None, force_mode=No
             
             for node in range(num_compute_nodes):
                 group_ranks = []
-                for required_gpu_id in gpu_ids_per_node:
+                for gpu_idx, required_gpu_id in enumerate(gpu_ids_per_node):
                     for rank in range(mpi_size):
-                        rank_device_id = rank % available_devices
-                        rank_node = rank // available_devices
-                        if rank_node == node and rank_device_id == required_gpu_id:
+                        rank_device_id = rank % num_gpus_per_node
+                        rank_node = rank // num_gpus_per_node
+                        if rank_node == node and rank_device_id == gpu_idx:
                             group_ranks.append(rank)
                             break
                 
@@ -72,9 +74,6 @@ def setup_communication_groups(mode_cfg, mpi_rank, log, dist=None, force_mode=No
                     if mpi_rank == 0:
                         log.info(f"[COMM][GROUP CREATION][Within Group-{node}] Ranks: {group_ranks}, Required GPUs: {gpu_ids_per_node}, Logging: rank {responsible_rank}")
                     
-                    if mpi_rank in group_ranks:
-                        log.info(f"[DEBUG] Rank {mpi_rank} joining Within Group-{node}, device: {device}")
-                 
                     group = dist.new_group(ranks=group_ranks,use_local_synchronization=True)
                     if mpi_rank in group_ranks:
                         my_within_group = group
@@ -115,6 +114,8 @@ def setup_communication_groups(mode_cfg, mpi_rank, log, dist=None, force_mode=No
              
             if torch.cuda.is_available():
                 available_devices = torch.cuda.device_count()
+            elif torch.xpu.is_available():
+                available_devices = torch.xpu.device_count()
             else:
                 available_devices = 1
             
@@ -125,10 +126,10 @@ def setup_communication_groups(mode_cfg, mpi_rank, log, dist=None, force_mode=No
                 group_ranks = []
                 for node in range(num_compute_nodes):
                     for rank in range(mpi_size):
-                        rank_device_id = rank % available_devices
-                        rank_node = rank // available_devices
+                        rank_device_id = rank % num_gpus_per_node
+                        rank_node = rank // num_gpus_per_node
                         
-                        if rank_node == node and rank_device_id == required_gpu_id:
+                        if rank_node == node and rank_device_id == gpu_idx:
                             group_ranks.append(rank)
                             break
                 
@@ -139,9 +140,6 @@ def setup_communication_groups(mode_cfg, mpi_rank, log, dist=None, force_mode=No
                     if mpi_rank == 0:
                         log.info(f"[COMM][GROUP CREATION][Across Group-{gpu_idx}] Ranks: {group_ranks}, GPU ID: {required_gpu_id}, Logging: rank {responsible_rank}")
                      
-                    if mpi_rank in group_ranks:
-                        log.info(f"[DEBUG] Rank {mpi_rank} joining Across Group-{gpu_idx}, device: {device}")
-                    
                     group = dist.new_group(ranks=group_ranks,use_local_synchronization=True)
                     if mpi_rank in group_ranks:
                         my_across_group = group
@@ -179,17 +177,19 @@ def setup_communication_groups(mode_cfg, mpi_rank, log, dist=None, force_mode=No
         with timer("Group Creation (Flatview)"):
             if torch.cuda.is_available():
                 available_devices = torch.cuda.device_count()
+            elif torch.xpu.is_available():
+                available_devices = torch.xpu.device_count()
             else:
                 available_devices = 1
             
             group_ranks = []
             for node in range(num_compute_nodes):
-                for required_gpu_id in gpu_ids_per_node:
+                for gpu_idx, required_gpu_id in enumerate(gpu_ids_per_node):
                     for rank in range(mpi_size):
-                        rank_device_id = rank % available_devices
-                        rank_node = rank // available_devices
+                        rank_device_id = rank % num_gpus_per_node
+                        rank_node = rank // num_gpus_per_node
                         
-                        if rank_node == node and rank_device_id == required_gpu_id:
+                        if rank_node == node and rank_device_id == gpu_idx:
                             if rank not in group_ranks:
                                 group_ranks.append(rank)
             
@@ -200,9 +200,6 @@ def setup_communication_groups(mode_cfg, mpi_rank, log, dist=None, force_mode=No
                 
                 if mpi_rank == 0:
                     log.info(f"[COMM][GROUP CREATION][Flatview] Ranks: {group_ranks}, Required GPUs: {gpu_ids_per_node}, Logging: rank {responsible_rank}")
-                
-                if mpi_rank in group_ranks:
-                    log.info(f"[DEBUG] Rank {mpi_rank} joining Flatview group, device: {device}")
                 
                 flat_group = dist.new_group(ranks=group_ranks, use_local_synchronization=True)
                 flat_group_ranks = group_ranks

@@ -187,18 +187,16 @@ def main(cfg: DictConfig):
         device_id = mpi_rank % available_devices
         device = torch.device(f"cuda:{device_id}")
         torch.cuda.set_device(device_id)
-        log.info(f"[DEBUG] Rank {mpi_rank} assigned to GPU {device_id} (device: {device})")
  
     elif cfg.ccl_backend in ["ccl", "xccl"] and torch.xpu.is_available():
         available_devices = torch.xpu.device_count()
         device_id = mpi_rank % available_devices
         device = torch.device(f"xpu:{device_id}")
-        log.info(f"[DEBUG] Rank {mpi_rank} assigned to XPU {device_id} (device: {device})")
+        
  
     else:
         device = torch.device('cpu')
-        log.info(f"[DEBUG] Rank {mpi_rank} using CPU device (backend: {cfg.ccl_backend}, cuda_available: {torch.cuda.is_available()})")
- 
+   
 
     # Start multi-implementation execution loop
     for impl_index, impl_name in enumerate(implementations_to_run):
