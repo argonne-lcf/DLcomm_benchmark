@@ -112,6 +112,12 @@ class ConfigValidator:
                     if mpi_rank == 0:
                         log.error("[VALIDATION] within_node config requires 'num_gpus_per_node' and 'gpu_ids_per_node'")
                     has_errors = True
+                else:
+                    # Validate that num_gpus_per_node matches length of gpu_ids_per_node
+                    if within_config.num_gpus_per_node != len(within_config.gpu_ids_per_node):
+                        if mpi_rank == 0:
+                            log.error(f"[VALIDATION] within_node: num_gpus_per_node ({within_config.num_gpus_per_node}) must equal length of gpu_ids_per_node ({len(within_config.gpu_ids_per_node)})")
+                        has_errors = True
                 
                 # Validate buffer size
                 if hasattr(within_config, 'collective'):
@@ -134,6 +140,12 @@ class ConfigValidator:
                     if mpi_rank == 0:
                         log.error("[VALIDATION] across_node config requires 'num_compute_nodes', 'num_gpus_per_node' and 'gpu_ids_per_node'")
                     has_errors = True
+                else:
+                    # Validate that num_gpus_per_node matches length of gpu_ids_per_node
+                    if across_config.num_gpus_per_node != len(across_config.gpu_ids_per_node):
+                        if mpi_rank == 0:
+                            log.error(f"[VALIDATION] across_node: num_gpus_per_node ({across_config.num_gpus_per_node}) must equal length of gpu_ids_per_node ({len(across_config.gpu_ids_per_node)})")
+                        has_errors = True
                 
                 # Validate buffer size
                 if hasattr(across_config, 'collective'):
@@ -152,6 +164,17 @@ class ConfigValidator:
                 has_errors = True
             else:
                 flatview_config = comm_groups.flatview
+                if not hasattr(flatview_config, 'num_compute_nodes') or not hasattr(flatview_config, 'num_gpus_per_node') or not hasattr(flatview_config, 'gpu_ids_per_node'):
+                    if mpi_rank == 0:
+                        log.error("[VALIDATION] flatview config requires 'num_compute_nodes', 'num_gpus_per_node' and 'gpu_ids_per_node'")
+                    has_errors = True
+                else:
+                    # Validate that num_gpus_per_node matches length of gpu_ids_per_node
+                    if flatview_config.num_gpus_per_node != len(flatview_config.gpu_ids_per_node):
+                        if mpi_rank == 0:
+                            log.error(f"[VALIDATION] flatview: num_gpus_per_node ({flatview_config.num_gpus_per_node}) must equal length of gpu_ids_per_node ({len(flatview_config.gpu_ids_per_node)})")
+                        has_errors = True
+                
                 # Validate buffer size
                 if hasattr(flatview_config, 'collective'):
                     if hasattr(flatview_config.collective, 'payload') and hasattr(flatview_config.collective.payload, 'buffer_size'):

@@ -17,8 +17,8 @@ implementations:
 
       within_node: 
         num_compute_nodes: 2 
-        num_gpus_per_node: 2
-        gpu_ids_per_node:  [0,3]   
+        num_gpus_per_node: 12
+        gpu_ids_per_node:  [0,1,2,3,4,5,6,7,8,9,10,11]   
         collective:
           name: alltoallsingle   # allgather / reducescatter / broadcast / alltoall / alltoallsingle
           op:           # max / min / prod / sum
@@ -28,7 +28,7 @@ implementations:
           payload:
             dtype: bfloat16  # float64 / int32 / int64 / bfloat16 / float8 / float32
             count: 1024
-            buffer_size: 1KB # 4096  # in Bytes -> float32(4B) x 1024 elements
+            buffer_size: 875MB # 4096  # in Bytes -> float32(4B) x 1024 elements
         verify_correctness: on
 
   - name: SP-FSDP-allgather
@@ -36,8 +36,8 @@ implementations:
 
       within_node: 
         num_compute_nodes: 2 
-        num_gpus_per_node: 7
-        gpu_ids_per_node:  [0,1,2,3,9,10,11]   
+        num_gpus_per_node: 12
+        gpu_ids_per_node:  [0,1,2,3,4,5,6,7,8,9,10,11]   
         collective:
           name: allgather   # allgather / reducescatter / broadcast / alltoall / alltoallsingle
           op:           # max / min / prod / sum
@@ -47,7 +47,7 @@ implementations:
           payload:
             dtype: bfloat16  # float64 / int32 / int64 / bfloat16 / float8 / float32
             count: 1024
-            buffer_size: 1KB # 4096  # in Bytes -> float32(4B) x 1024 elements
+            buffer_size: 875MB # 4096  # in Bytes -> float32(4B) x 1024 elements
         verify_correctness: on
 
   - name: SP-FSDP-reducescatter
@@ -55,8 +55,8 @@ implementations:
 
       within_node: 
         num_compute_nodes: 2 
-        num_gpus_per_node: 2
-        gpu_ids_per_node:  [0,9]   
+        num_gpus_per_node: 12
+        gpu_ids_per_node:  [0,1,2,3,4,5,6,7,8,9,10,11]   
         collective:
           name: reducescatter  # allgather / reducescatter / broadcast / alltoall / alltoallsingle
           op:       min     # max / min / prod / sum
@@ -66,7 +66,7 @@ implementations:
           payload:
             dtype: bfloat16  # float64 / int32 / int64 / bfloat16 / float8 / float32
             count: 1024
-            buffer_size: 1KB # 4096  # in Bytes -> float32(4B) x 1024 elements
+            buffer_size: 875MB # 4096  # in Bytes -> float32(4B) x 1024 elements
         verify_correctness: on
 
   - name: grad-sync
@@ -74,8 +74,8 @@ implementations:
 
       across_node: 
         num_compute_nodes: 2 
-        num_gpus_per_node: 5
-        gpu_ids_per_node:  [3,8,9,10,11]   
+        num_gpus_per_node: 12
+        gpu_ids_per_node:  [0,1,2,3,4,5,6,7,8,9,10,11]   
         collective:
           name: allreduce   # allgather / reducescatter / broadcast / alltoall / alltoallsingle
           op:     min      # max / min / prod / sum
@@ -85,27 +85,7 @@ implementations:
           payload:
             dtype: bfloat16  # float64 / int32 / int64 / bfloat16 / float8 / float32
             count: 1024
-            buffer_size: 1KB # 4096  # in Bytes -> float32(4B) x 1024 elements
+            buffer_size: 2GB # 4096  # in Bytes -> float32(4B) x 1024 elements
         verify_correctness: on
 
 
-  - name: flat
-    comm_groups:
-
-      flatview: 
-        num_compute_nodes: 2 
-        num_gpus_per_node: 5
-        gpu_ids_per_node:  [3,8,9,10,11]   
-        collective:
-          name: allreduce   # allgather / reducescatter / broadcast / alltoall / alltoallsingle
-          op:     min      # max / min / prod / sum
-          scale_up_algorithm: topo
-          scale_out_algorithm: topo        # rabinseifner 
-          iterations: 5
-          payload:
-            dtype: bfloat16  # float64 / int32 / int64 / bfloat16 / float8 / float32
-            count: 1024
-            buffer_size: 1KB # 4096  # in Bytes -> float32(4B) x 1024 elements
-        verify_correctness: on
- 
- 
