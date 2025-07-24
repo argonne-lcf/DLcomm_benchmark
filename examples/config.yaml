@@ -89,3 +89,23 @@ implementations:
         verify_correctness: on
 
 
+  - name: flat
+    comm_groups:
+
+      flatview: 
+        num_compute_nodes: 2 
+        num_gpus_per_node: 12
+        gpu_ids_per_node:  [0,1,2,3,4,5,6,7,8,9,10,11]   
+        collective:
+          name: allreduce   # allgather / reducescatter / broadcast / alltoall / alltoallsingle
+          op:     min      # max / min / prod / sum
+          scale_up_algorithm: topo
+          scale_out_algorithm: topo        # rabinseifner 
+          iterations: 5
+          payload:
+            dtype: bfloat16  # float64 / int32 / int64 / bfloat16 / float8 / float32
+            count: 1024
+            buffer_size: 1KB # 4096  # in Bytes -> float32(4B) x 1024 elements
+        verify_correctness: on
+
+

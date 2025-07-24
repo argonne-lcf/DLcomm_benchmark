@@ -196,12 +196,9 @@ def main(cfg: DictConfig):
         available_devices = torch.xpu.device_count()
         device_id = mpi_rank % available_devices
         device = torch.device(f"xpu:{device_id}")
-
-        if mpi_rank==0:
-            log.info(f"available device {available_devices}")
-        log.info(f"my rank{mpi_rank}, device id {device_id}, device {device}")
  
     else:
+        log.info(f" Rank {mpi_rank}, is using CPU as a device. ")
         device = torch.device('cpu')
    
     MPI.COMM_WORLD.Barrier()
@@ -408,7 +405,8 @@ def main(cfg: DictConfig):
                         with timer("(Flatview)"):
                             result = run_collective(x, op_obj, group=flat_group, dist=dist)
                             time_barrier(group=flat_group, device=device)
-                        check_collective_correctness(context, x, coll_name, op=op_obj, group=flat_group, result_data=result, group_type="Flatview", group_id="All")
+                        if enable_correctness:
+                            check_collective_correctness(context, x, coll_name, op=op_obj, group=flat_group, result_data=result, group_type="Flatview", group_id="All")
 
                 elif comm_mode == "within_node":
                     if my_within_group is not None:
@@ -416,7 +414,8 @@ def main(cfg: DictConfig):
                         with timer(f"(Within-Group-{within_group_id})"):
                             result = run_collective(x, op_obj, group=my_within_group, dist=dist, log=log)
                             time_barrier(group=my_within_group, device=device)
-                        check_collective_correctness(context, x, coll_name, op=op_obj, group=my_within_group, result_data=result, group_type="Within", group_id=within_group_id)
+                        if enable_correctness:
+                            check_collective_correctness(context, x, coll_name, op=op_obj, group=my_within_group, result_data=result, group_type="Within", group_id=within_group_id)
              
                 elif comm_mode == "across_node":
                     if my_across_group is not None:
@@ -424,7 +423,8 @@ def main(cfg: DictConfig):
                         with timer(f"(Across-Group-{across_group_id})"):
                             result = run_collective(x, op_obj, group=my_across_group, dist=dist, log=log)
                             time_barrier(group=my_across_group,  device=device)
-                        check_collective_correctness(context, x, coll_name, op=op_obj, group=my_across_group, result_data=result, group_type="Across", group_id=across_group_id)
+                        if enable_correctness:
+                            check_collective_correctness(context, x, coll_name, op=op_obj, group=my_across_group, result_data=result, group_type="Across", group_id=across_group_id)
             
 
             # ----------------------------------------------------------------------------
