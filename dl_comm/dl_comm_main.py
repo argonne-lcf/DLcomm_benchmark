@@ -29,6 +29,7 @@ import time
 import pytz
 import torch
 import hydra
+import socket
 import datetime
 from mpi4py import MPI
 from pathlib import Path
@@ -150,7 +151,7 @@ def main(cfg: DictConfig):
     # ----------------------------------------------------------------------------
  
     if mpi_rank == 0:
-        import socket
+       
         MASTER_ADDR = socket.gethostname()
         MASTER_PORT = 2254
     else:
