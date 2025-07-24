@@ -55,7 +55,7 @@ def setup_communication_groups(mode_cfg, mpi_rank, log, dist=None, force_mode=No
             else:
                 available_devices = 1
             
-            
+           
             rank_inside_node = mpi_rank % available_devices
 
             for node in range(num_compute_nodes):
@@ -63,11 +63,13 @@ def setup_communication_groups(mode_cfg, mpi_rank, log, dist=None, force_mode=No
                 group = None
                 
                 for each_rank in range(mpi_size):
-                    rank_node = each_rank // available_devices
-                    rank_device_id = each_rank % available_devices
-                    
+                    rank_node = each_rank // num_gpus_per_node
+                    rank_gpu_index = each_rank % num_gpus_per_node
+                    rank_device_id = gpu_ids_per_node[rank_gpu_index]
+
                     if rank_node == node and rank_device_id in gpu_ids_per_node:
                         group_ranks.append(each_rank)
+ 
 
                 group = dist.new_group(ranks=group_ranks,use_local_synchronization=True) 
                 if group_ranks:
@@ -77,6 +79,7 @@ def setup_communication_groups(mode_cfg, mpi_rank, log, dist=None, force_mode=No
                     my_within_group = group
                     within_group_id = node
                 if mpi_rank == 0:
+                 
                     log.info(f"[COMM][GROUP CREATION][Within Group-{node}] Ranks: {group_ranks}, Required GPUs: {gpu_ids_per_node}, Logging: rank {responsible_rank}")
                     
  
@@ -129,8 +132,9 @@ def setup_communication_groups(mode_cfg, mpi_rank, log, dist=None, force_mode=No
                 group_ranks = []
                 for node in range(num_compute_nodes):
                     for rank in range(mpi_size):
-                        rank_device_id = rank % available_devices
-                        rank_node = rank // available_devices
+                        rank_node = rank // num_gpus_per_node
+                        rank_gpu_index = rank % num_gpus_per_node
+                        rank_device_id = gpu_ids_per_node[rank_gpu_index]
                         
                         if rank_node == node and rank_device_id == required_gpu_id:
                             group_ranks.append(rank)
@@ -189,8 +193,9 @@ def setup_communication_groups(mode_cfg, mpi_rank, log, dist=None, force_mode=No
             for node in range(num_compute_nodes):
                 for gpu_idx, required_gpu_id in enumerate(gpu_ids_per_node):
                     for rank in range(mpi_size):
-                        rank_device_id = rank % available_devices
-                        rank_node = rank // available_devices
+                        rank_node = rank // num_gpus_per_node
+                        rank_gpu_index = rank % num_gpus_per_node
+                        rank_device_id = gpu_ids_per_node[rank_gpu_index]
                         
                         if rank_node == node and rank_device_id == required_gpu_id:
                             if rank not in group_ranks:
