@@ -37,11 +37,13 @@ from omegaconf import DictConfig, OmegaConf
 # dl_comm packages
 from dl_comm.comm import setup_communication_groups
 from dl_comm.utils.utility import DLCOMMLogger, Profile
-from dl_comm.config import ConfigValidator, parse_buffer_size, print_system_info, adjust_buffer_size_for_group_divisibility, validate_mpi_configuration
-from dl_comm.comm import COLLECTIVES, OPS_NEED_REDUCE, OP_MAP, DTYPES
-from dl_comm.timer import timer, print_all_times, gather_and_print_all_times, reset_times
-from dl_comm.analysis import report_ccl_selection, print_all_bandwidths 
 from dl_comm.analysis.correctness import check_collective_correctness
+from dl_comm.comm import COLLECTIVES, OPS_NEED_REDUCE, OP_MAP, DTYPES
+from dl_comm.analysis import report_ccl_selection, print_all_bandwidths 
+from dl_comm.timer import timer, print_all_times, gather_and_print_all_times, reset_times
+from dl_comm.config import ConfigValidator, parse_buffer_size, print_system_info, 
+from dl_comm.config import adjust_buffer_size_for_group_divisibility, validate_mpi_configuration
+
 # ----------------------------------------------------------------------------
 # SETUP FUNCTIONS
 # ----------------------------------------------------------------------------
@@ -150,12 +152,13 @@ def main(cfg: DictConfig):
     if mpi_rank == 0:
         import socket
         MASTER_ADDR = socket.gethostname()
-        MASTER_PORT = 2251
+        MASTER_PORT = 2254
     else:
         MASTER_ADDR = None
         MASTER_PORT = None
     
     MASTER_ADDR = MPI.COMM_WORLD.bcast(MASTER_ADDR, root=0)
+    
     MASTER_PORT = MPI.COMM_WORLD.bcast(MASTER_PORT, root=0)
     
     os.environ["MASTER_ADDR"] = MASTER_ADDR
@@ -172,7 +175,7 @@ def main(cfg: DictConfig):
         dist.init_process_group(
             backend=ccl_backend,
             init_method='env://',
-            world_size=max_mpi_size_needed,
+            world_size=mpi_size,
             rank=mpi_rank,
             timeout=datetime.timedelta(seconds=3600)
         )
@@ -192,12 +195,23 @@ def main(cfg: DictConfig):
         available_devices = torch.xpu.device_count()
         device_id = mpi_rank % available_devices
         device = torch.device(f"xpu:{device_id}")
-        
+
+        if mpi_rank==0:
+            log.info(f"available device {available_devices}")
+        log.info(f"my rank{mpi_rank}, device id {device_id}, device {device}")
  
     else:
         device = torch.device('cpu')
    
-
+    MPI.COMM_WORLD.Barrier()
+    
+    # Create validator once for entire run to prevent repeated backend warnings
+    config_spec_path = Path(__file__).parent / "config" / "config_spec.json"
+    with open(config_spec_path, "r") as f:
+        spec = json.load(f)
+    
+    validator = ConfigValidator(spec)
+    
     # Start multi-implementation execution loop
     for impl_index, impl_name in enumerate(implementations_to_run):
         if mpi_rank == 0 and len(implementations_to_run) > 1:
@@ -228,6 +242,8 @@ def main(cfg: DictConfig):
             available_modes.append('across_node')
         if hasattr(comm_groups, 'flatview'):
             available_modes.append('flatview')
+        
+
         
         # Execute each available mode in this implementation
         for mode_index, comm_mode in enumerate(available_modes):
@@ -269,13 +285,13 @@ def main(cfg: DictConfig):
             
             # Calculate group size for buffer adjustment
             if comm_mode == "flatview":
-                group_size = mpi_size
+                group_size = mode_cfg.num_gpus_per_node*mode_cfg.num_compute_nodes
             elif comm_mode == "within_node":
                 group_size = mode_cfg.num_gpus_per_node
             elif comm_mode == "across_node":
                 group_size = mode_cfg.num_compute_nodes
             else:
-                group_size = mpi_size
+                raise ValueError (f"Unkown problem occured in group size assignment")
             
             # Adjust buffer size for operations requiring group divisibility
             buffer_in_bytes, adjustment_msg = adjust_buffer_size_for_group_divisibility(buffer_in_bytes, group_size, coll_name, elem_size, log, mpi_rank)
@@ -290,12 +306,7 @@ def main(cfg: DictConfig):
             # CONFIG VALIDATION 
             # ----------------------------------------------------------------------------
             
-            config_spec_path = Path(__file__).parent / "config" / "config_spec.json"
-            with open(config_spec_path, "r") as f:
-                spec = json.load(f)
-            
-            # ConfigValidator and parse_buffer_size funcs defined in ./config/validation.py
-            validator = ConfigValidator(spec)
+            # ConfigValidator and spec loaded once per implementation above
             config_valid, validation_buffer_bytes = validator.validate(cfg, implementation_config, comm_mode, mpi_rank, log)
             
             if not config_valid:
@@ -361,11 +372,11 @@ def main(cfg: DictConfig):
 
             # setup_communication_groups defined in ./comm/comm_setup.py
             # Pass the current mode as force_mode for multi-mode support and pre-allocated device
-            comm_info = setup_communication_groups(mode_cfg, mpi_rank, log, dist, force_mode=comm_mode, device=device)
+            comm_info = setup_communication_groups(mode_cfg, mpi_rank, log, dist, force_mode=comm_mode)
             my_within_group = comm_info['my_within_group']
             my_across_group = comm_info['my_across_group'] 
             flat_group = comm_info['flat_group']
-            device = comm_info['device']
+            # device is assigned at the begining
             within_group_id = comm_info['within_group_id']
             across_group_id = comm_info['across_group_id']
             ranks_responsible_for_logging = comm_info['ranks_responsible_for_logging']

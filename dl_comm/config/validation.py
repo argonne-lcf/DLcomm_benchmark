@@ -65,6 +65,7 @@ def adjust_buffer_size_for_group_divisibility(buffer_bytes: int, group_size: int
 class ConfigValidator:
     def __init__(self, spec: dict):
         self.spec = spec
+        self.backend_warning_shown = False
 
     def validate(self, cfg: DictConfig, implementation_config, comm_mode: str, mpi_rank: int, log):
      
@@ -208,8 +209,9 @@ class ConfigValidator:
                         log.error("[VALIDATION] CCL/XCCL backend requested but not available")
                     has_errors = True
             except (AttributeError, ImportError):
-                if mpi_rank == 0:
+                if mpi_rank == 0 and not self.backend_warning_shown:
                     log.warning("[VALIDATION] Cannot check CCL/XCCL availability (API not available)")
+                    self.backend_warning_shown = True
 
                     
  
