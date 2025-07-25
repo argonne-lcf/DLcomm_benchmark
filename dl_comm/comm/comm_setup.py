@@ -62,13 +62,10 @@ def setup_communication_groups(mode_cfg, mpi_rank, log, dist=None, force_mode=No
                 group_ranks = []
                 group = None
                 
-                for each_rank in range(mpi_size):
-                    rank_node = each_rank // num_gpus_per_node
-                    rank_gpu_index = each_rank % num_gpus_per_node
-                    rank_device_id = gpu_ids_per_node[rank_gpu_index]
-
-                    if rank_node == node and rank_device_id in gpu_ids_per_node:
-                        group_ranks.append(each_rank)
+               
+                for gpu_id in gpu_ids_per_node:
+                    rank = node * available_devices + gpu_id
+                    group_ranks.append(rank)
  
 
                 group = dist.new_group(ranks=group_ranks,use_local_synchronization=True) 
@@ -131,14 +128,9 @@ def setup_communication_groups(mode_cfg, mpi_rank, log, dist=None, force_mode=No
             for gpu_idx, required_gpu_id in enumerate(gpu_ids_per_node):
                 group_ranks = []
                 for node in range(num_compute_nodes):
-                    for rank in range(mpi_size):
-                        rank_node = rank // num_gpus_per_node
-                        rank_gpu_index = rank % num_gpus_per_node
-                        rank_device_id = gpu_ids_per_node[rank_gpu_index]
-                        
-                        if rank_node == node and rank_device_id == required_gpu_id:
-                            group_ranks.append(rank)
-                            break
+                    # Calculate rank for this GPU ID on this node
+                    rank = node * available_devices + required_gpu_id
+                    group_ranks.append(rank)
                 
                 if group_ranks:   
                      
@@ -191,15 +183,11 @@ def setup_communication_groups(mode_cfg, mpi_rank, log, dist=None, force_mode=No
             
             group_ranks = []
             for node in range(num_compute_nodes):
-                for gpu_idx, required_gpu_id in enumerate(gpu_ids_per_node):
-                    for rank in range(mpi_size):
-                        rank_node = rank // num_gpus_per_node
-                        rank_gpu_index = rank % num_gpus_per_node
-                        rank_device_id = gpu_ids_per_node[rank_gpu_index]
-                        
-                        if rank_node == node and rank_device_id == required_gpu_id:
-                            if rank not in group_ranks:
-                                group_ranks.append(rank)
+                for required_gpu_id in gpu_ids_per_node:
+                    # Calculate rank for this GPU ID on this node
+                    rank = node * available_devices + required_gpu_id
+                    if rank not in group_ranks:
+                        group_ranks.append(rank)
             
             
             if group_ranks:
