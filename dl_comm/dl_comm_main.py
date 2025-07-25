@@ -136,8 +136,7 @@ def main(cfg: DictConfig):
         if barrier_enabled:
             if group is not None and device is not None:
                 dist.barrier(group=group,device_ids=[device.index])
-            else:
-                MPI.COMM_WORLD.Barrier()
+
     
     # ----------------------------------------------------------------------------
     # SYSTEM INFORMATION LOGGING (once per execution)
@@ -153,7 +152,7 @@ def main(cfg: DictConfig):
     if mpi_rank == 0:
        
         MASTER_ADDR = socket.gethostname()
-        MASTER_PORT = 2254
+        MASTER_PORT = 2266
     else:
         MASTER_ADDR = None
         MASTER_PORT = None
@@ -170,38 +169,19 @@ def main(cfg: DictConfig):
     # ----------------------------------------------------------------------------
     
     max_mpi_size_needed = validate_mpi_configuration(cfg, mpi_size, mpi_rank, log)
-     
+    log.info(f"max mpi size {max_mpi_size_needed}")
     MPI.COMM_WORLD.Barrier()
     with timer("init time"):
         dist.init_process_group(
             backend=ccl_backend,
             init_method='env://',
-            world_size=mpi_size,
+            world_size=max_mpi_size_needed,
             rank=mpi_rank,
             timeout=datetime.timedelta(seconds=3600)
         )
 
-    # ----------------------------------------------------------------------------
-    # GLOBAL DEVICE ALLOCATION (once per execution)
-    # ----------------------------------------------------------------------------
-    
-    # Assign each rank to a unique device before any mode execution
-    if cfg.ccl_backend == "nccl" and torch.cuda.is_available():
-        available_devices = torch.cuda.device_count()
-        device_id = mpi_rank % available_devices
-        device = torch.device(f"cuda:{device_id}")
-        torch.cuda.set_device(device_id)
  
-    elif cfg.ccl_backend in ["ccl", "xccl"] and torch.xpu.is_available():
-        available_devices = torch.xpu.device_count()
-        device_id = mpi_rank % available_devices
-        device = torch.device(f"xpu:{device_id}")
  
-    else:
-        log.info(f" Rank {mpi_rank}, is using CPU as a device. ")
-        device = torch.device('cpu')
-   
-    MPI.COMM_WORLD.Barrier()
     
     # Create validator once for entire run to prevent repeated backend warnings
     config_spec_path = Path(__file__).parent / "config" / "config_spec.json"
@@ -374,10 +354,11 @@ def main(cfg: DictConfig):
             my_within_group = comm_info['my_within_group']
             my_across_group = comm_info['my_across_group'] 
             flat_group = comm_info['flat_group']
-            # device is assigned at the begining
+            device=comm_info['device']
             within_group_id = comm_info['within_group_id']
             across_group_id = comm_info['across_group_id']
             ranks_responsible_for_logging = comm_info['ranks_responsible_for_logging']
+            participating = comm_info['participating']
             
             
             MPI.COMM_WORLD.Barrier()
@@ -409,13 +390,19 @@ def main(cfg: DictConfig):
                             check_collective_correctness(context, x, coll_name, op=op_obj, group=flat_group, result_data=result, group_type="Flatview", group_id="All")
 
                 elif comm_mode == "within_node":
-                    if my_within_group is not None:
+                    #log.info(f"[DEBUG] Rank {mpi_rank}: within_node mode, participating={participating}")
+                    if participating:
+                        #log.info(f"[DEBUG] Rank {mpi_rank}: Before within barrier (group_id={within_group_id})")
                         time_barrier(group=my_within_group, device=device)
+                        #log.info(f"[DEBUG] Rank {mpi_rank}: Before within collective (group_id={within_group_id})")
                         with timer(f"(Within-Group-{within_group_id})"):
                             result = run_collective(x, op_obj, group=my_within_group, dist=dist, log=log)
-                            time_barrier(group=my_within_group, device=device)
+                        #log.info(f"[DEBUG] Rank {mpi_rank}: After within collective (group_id={within_group_id})")
+                        time_barrier(group=my_within_group, device=device)
+                        #log.info(f"[DEBUG] Rank {mpi_rank}: After within barrier (group_id={within_group_id})")
                         if enable_correctness:
                             check_collective_correctness(context, x, coll_name, op=op_obj, group=my_within_group, result_data=result, group_type="Within", group_id=within_group_id)
+                     
              
                 elif comm_mode == "across_node":
                     if my_across_group is not None:
