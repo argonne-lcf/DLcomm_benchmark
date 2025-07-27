@@ -136,9 +136,7 @@ def main(cfg: DictConfig):
         if barrier_enabled:
             if group is not None and device is not None:
                 dist.barrier(group=group,device_ids=[device.index])
-            else:
-                MPI.COMM_WORLD.Barrier()
-    
+          
     # ----------------------------------------------------------------------------
     # SYSTEM INFORMATION LOGGING (once per execution)
     # ----------------------------------------------------------------------------
@@ -153,7 +151,7 @@ def main(cfg: DictConfig):
     if mpi_rank == 0:
        
         MASTER_ADDR = socket.gethostname()
-        MASTER_PORT = 2258
+        MASTER_PORT = 2263
     else:
         MASTER_ADDR = None
         MASTER_PORT = None
@@ -363,6 +361,7 @@ def main(cfg: DictConfig):
             within_group_id = comm_info['within_group_id']
             across_group_id = comm_info['across_group_id']
             ranks_responsible_for_logging = comm_info['ranks_responsible_for_logging']
+            participating = comm_info['participating']
             
             
             MPI.COMM_WORLD.Barrier()
@@ -394,7 +393,7 @@ def main(cfg: DictConfig):
                             check_collective_correctness(context, x, coll_name, op=op_obj, group=flat_group, result_data=result, group_type="Flatview", group_id="All")
 
                 elif comm_mode == "within_node":
-                    if my_within_group is not None:
+                    if my_within_group is not None and participating:
                         time_barrier(group=my_within_group, device=device)
                         with timer(f"(Within-Group-{within_group_id})"):
                             result = run_collective(x, op_obj, group=my_within_group, dist=dist, log=log)

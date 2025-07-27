@@ -2,10 +2,10 @@ framework  : pytorch  # tensorflow / jax / monarch
 ccl_backend : nccl   # rccl / nccl / xccl (Note: PyTorch 2.7+ users should use 'xccl' instead of 'ccl' for Intel oneCCL)
 ccl_debug   : off # on / off - enables CCL debug logging and algorithm selection reporting
 use_profiler: unitrace
-barrier     : on    # on / off - on: adds MPI barrier before timer printing for accurate timing, off: only rank 0 prints (other collectives may still be in process)
+barrier     : on   # on / off - on: adds MPI barrier before timer printing for accurate timing, off: only rank 0 prints (other collectives may still be in process)
 
   
-order_of_run: [  ULYSS-alltoallsingle   ]  # Can be single implementation or list of implementations
+order_of_run: [  grad-sync ,flat ]  # Can be single implementation or list of implementations
 # Examples:
 # order_of_run: ULYSS                      # Single implementation
 # order_of_run: [ULYSS, SP]                # Multi-implementation execution
@@ -75,7 +75,7 @@ implementations:
       across_node: 
         num_compute_nodes: 2 
         num_gpus_per_node: 3
-        gpu_ids_per_node:  [0, 2,3]     
+        gpu_ids_per_node:  [0, 1,3]     
         collective:
           name: allreduce   # allgather / reducescatter / broadcast / alltoall / alltoallsingle
           op:     min      # max / min / prod / sum

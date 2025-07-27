@@ -20,6 +20,7 @@ def setup_communication_groups(mode_cfg, mpi_rank, log, dist=None, force_mode=No
     within_group_id = None
     across_group_id = None
     ranks_responsible_for_logging = set([0])  # Rank 0 always responsible for world/flatview
+    participating = False  # Flag to indicate if this rank participates in collectives
 
     mpi_size=MPI.COMM_WORLD.Get_size()
     
@@ -63,10 +64,12 @@ def setup_communication_groups(mode_cfg, mpi_rank, log, dist=None, force_mode=No
                 group_ranks = []
                 group = None
                 
-                # Sequential rank assignment based on gpu_ids order
+                # Use actual ranks per physical node from MPI configuration
+                ranks_per_physical_node = mpi_size // num_compute_nodes
                 for gpu_idx, gpu_id in enumerate(gpu_ids_per_node):
-                    rank = node * len(gpu_ids_per_node) + gpu_idx
-                    group_ranks.append(rank)
+                    rank = node * ranks_per_physical_node + gpu_idx
+                    if rank < mpi_size:  # Ensure rank exists
+                        group_ranks.append(rank)
  
 
                 group = dist.new_group(ranks=group_ranks,use_local_synchronization=True) 
@@ -76,6 +79,7 @@ def setup_communication_groups(mode_cfg, mpi_rank, log, dist=None, force_mode=No
                 if mpi_rank in group_ranks:
                     my_within_group = group
                     within_group_id = node
+                    participating = True  # This rank participates in within_node collectives
                     
                     # Assign device based on position in gpu_ids list
                     gpu_idx_in_group = group_ranks.index(mpi_rank)
@@ -137,9 +141,10 @@ def setup_communication_groups(mode_cfg, mpi_rank, log, dist=None, force_mode=No
              
             for gpu_idx, required_gpu_id in enumerate(gpu_ids_per_node):
                 group_ranks = []
+                # Use actual ranks per physical node from MPI configuration
+                ranks_per_physical_node = mpi_size // num_compute_nodes
                 for node in range(num_compute_nodes):
-                    # Use available_devices (actual GPUs per node) instead of gpu_ids length
-                    rank = node * available_devices + gpu_idx 
+                    rank = node * ranks_per_physical_node + gpu_idx 
                     group_ranks.append(rank)
                 
                 if group_ranks:   
@@ -205,11 +210,13 @@ def setup_communication_groups(mode_cfg, mpi_rank, log, dist=None, force_mode=No
                 available_devices = 1
             
             group_ranks = []
+            # Use actual ranks per physical node from MPI configuration  
+            ranks_per_physical_node = mpi_size // num_compute_nodes
             for node in range(num_compute_nodes):
                 for gpu_idx, required_gpu_id in enumerate(gpu_ids_per_node):
                     # Sequential rank assignment based on gpu_ids order
-                    rank = node * len(gpu_ids_per_node) + gpu_idx
-                    if rank not in group_ranks:
+                    rank = node * ranks_per_physical_node + gpu_idx
+                    if rank < mpi_size and rank not in group_ranks:
                         group_ranks.append(rank)
             
             
@@ -255,4 +262,5 @@ def setup_communication_groups(mode_cfg, mpi_rank, log, dist=None, force_mode=No
         'across_group_id': across_group_id,
         'ranks_responsible_for_logging': ranks_responsible_for_logging,
         'device': device,
+        'participating': participating,
     }
