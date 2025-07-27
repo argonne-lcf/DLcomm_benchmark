@@ -22,6 +22,14 @@ def setup_communication_groups(mode_cfg, mpi_rank, log, dist=None, force_mode=No
     ranks_responsible_for_logging = set([0])  # Rank 0 always responsible for world/flatview
 
     mpi_size=MPI.COMM_WORLD.Get_size()
+    
+    # Calculate available devices once at the beginning
+    if torch.cuda.is_available():
+        available_devices = torch.cuda.device_count()
+    elif torch.xpu.is_available():
+        available_devices = torch.xpu.device_count()
+    else:
+        available_devices = 1
 
     
     # ----------------------------------------------------------------------------
@@ -47,13 +55,6 @@ def setup_communication_groups(mode_cfg, mpi_rank, log, dist=None, force_mode=No
             my_within_group = None
             within_group_id = None
             
-            
-            if torch.cuda.is_available():
-                available_devices = torch.cuda.device_count()
-            elif torch.xpu.is_available():
-                available_devices = torch.xpu.device_count()
-            else:
-                available_devices = 1
             
            
             rank_inside_node = mpi_rank % available_devices
@@ -131,21 +132,14 @@ def setup_communication_groups(mode_cfg, mpi_rank, log, dist=None, force_mode=No
             across_group_id = None
             
              
-            if torch.cuda.is_available():
-                available_devices = torch.cuda.device_count()
-            elif torch.xpu.is_available():
-                available_devices = torch.xpu.device_count()
-            else:
-                available_devices = 1
-            
              
             
              
             for gpu_idx, required_gpu_id in enumerate(gpu_ids_per_node):
                 group_ranks = []
                 for node in range(num_compute_nodes):
-                    # Sequential rank assignment based on gpu_ids order
-                    rank = node * len(gpu_ids_per_node) + gpu_idx
+                    # Use available_devices (actual GPUs per node) instead of gpu_ids length
+                    rank = node * available_devices + gpu_idx 
                     group_ranks.append(rank)
                 
                 if group_ranks:   

@@ -153,7 +153,7 @@ def main(cfg: DictConfig):
     if mpi_rank == 0:
        
         MASTER_ADDR = socket.gethostname()
-        MASTER_PORT = 2255
+        MASTER_PORT = 2258
     else:
         MASTER_ADDR = None
         MASTER_PORT = None
