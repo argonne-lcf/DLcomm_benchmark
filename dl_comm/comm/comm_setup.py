@@ -16,7 +16,7 @@ def setup_communication_groups(mode_cfg, mpi_rank, log, dist=None, force_mode=No
     my_within_group = None
     my_across_group = None
     flat_group = None
-    #device asigned at the begining of main py
+    device = None  # Will be assigned based on group membership
     within_group_id = None
     across_group_id = None
     ranks_responsible_for_logging = set([0])  # Rank 0 always responsible for world/flatview
@@ -62,9 +62,9 @@ def setup_communication_groups(mode_cfg, mpi_rank, log, dist=None, force_mode=No
                 group_ranks = []
                 group = None
                 
-               
-                for gpu_id in gpu_ids_per_node:
-                    rank = node * available_devices + gpu_id
+                # Sequential rank assignment based on gpu_ids order
+                for gpu_idx, gpu_id in enumerate(gpu_ids_per_node):
+                    rank = node * len(gpu_ids_per_node) + gpu_idx
                     group_ranks.append(rank)
  
 
@@ -75,8 +75,24 @@ def setup_communication_groups(mode_cfg, mpi_rank, log, dist=None, force_mode=No
                 if mpi_rank in group_ranks:
                     my_within_group = group
                     within_group_id = node
+                    
+                    # Assign device based on position in gpu_ids list
+                    gpu_idx_in_group = group_ranks.index(mpi_rank)
+                    assigned_gpu_id = gpu_ids_per_node[gpu_idx_in_group]
+                    
+                    # Set device based on backend
+                  
+                    if torch.cuda.is_available():
+                        device = torch.device(f"cuda:{assigned_gpu_id}")
+                        torch.cuda.set_device(assigned_gpu_id)
+                    elif torch.xpu.is_available():
+                        device = torch.device(f"xpu:{assigned_gpu_id}")
+                    else:
+                        device = torch.device('cpu')
+                        
+ 
+                        
                 if mpi_rank == 0:
-                 
                     log.info(f"[COMM][GROUP CREATION][Within Group-{node}] Ranks: {group_ranks}, Required GPUs: {gpu_ids_per_node}, Logging: rank {responsible_rank}")
                     
  
@@ -128,8 +144,8 @@ def setup_communication_groups(mode_cfg, mpi_rank, log, dist=None, force_mode=No
             for gpu_idx, required_gpu_id in enumerate(gpu_ids_per_node):
                 group_ranks = []
                 for node in range(num_compute_nodes):
-                    # Calculate rank for this GPU ID on this node
-                    rank = node * available_devices + required_gpu_id
+                    # Sequential rank assignment based on gpu_ids order
+                    rank = node * len(gpu_ids_per_node) + gpu_idx
                     group_ranks.append(rank)
                 
                 if group_ranks:   
@@ -143,6 +159,19 @@ def setup_communication_groups(mode_cfg, mpi_rank, log, dist=None, force_mode=No
                     if mpi_rank in group_ranks:
                         my_across_group = group
                         across_group_id = gpu_idx
+                        
+                        # Assign device based on gpu_id for this group
+                        assigned_gpu_id = required_gpu_id
+                        
+                        # Set device based on backend
+                        if torch.cuda.is_available():
+                            device = torch.device(f"cuda:{assigned_gpu_id}")
+                            torch.cuda.set_device(assigned_gpu_id)
+                        elif torch.xpu.is_available():
+                            device = torch.device(f"xpu:{assigned_gpu_id}")
+                        else:
+                            device = torch.device('cpu')
+ 
 
 
         
@@ -183,9 +212,9 @@ def setup_communication_groups(mode_cfg, mpi_rank, log, dist=None, force_mode=No
             
             group_ranks = []
             for node in range(num_compute_nodes):
-                for required_gpu_id in gpu_ids_per_node:
-                    # Calculate rank for this GPU ID on this node
-                    rank = node * available_devices + required_gpu_id
+                for gpu_idx, required_gpu_id in enumerate(gpu_ids_per_node):
+                    # Sequential rank assignment based on gpu_ids order
+                    rank = node * len(gpu_ids_per_node) + gpu_idx
                     if rank not in group_ranks:
                         group_ranks.append(rank)
             
@@ -199,6 +228,25 @@ def setup_communication_groups(mode_cfg, mpi_rank, log, dist=None, force_mode=No
                 
                 flat_group = dist.new_group(ranks=group_ranks, use_local_synchronization=True)
                 flat_group_ranks = group_ranks
+                
+                # Assign device if this rank is in the flatview group
+                if mpi_rank in group_ranks:
+                    # Calculate which GPU this rank should use
+                    rank_idx_in_group = group_ranks.index(mpi_rank)
+                    node_id = rank_idx_in_group // len(gpu_ids_per_node)
+                    gpu_idx_in_node = rank_idx_in_group % len(gpu_ids_per_node)
+                    assigned_gpu_id = gpu_ids_per_node[gpu_idx_in_node]
+                    
+                    # Set device based on backend
+                    if torch.cuda.is_available():
+                        device = torch.device(f"cuda:{assigned_gpu_id}")
+                        torch.cuda.set_device(assigned_gpu_id)
+                    elif torch.xpu.is_available():
+                        device = torch.device(f"xpu:{assigned_gpu_id}")
+                    else:
+                        device = torch.device('cpu')
+                        
+ 
             else:
                 flat_group = None
                 flat_group_ranks = []
@@ -212,4 +260,5 @@ def setup_communication_groups(mode_cfg, mpi_rank, log, dist=None, force_mode=No
         'within_group_id': within_group_id,
         'across_group_id': across_group_id,
         'ranks_responsible_for_logging': ranks_responsible_for_logging,
+        'device': device,
     }
