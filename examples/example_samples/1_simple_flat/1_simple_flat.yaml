@@ -1,0 +1,27 @@
+framework  : pytorch
+ccl_backend : xccl
+ccl_debug   : on
+use_profiler: unitrace
+barrier     : on
+
+order_of_run: [simple-allreduce]
+
+implementations:
+  - name: simple-allreduce
+    comm_groups:
+      flatview: 
+        num_compute_nodes: 2 
+        num_gpus_per_node: 4
+        gpu_ids_per_node:  [0,1,2,3]   
+        collective:
+          name: allreduce
+          op: sum
+          scale_up_algorithm: default
+          scale_out_algorithm: default
+          iterations: 5
+          warmup_iterations: 2
+          payload:
+            dtype: float32
+            count: 
+            buffer_size: 1MB
+        verify_correctness: on
