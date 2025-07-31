@@ -36,15 +36,9 @@ def calculate_max_ranks_needed(cfg):
 
 def validate_mpi_configuration(cfg, mpi_size, mpi_rank, log):
     max_ranks, max_mode, requirements = calculate_max_ranks_needed(cfg)
+    has_errors = False
     
     if mpi_size < max_ranks:
-        error_msg = f"MPI world size ({mpi_size}) insufficient for mode '{max_mode}' requiring {max_ranks} ranks. Mode requirements: {requirements}"
-        if mpi_rank == 0:
-            log.error(f"[MPI][VALIDATION] {error_msg}")
-        raise ValueError(error_msg)
+        has_errors = True
     
-    if mpi_rank == 0:
-        log.info(f"[MPI][VALIDATION] World size: {mpi_size}, Max required: {max_ranks} (mode: {max_mode})")
-        log.info(f"[MPI][VALIDATION] Mode requirements: {requirements}")
-    
-    return max_ranks 
+    return mpi_size, has_errors 

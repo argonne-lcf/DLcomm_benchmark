@@ -18,6 +18,73 @@ def parse_buffer_size(size_str: str) -> int:
         raise ValueError(f"payload.size='{size_str}' has unknown format. Use '1GB', '1MB', '512KB' etc")
 
 
+def validate_and_calculate_buffer_size(payload_config, mode_name: str, log=None, mpi_rank: int = 0) -> tuple[int, int, bool]:
+    from dl_comm.comm import DTYPES
+    has_errors = False
+    
+    if not hasattr(payload_config, 'dtype'):
+        if mpi_rank == 0 and log:
+            log.error(f"[VALIDATION] {mode_name}: 'dtype' is required in payload configuration")
+        has_errors = True
+        return 0, 0, has_errors
+    
+    dtype_str = payload_config.dtype
+    if dtype_str not in DTYPES:
+        if mpi_rank == 0 and log:
+            log.error(f"[VALIDATION] {mode_name}: Unsupported dtype '{dtype_str}'. Supported types: {list(DTYPES.keys())}")
+        has_errors = True
+        return 0, 0, has_errors
+    
+    torch_dtype, elem_size_bytes = DTYPES[dtype_str]
+    
+    has_buffer_size = hasattr(payload_config, 'buffer_size') and payload_config.buffer_size is not None
+    has_count = hasattr(payload_config, 'count') and payload_config.count is not None
+    
+    if has_buffer_size and has_count:
+        if mpi_rank == 0 and log:
+            log.error(f"[VALIDATION] {mode_name}: Cannot specify both 'buffer_size' and 'count'. Use either 'buffer_size' OR 'count' + 'dtype'")
+        has_errors = True
+        return 0, 0, has_errors
+    
+    if not has_buffer_size and not has_count:
+        if mpi_rank == 0 and log:
+            log.error(f"[VALIDATION] {mode_name}: Must specify either 'buffer_size' OR 'count' in payload configuration")
+        has_errors = True
+        return 0, 0, has_errors
+    
+    if has_buffer_size:
+        try:
+            buffer_size_bytes = parse_buffer_size(payload_config.buffer_size)
+            if buffer_size_bytes % elem_size_bytes != 0:
+                if mpi_rank == 0 and log:
+                    log.error(f"[VALIDATION] {mode_name}: buffer_size ({buffer_size_bytes} bytes) must be divisible by dtype size ({elem_size_bytes} bytes for {dtype_str})")
+                has_errors = True
+                return 0, 0, has_errors
+            num_elements = buffer_size_bytes // elem_size_bytes
+        except ValueError as e:
+            if mpi_rank == 0 and log:
+                log.error(f"[VALIDATION] {mode_name}: {e}")
+            has_errors = True
+            return 0, 0, has_errors
+        
+    elif has_count:
+        try:
+            num_elements = int(payload_config.count)
+            if num_elements <= 0:
+                if mpi_rank == 0 and log:
+                    log.error(f"[VALIDATION] {mode_name}: 'count' must be a positive integer, got {num_elements}")
+                has_errors = True
+                return 0, 0, has_errors
+            buffer_size_bytes = num_elements * elem_size_bytes
+        except (ValueError, TypeError) as e:
+            if mpi_rank == 0 and log:
+                log.error(f"[VALIDATION] {mode_name}: Invalid count value: {e}")
+            has_errors = True
+            return 0, 0, has_errors
+    
+    return buffer_size_bytes, num_elements, has_errors
+
+
 def adjust_buffer_size_for_group_divisibility(buffer_bytes: int, group_size: int, collective_name: str, elem_size: int, log=None, mpi_rank: int = 0) -> tuple[int, str]:
     
     collectives_needing_divisibility = ["alltoallsingle"]
@@ -119,15 +186,11 @@ class ConfigValidator:
                             log.error(f"[VALIDATION] within_node: num_gpus_per_node ({within_config.num_gpus_per_node}) must equal length of gpu_ids_per_node ({len(within_config.gpu_ids_per_node)})")
                         has_errors = True
                 
-                # Validate buffer size
-                if hasattr(within_config, 'collective'):
-                    if hasattr(within_config.collective, 'payload') and hasattr(within_config.collective.payload, 'buffer_size'):
-                        try:
-                            buffer_bytes = parse_buffer_size(within_config.collective.payload.buffer_size)
-                        except ValueError as e:
-                            if mpi_rank == 0:
-                                log.error(f"[VALIDATION] Within-node: {e}")
-                            has_errors = True
+                # Validate payload configuration
+                if hasattr(within_config, 'collective') and hasattr(within_config.collective, 'payload'):
+                    buffer_bytes, num_elements, payload_errors = validate_and_calculate_buffer_size(within_config.collective.payload, "within_node", log, mpi_rank)
+                    if payload_errors:
+                        has_errors = True
         
         elif comm_mode == "across_node":
             if not hasattr(comm_groups, 'across_node'):
@@ -147,15 +210,11 @@ class ConfigValidator:
                             log.error(f"[VALIDATION] across_node: num_gpus_per_node ({across_config.num_gpus_per_node}) must equal length of gpu_ids_per_node ({len(across_config.gpu_ids_per_node)})")
                         has_errors = True
                 
-                # Validate buffer size
-                if hasattr(across_config, 'collective'):
-                    if hasattr(across_config.collective, 'payload') and hasattr(across_config.collective.payload, 'buffer_size'):
-                        try:
-                            buffer_bytes = parse_buffer_size(across_config.collective.payload.buffer_size)
-                        except ValueError as e:
-                            if mpi_rank == 0:
-                                log.error(f"[VALIDATION] Across-node: {e}")
-                            has_errors = True
+                # Validate payload configuration
+                if hasattr(across_config, 'collective') and hasattr(across_config.collective, 'payload'):
+                    buffer_bytes, num_elements, payload_errors = validate_and_calculate_buffer_size(across_config.collective.payload, "across_node", log, mpi_rank)
+                    if payload_errors:
+                        has_errors = True
         
         elif comm_mode == "flatview":
             if not hasattr(comm_groups, 'flatview'):
@@ -175,15 +234,11 @@ class ConfigValidator:
                             log.error(f"[VALIDATION] flatview: num_gpus_per_node ({flatview_config.num_gpus_per_node}) must equal length of gpu_ids_per_node ({len(flatview_config.gpu_ids_per_node)})")
                         has_errors = True
                 
-                # Validate buffer size
-                if hasattr(flatview_config, 'collective'):
-                    if hasattr(flatview_config.collective, 'payload') and hasattr(flatview_config.collective.payload, 'buffer_size'):
-                        try:
-                            buffer_bytes = parse_buffer_size(flatview_config.collective.payload.buffer_size)
-                        except ValueError as e:
-                            if mpi_rank == 0:
-                                log.error(f"[VALIDATION] Flatview: {e}")
-                            has_errors = True
+                # Validate payload configuration
+                if hasattr(flatview_config, 'collective') and hasattr(flatview_config.collective, 'payload'):
+                    buffer_bytes, num_elements, payload_errors = validate_and_calculate_buffer_size(flatview_config.collective.payload, "flatview", log, mpi_rank)
+                    if payload_errors:
+                        has_errors = True
 
         # Ensure buffer_bytes is set
         if buffer_bytes is None and not has_errors:
