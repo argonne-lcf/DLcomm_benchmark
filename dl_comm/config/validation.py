@@ -134,6 +134,27 @@ class ConfigValidator:
         self.spec = spec
         self.backend_warning_shown = False
 
+    def validate_implementation_names(self, cfg: DictConfig, mpi_rank: int, log):
+        """Validate that implementation names are unique"""
+        has_errors = False
+        implementation_names = []
+        
+        for impl_config in cfg.implementations:
+            if hasattr(impl_config, 'name'):
+                impl_name = impl_config.name
+                if impl_name in implementation_names:
+                    if mpi_rank == 0:
+                        log.error(f"[VALIDATION] Duplicate implementation name '{impl_name}' found. Implementation names must be unique.")
+                    has_errors = True
+                else:
+                    implementation_names.append(impl_name)
+            else:
+                if mpi_rank == 0:
+                    log.error(f"[VALIDATION] Implementation missing 'name' field")
+                has_errors = True
+        
+        return has_errors
+
     def validate(self, cfg: DictConfig, implementation_config, comm_mode: str, mpi_rank: int, log):
      
         has_errors = False
@@ -239,6 +260,31 @@ class ConfigValidator:
                     buffer_bytes, num_elements, payload_errors = validate_and_calculate_buffer_size(flatview_config.collective.payload, "flatview", log, mpi_rank)
                     if payload_errors:
                         has_errors = True
+
+        # Validate operation is provided for collectives that need it
+        if not has_errors:
+            from dl_comm.comm import OPS_NEED_REDUCE, OP_MAP
+            
+            # Get the collective config for this mode
+            if comm_mode == "within_node":
+                coll_cfg = comm_groups.within_node.collective
+            elif comm_mode == "across_node":
+                coll_cfg = comm_groups.across_node.collective
+            elif comm_mode == "flatview":
+                coll_cfg = comm_groups.flatview.collective
+            
+            collective_name = coll_cfg.name.lower()
+            op_name = getattr(coll_cfg, 'op', None)
+            
+            if collective_name in OPS_NEED_REDUCE:
+                if not op_name or op_name.strip() == '':
+                    if mpi_rank == 0:
+                        log.error(f"[VALIDATION] {comm_mode}: Collective '{collective_name}' requires an operation (op). Valid operations: {list(OP_MAP.keys())}")
+                    has_errors = True
+                elif op_name not in OP_MAP:
+                    if mpi_rank == 0:
+                        log.error(f"[VALIDATION] {comm_mode}: Invalid operation '{op_name}' for collective '{collective_name}'. Valid operations: {list(OP_MAP.keys())}")
+                    has_errors = True
 
         # Ensure buffer_bytes is set
         if buffer_bytes is None and not has_errors:

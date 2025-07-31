@@ -40,7 +40,7 @@ from dl_comm.comm import setup_communication_groups
 from dl_comm.utils.utility import DLCOMMLogger, Profile
 from dl_comm.analysis.correctness import check_collective_correctness
 from dl_comm.comm import COLLECTIVES, OPS_NEED_REDUCE, OP_MAP, DTYPES
-from dl_comm.analysis import report_ccl_selection, report_nccl_selection, print_all_bandwidths 
+from dl_comm.analysis import report_ccl_selection, print_all_bandwidths 
 from dl_comm.timer import timer, print_all_times, gather_and_print_all_times, reset_times
 from dl_comm.config import ConfigValidator, parse_buffer_size, validate_and_calculate_buffer_size, print_system_info
 from dl_comm.config import adjust_buffer_size_for_group_divisibility, validate_mpi_configuration
@@ -183,6 +183,12 @@ def main(cfg: DictConfig):
     
     validator = ConfigValidator(spec)
     
+    # Validate implementation names are unique
+    if validator.validate_implementation_names(cfg, mpi_rank, log):
+        if mpi_rank == 0:
+            log.error("[EXIT] Exiting due to duplicate implementation names")
+        sys.exit(1)
+    
     # Start multi-implementation execution loop
     for impl_index, impl_name in enumerate(implementations_to_run):
         if mpi_rank == 0 and len(implementations_to_run) > 1:
@@ -263,6 +269,17 @@ def main(cfg: DictConfig):
             iters              = coll_cfg.iterations
             warmup_iters       = getattr(coll_cfg, 'warmup_iterations', 0)  # Default to 0 if not specified
             enable_correctness = mode_cfg.verify_correctness
+
+            # Validate operation is provided for collectives that need it
+            if coll_name in OPS_NEED_REDUCE:
+                if not op_name or (isinstance(op_name, str) and op_name.strip() == ''):
+                    if mpi_rank == 0:
+                        log.error(f"[VALIDATION] {impl_name}_{comm_mode}: Collective '{coll_name}' requires an operation (op). Valid operations: {list(OP_MAP.keys())}")
+                    continue  # Skip this mode
+                elif op_name not in OP_MAP:
+                    if mpi_rank == 0:
+                        log.error(f"[VALIDATION] {impl_name}_{comm_mode}: Invalid operation '{op_name}' for collective '{coll_name}'. Valid operations: {list(OP_MAP.keys())}")
+                    continue  # Skip this mode
 
             # compute buffer/count using new validation function
             buffer_in_bytes, num_elems, buffer_errors = validate_and_calculate_buffer_size(coll_cfg.payload, f"{impl_name}_{comm_mode}", log, mpi_rank)
@@ -354,10 +371,7 @@ def main(cfg: DictConfig):
             # ENVIRONMENT SETUP
             # ----------------------------------------------------------------------------
             
-            
-            # Setup CCL algorithms per mode (NCCL algorithms already set globally)
-            if ccl_backend in ["ccl", "xccl"]:
-                setup_collective_algorithms_ccl(cfg, coll_cfg, comm_mode, log)
+            # All algorithms already set globally at startup
 
             # ----------------------------------------------------------------------------
             # COMMUNICATION GROUP SETUP
@@ -485,9 +499,12 @@ def main(cfg: DictConfig):
                     terminal_log_path = os.path.join(log_dir, "terminal_output.log")
                     if os.path.exists(terminal_log_path):
                         if ccl_backend in ["nccl", "rccl"]:
-                            report_nccl_selection(terminal_log_path, coll_name, log)
+                            log.info(f"[SELECTION] NCCL table selection parsing not yet implemented")
                         else:
-                            report_ccl_selection(terminal_log_path, coll_name, log)
+                            # Get user's configured algorithms for display (preserve original values)
+                            scale_up_alg = getattr(coll_cfg, 'scale_up_algorithm', None)
+                            scale_out_alg = getattr(coll_cfg, 'scale_out_algorithm', None)
+                            report_ccl_selection(terminal_log_path, coll_name, log, scale_up_alg, scale_out_alg)
                     else:
                         log.info(f"[SELECTION] Terminal output log not found: {terminal_log_path}")
 
@@ -498,6 +515,32 @@ def main(cfg: DictConfig):
                     log.info("[EXIT] All Done.")
                 log.info("-------------------------------------------------------------------------")
 
+        # ----------------------------------------------------------------------------
+        # CLEANUP COMMUNICATION GROUPS AFTER IMPLEMENTATION
+        # ----------------------------------------------------------------------------
+        
+        # Destroy communication groups created for this implementation
+        groups_cleaned = False
+        if 'my_within_group' in locals() and my_within_group is not None:
+            dist.destroy_process_group(my_within_group)
+            groups_cleaned = True
+        
+        if 'my_across_group' in locals() and my_across_group is not None:
+            dist.destroy_process_group(my_across_group)
+            groups_cleaned = True
+        
+        if 'flat_group' in locals() and flat_group is not None:
+            dist.destroy_process_group(flat_group)
+            groups_cleaned = True
+        
+        # Clear the group variables to prevent reuse
+        my_within_group = None
+        my_across_group = None
+        flat_group = None
+        
+        if mpi_rank == 0 and len(implementations_to_run) > 1 and groups_cleaned:
+            log.info(f"[CLEANUP] Communication groups cleaned up for implementation {impl_name}")
+
     # End of multi-implementation execution loop
     
     if mpi_rank == 0 and len(implementations_to_run) > 1:
@@ -505,8 +548,7 @@ def main(cfg: DictConfig):
         log.info("=" * 80)
         log.info(f"[FINAL] All {len(implementations_to_run)} implementations completed successfully!")
         log.info("=" * 80)
-        log.info("")
-
+        
     # ----------------------------------------------------------------------------
     #  CLEAN UP
     # ----------------------------------------------------------------------------

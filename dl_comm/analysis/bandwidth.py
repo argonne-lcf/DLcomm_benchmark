@@ -102,12 +102,17 @@ def print_all_bandwidths(logger, cfg, mpi_size, ranks_responsible_for_logging, p
                 first_iteration_time = vals[0]
                 
                 if group_key == "flatview":
-                    world_size = mpi_size
+                    # Calculate actual flatview group size from config
+                    if current_mode_cfg and comm_mode == "flatview":
+                        group_size = current_mode_cfg.num_gpus_per_node * current_mode_cfg.num_compute_nodes
+                    else:
+                        # Fallback to mpi_size if config not available (shouldn't happen in normal flow)
+                        group_size = mpi_size
                     buffer_size = buffer_configs.get('flatview', 0)
-                    bandwidth = calculate_group_bandwidth(world_size, buffer_size, first_iteration_time)
+                    bandwidth = calculate_group_bandwidth(group_size, buffer_size, first_iteration_time)
                     group_bandwidths['Flatview'] = {
                         'bandwidth': bandwidth,
-                        'group_size': world_size,
+                        'group_size': group_size,
                         'buffer_size': buffer_size,
                         'time': first_iteration_time,
                         'rank': rank
