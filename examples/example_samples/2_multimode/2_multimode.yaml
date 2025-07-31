@@ -16,7 +16,7 @@ implementations:
         collective:
           name: allgather
           op: 
-          scale_up_algorithm: ring
+          scale_up_algorithm: default
           scale_out_algorithm: default
           iterations: 5
           warmup_iterations: 2
@@ -36,7 +36,7 @@ implementations:
           name: allreduce
           op: sum
           scale_up_algorithm: default
-          scale_out_algorithm: ring
+          scale_out_algorithm: default
           iterations: 5
           warmup_iterations: 2
           payload:
