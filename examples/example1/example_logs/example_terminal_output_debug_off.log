@@ -1,0 +1,536 @@
+[2025-07-30 16:19:38,409][DL_COMM][INFO] - -------------------------------------------------------------------------
+[2025-07-30 16:19:38,412][DL_COMM][INFO] - [CONFIG] Loading schema and validating user YAML
+[2025-07-30 16:19:38,412][DL_COMM][INFO] - [DEBUG] Current working directory: /lus/flare/projects/datascience_collab/mcim/workspace/gpu-comm/DLcomm_benchmark/examples
+[2025-07-30 16:19:38,413][DL_COMM][INFO] - [DEBUG] Script location: /lus/flare/projects/datascience_collab/mcim/workspace/gpu-comm/DLcomm_benchmark/dl_comm
+[2025-07-30 16:19:38,413][DL_COMM][INFO] - [DEBUG] Implementations to run: ['ULYSS-alltoallsingle', 'SP-FSDP-reducescatter', 'grad-sync', 'flat']
+[2025-07-30 16:19:38,413][DL_COMM][INFO] - [DEBUG] Config loaded successfully
+[2025-07-30 16:19:41,478][DL_COMM][INFO] - 
+[2025-07-30 16:19:41,478][DL_COMM][INFO] - [SYSTEM] Collecting environment information...
+[2025-07-30 16:19:41,478][DL_COMM][INFO] - [SYSTEM] ======================================================
+[2025-07-30 16:19:41,478][DL_COMM][INFO] - [SYSTEM] PyTorch version: 2.5.1+cxx11.abi
+[2025-07-30 16:19:41,478][DL_COMM][INFO] - [SYSTEM] CUDA used to build PyTorch: N/A
+[2025-07-30 16:19:41,478][DL_COMM][INFO] - 
+[2025-07-30 16:19:41,482][DL_COMM][INFO] - [SYSTEM] OS: Linux-5.14.21-150400.24.55-default-x86_64-with-glibc2.31
+[2025-07-30 16:19:41,487][DL_COMM][INFO] - [SYSTEM] GCC version: gcc (Spack GCC) 13.3.0
+[2025-07-30 16:19:41,487][DL_COMM][INFO] - 
+[2025-07-30 16:19:41,487][DL_COMM][INFO] - [SYSTEM] Python version: 3.10.14 | packaged by conda-forge | (main, Mar 20 2024, 12:45:18) [GCC 12.3.0]
+[2025-07-30 16:19:41,487][DL_COMM][INFO] - [SYSTEM] Python platform: Linux-5.14.21-150400.24.55-default-x86_64-with-glibc2.31
+[2025-07-30 16:19:41,487][DL_COMM][INFO] - [SYSTEM] Is CUDA available: False
+[2025-07-30 16:19:41,487][DL_COMM][INFO] - [SYSTEM] CUDA runtime version: N/A
+[2025-07-30 16:19:41,487][DL_COMM][INFO] - [SYSTEM] GPU models and configuration: N/A
+[2025-07-30 16:19:41,502][DL_COMM][INFO] - [SYSTEM] Is XPU available: True
+[2025-07-30 16:19:41,503][DL_COMM][INFO] - [SYSTEM] XPU device count: 12
+[2025-07-30 16:19:41,503][DL_COMM][INFO] - 
+[2025-07-30 16:19:41,503][DL_COMM][INFO] - [SYSTEM] Distributed Backend Availability:
+[2025-07-30 16:19:41,503][DL_COMM][INFO] - [SYSTEM] NCCL backend available: False
+[2025-07-30 16:19:41,503][DL_COMM][INFO] - [SYSTEM] MPI backend available: False
+[2025-07-30 16:19:41,503][DL_COMM][INFO] - [SYSTEM] XCCL backend available: Unknown (API not available)
+[2025-07-30 16:19:41,503][DL_COMM][INFO] - 
+[2025-07-30 16:19:41,503][DL_COMM][INFO] - [SYSTEM] Versions of relevant libraries:
+[2025-07-30 16:19:41,503][DL_COMM][INFO] - [SYSTEM] numpy: 1.26.4
+[2025-07-30 16:19:41,503][DL_COMM][INFO] - [SYSTEM] mpi4py: 3.1.6
+[2025-07-30 16:19:41,503][DL_COMM][INFO] - [SYSTEM] hydra-core: 1.3.2
+[2025-07-30 16:19:41,503][DL_COMM][INFO] - [SYSTEM] omegaconf: 2.3.0
+[2025-07-30 16:19:41,503][DL_COMM][INFO] - [SYSTEM] oneccl_bindings_for_pytorch: 2.5.0+xpu
+[2025-07-30 16:19:41,503][DL_COMM][INFO] - [SYSTEM] intel_extension_for_pytorch: 2.5.10+xpu
+[2025-07-30 16:19:41,503][DL_COMM][INFO] - 
+[2025-07-30 16:19:41,503][DL_COMM][INFO] - [SYSTEM] Relevant Environment Variables:
+[2025-07-30 16:19:41,503][DL_COMM][INFO] - [SYSTEM] CCL_ATL_SHM                    = 0
+[2025-07-30 16:19:41,503][DL_COMM][INFO] - [SYSTEM] CCL_ATL_TRANSPORT              = mpi
+[2025-07-30 16:19:41,503][DL_COMM][INFO] - [SYSTEM] CCL_CONFIGURATION              = cpu_gpu_dpcpp
+[2025-07-30 16:19:41,503][DL_COMM][INFO] - [SYSTEM] CCL_CONFIGURATION_PATH         = 
+[2025-07-30 16:19:41,503][DL_COMM][INFO] - [SYSTEM] CCL_ENABLE_AUTO_CACHE          = 0
+[2025-07-30 16:19:41,503][DL_COMM][INFO] - [SYSTEM] CCL_KVS_CONNECTION_TIMEOUT     = 600
+[2025-07-30 16:19:41,503][DL_COMM][INFO] - [SYSTEM] CCL_KVS_MODE                   = mpi
+[2025-07-30 16:19:41,503][DL_COMM][INFO] - [SYSTEM] CCL_OP_SYNC                    = 1
+[2025-07-30 16:19:41,503][DL_COMM][INFO] - [SYSTEM] CCL_PROCESS_LAUNCHER           = pmix
+[2025-07-30 16:19:41,503][DL_COMM][INFO] - [SYSTEM] CCL_ROOT                       = /opt/aurora/24.347.0/oneapi/ccl/latest
+[2025-07-30 16:19:41,503][DL_COMM][INFO] - [SYSTEM] FI_CXI_CQ_FILL_PERCENT         = 30
+[2025-07-30 16:19:41,503][DL_COMM][INFO] - [SYSTEM] FI_CXI_DEFAULT_CQ_SIZE         = 1048576
+[2025-07-30 16:19:41,503][DL_COMM][INFO] - [SYSTEM] FI_CXI_OFLOW_BUF_SIZE          = 8388608
+[2025-07-30 16:19:41,503][DL_COMM][INFO] - [SYSTEM] FI_CXI_RX_MATCH_MODE           = hybrid
+[2025-07-30 16:19:41,503][DL_COMM][INFO] - [SYSTEM] FI_MR_CACHE_MONITOR            = userfaultfd
+[2025-07-30 16:19:41,503][DL_COMM][INFO] - [SYSTEM] FI_PROVIDER                    = cxi,tcp;ofi_rxm
+[2025-07-30 16:19:41,504][DL_COMM][INFO] - [SYSTEM] MPIR_CVAR_CH4_OFI_MAX_NICS     = 1
+[2025-07-30 16:19:41,504][DL_COMM][INFO] - [SYSTEM] __LMOD_STACK_FI_PROVIDER       = Y3hpLHRjcDtvZmlfcnht
+[2025-07-30 16:19:41,504][DL_COMM][INFO] - [SYSTEM] __LMOD_STACK_MPIR_CVAR_CH4_OFI_MAX_NICS = MQ==
+[2025-07-30 16:19:41,504][DL_COMM][INFO] - [SYSTEM] ======================================================
+[2025-07-30 16:19:41,504][DL_COMM][INFO] - 
+[2025-07-30 16:19:41,506][DL_COMM][INFO] - [MPI][VALIDATION] World size: 24, Max required: 8 (mode: grad-sync_across_node)
+[2025-07-30 16:19:41,506][DL_COMM][INFO] - [MPI][VALIDATION] Mode requirements: {'ULYSS-alltoallsingle_within_node': 4, 'SP-FSDP-reducescatter_within_node': 4, 'grad-sync_across_node': 8, 'flat_flatview': 6}
+[2025-07-30 16:19:41,801][DL_COMM][INFO] - 
+[2025-07-30 16:19:41,801][DL_COMM][INFO] - ================================================================================
+[2025-07-30 16:19:41,801][DL_COMM][INFO] - [IMPLEMENTATION 1/4] ==================== ULYSS-ALLTOALLSINGLE ====================
+[2025-07-30 16:19:41,801][DL_COMM][INFO] - ================================================================================
+[2025-07-30 16:19:41,801][DL_COMM][INFO] - 
+[2025-07-30 16:19:41,801][DL_COMM][INFO] - 
+[2025-07-30 16:19:41,801][DL_COMM][INFO] - [MODE 1/1] ---------- WITHIN_NODE ----------
+[2025-07-30 16:19:41,801][DL_COMM][INFO] - 
+[2025-07-30 16:19:41,802][DL_COMM][WARNING] - [VALIDATION] Cannot check CCL/XCCL availability (API not available)
+[2025-07-30 16:19:41,802][DL_COMM][INFO] - 
+[2025-07-30 16:19:41,802][DL_COMM][INFO] - [CONFIG] Setup
+[2025-07-30 16:19:41,802][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-07-30 16:19:41,802][DL_COMM][INFO] - [CONFIG] Implementation       : ULYSS-alltoallsingle
+[2025-07-30 16:19:41,802][DL_COMM][INFO] - [CONFIG] Framework            : pytorch
+[2025-07-30 16:19:41,802][DL_COMM][INFO] - [CONFIG] Backend              : ccl
+[2025-07-30 16:19:41,802][DL_COMM][INFO] - [CONFIG] Use Profiler         : unitrace
+[2025-07-30 16:19:41,802][DL_COMM][INFO] - [CONFIG] Barrier Enabled      : True
+[2025-07-30 16:19:41,802][DL_COMM][INFO] - [CONFIG] World Size           : 8
+[2025-07-30 16:19:41,802][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-07-30 16:19:41,802][DL_COMM][INFO] - 
+[2025-07-30 16:19:41,802][DL_COMM][INFO] - [CONFIG] Communication Group
+[2025-07-30 16:19:41,802][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-07-30 16:19:41,802][DL_COMM][INFO] - [CONFIG] Mode                 : within_node
+[2025-07-30 16:19:41,802][DL_COMM][INFO] - [CONFIG] Topology             : 2 nodes x 2 GPUs
+[2025-07-30 16:19:41,802][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-07-30 16:19:41,802][DL_COMM][INFO] - 
+[2025-07-30 16:19:41,802][DL_COMM][INFO] - [CONFIG] Communication Group Details
+[2025-07-30 16:19:41,802][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-07-30 16:19:41,802][DL_COMM][INFO] - [CONFIG] Collective Name      : allreduce
+[2025-07-30 16:19:41,802][DL_COMM][INFO] - [CONFIG] Operation            : min
+[2025-07-30 16:19:41,802][DL_COMM][INFO] - [CONFIG] Scale Up Algorithm   : topo
+[2025-07-30 16:19:41,803][DL_COMM][INFO] - [CONFIG] Scale Out Algorithm  : topo
+[2025-07-30 16:19:41,803][DL_COMM][INFO] - [CONFIG] Data Type            : bfloat16
+[2025-07-30 16:19:41,803][DL_COMM][INFO] - [CONFIG] Element Count        : 512
+[2025-07-30 16:19:41,803][DL_COMM][INFO] - [CONFIG] Buffer Size          : 1KB (1024 bytes)
+[2025-07-30 16:19:41,803][DL_COMM][INFO] - [CONFIG] Iterations           : 5
+[2025-07-30 16:19:41,803][DL_COMM][INFO] - [CONFIG] Verify Correctness   : True
+[2025-07-30 16:19:41,803][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-07-30 16:19:41,803][DL_COMM][INFO] - 
+[2025-07-30 16:19:41,803][DL_COMM][INFO] - [COMM][CONFIG] Setting up communication groups for mode: Within
+[2025-07-30 16:19:41,803][DL_COMM][INFO] - [COMM][CONFIG] Within-node: 2 GPUs per node, Device IDs: [0, 1]
+[2025-07-30 16:19:41,803][DL_COMM][INFO] - [COMM][GROUP CREATION] Within-node groups:
+[2025-07-30 16:19:41,803][DL_COMM][INFO] - 
+[2025-07-30 16:19:41,803][DL_COMM][INFO] - [COMM][GROUP CREATION][Within Group-0] Ranks: [0, 1], Required GPUs: [0, 1], Logging: rank 0
+[2025-07-30 16:19:41,803][DL_COMM][INFO] - [COMM][GROUP CREATION][Within Group-1] Ranks: [4, 5], Required GPUs: [0, 1], Logging: rank 4
+[2025-07-30 16:19:41,803][DL_COMM][INFO] - [COMM][GROUP CREATION] Created 2 within-node groups
+[2025-07-30 16:19:41,803][DL_COMM][INFO] - 
+[2025-07-30 16:19:42,049][DL_COMM][OUTPUT] - 
+[2025-07-30 16:19:42,049][DL_COMM][OUTPUT] - [TIMERS - SETUP] -------------------------------------------
+[2025-07-30 16:19:42,049][DL_COMM][OUTPUT] - [TIMERS][LOGGING RANK - 0] import time              = 3.065345 s
+[2025-07-30 16:19:42,049][DL_COMM][OUTPUT] - [TIMERS][LOGGING RANK - 0] init time                = 0.002998 s
+[2025-07-30 16:19:42,049][DL_COMM][OUTPUT] - [TIMERS][LOGGING RANK - 0] Group Creation (Within)  = 0.000349 s
+[2025-07-30 16:19:42,049][DL_COMM][OUTPUT] - [TIMERS - SETUP] -------------------------------------------
+[2025-07-30 16:19:42,049][DL_COMM][OUTPUT] - 
+[2025-07-30 16:19:42,049][DL_COMM][OUTPUT] - [MPI] Launching profiling job
+[2025-07-30 16:19:42,049][DL_COMM][INFO] - 
+[2025-07-30 16:19:42,049][DL_COMM][INFO] -   [WARMUP] Running 2 warmup iterations...
+2025:07:30-16:19:42:(133067) |CCL_WARN| value of CCL_KVS_MODE changed to be mpi (default:pmi)
+2025:07:30-16:19:42:(133067) |CCL_WARN| value of CCL_KVS_CONNECTION_TIMEOUT changed to be 600 (default:120)
+2025:07:30-16:19:42:(133067) |CCL_WARN| value of CCL_ENABLE_AUTO_CACHE changed to be 0 (default:1)
+2025:07:30-16:19:42:(133067) |CCL_WARN| value of CCL_ALLREDUCE changed to be topo (default:)
+2025:07:30-16:19:42:(133067) |CCL_WARN| value of CCL_ALLREDUCE_SCALEOUT changed to be topo (default:)
+2025:07:30-16:19:42:(133067) |CCL_WARN| value of CCL_OP_SYNC changed to be 1 (default:0)
+2025:07:30-16:19:42:(133067) |CCL_WARN| value of CCL_PROCESS_LAUNCHER changed to be pmix (default:hydra)
+[2025-07-30 16:19:51,406][DL_COMM][INFO] -   [WARMUP] Warmup completed, starting timed iterations...
+[2025-07-30 16:19:51,407][DL_COMM][INFO] - 
+[2025-07-30 16:19:51,553][DL_COMM][OUTPUT] - [CORRECTNESS][Within-Group-1] AllReduce verification [PASSED] - All 2 ranks received correct values
+[2025-07-30 16:19:51,557][DL_COMM][OUTPUT] - [CORRECTNESS][Within-Group-0] AllReduce verification [PASSED] - All 2 ranks received correct values
+[2025-07-30 16:19:51,561][DL_COMM][OUTPUT] - 
+[2025-07-30 16:19:51,561][DL_COMM][OUTPUT] - [TIMERS] -------------------------------------------
+[2025-07-30 16:19:51,561][DL_COMM][OUTPUT] - 
+[2025-07-30 16:19:51,561][DL_COMM][INFO] -   [TIMERS] [BARRIER ENABLED] Timing measurements used MPI barriers for synchronization
+[2025-07-30 16:19:51,561][DL_COMM][OUTPUT] - 
+[2025-07-30 16:19:51,561][DL_COMM][OUTPUT] - [TIMERS] ITERATION TABLE FOR ALLREDUCE:
+[2025-07-30 16:19:51,561][DL_COMM][OUTPUT] - Iteration     (Within-Group-0)    (Within-Group-1)  
+[2025-07-30 16:19:51,561][DL_COMM][OUTPUT] -               LOGGING RANK - 0    LOGGING RANK - 4  
+[2025-07-30 16:19:51,562][DL_COMM][OUTPUT] - ----------------------------------------------------
+[2025-07-30 16:19:51,562][DL_COMM][OUTPUT] - 0                 0.000291            0.003975      
+[2025-07-30 16:19:51,562][DL_COMM][OUTPUT] - 1                 0.001896            0.000391      
+[2025-07-30 16:19:51,562][DL_COMM][OUTPUT] - 2                 0.000282            0.000318      
+[2025-07-30 16:19:51,562][DL_COMM][OUTPUT] - 3                 0.000285            0.000287      
+[2025-07-30 16:19:51,562][DL_COMM][OUTPUT] - 4                 0.000270            0.000287      
+[2025-07-30 16:19:51,562][DL_COMM][OUTPUT] - ----------------------------------------------------
+[2025-07-30 16:19:51,562][DL_COMM][OUTPUT] - 
+[2025-07-30 16:19:51,562][DL_COMM][OUTPUT] - [TIMERS] -------------------------------------------
+[2025-07-30 16:19:51,562][DL_COMM][OUTPUT] - 
+[2025-07-30 16:19:51,562][DL_COMM][OUTPUT] - [BANDWIDTH] -------------------------------------------
+[2025-07-30 16:19:51,562][DL_COMM][OUTPUT] - [BANDWIDTH] Communication Group Bandwidths:
+[2025-07-30 16:19:51,562][DL_COMM][OUTPUT] - 
+[2025-07-30 16:19:51,562][DL_COMM][OUTPUT] - [BANDWIDTH] Within-Group-0:
+[2025-07-30 16:19:51,562][DL_COMM][OUTPUT] - [BANDWIDTH]   Group Size     : 2 GPUs
+[2025-07-30 16:19:51,562][DL_COMM][OUTPUT] - [BANDWIDTH]   Buffer Size    : 1024 bytes
+[2025-07-30 16:19:51,562][DL_COMM][OUTPUT] - [BANDWIDTH]   Time (iter 0)  : 0.000291 s
+[2025-07-30 16:19:51,562][DL_COMM][OUTPUT] - [BANDWIDTH]   Bandwidth      : 7040898 bytes/s
+[2025-07-30 16:19:51,562][DL_COMM][OUTPUT] - [BANDWIDTH]   Logging Rank   : 0
+[2025-07-30 16:19:51,562][DL_COMM][OUTPUT] - 
+[2025-07-30 16:19:51,562][DL_COMM][OUTPUT] - [BANDWIDTH] Within-Group-1:
+[2025-07-30 16:19:51,562][DL_COMM][OUTPUT] - [BANDWIDTH]   Group Size     : 2 GPUs
+[2025-07-30 16:19:51,562][DL_COMM][OUTPUT] - [BANDWIDTH]   Buffer Size    : 1024 bytes
+[2025-07-30 16:19:51,562][DL_COMM][OUTPUT] - [BANDWIDTH]   Time (iter 0)  : 0.003975 s
+[2025-07-30 16:19:51,562][DL_COMM][OUTPUT] - [BANDWIDTH]   Bandwidth      : 515212 bytes/s
+[2025-07-30 16:19:51,562][DL_COMM][OUTPUT] - [BANDWIDTH]   Logging Rank   : 4
+[2025-07-30 16:19:51,562][DL_COMM][OUTPUT] - 
+[2025-07-30 16:19:51,562][DL_COMM][OUTPUT] - [BANDWIDTH] -------------------------------------------
+[2025-07-30 16:19:51,562][DL_COMM][OUTPUT] - 
+[2025-07-30 16:19:51,563][DL_COMM][INFO] - -------------------------------------------------------------------------
+[2025-07-30 16:19:51,563][DL_COMM][INFO] - [MPI] Job complete
+[2025-07-30 16:19:51,563][DL_COMM][INFO] - -------------------------------------------------------------------------
+[2025-07-30 16:19:51,563][DL_COMM][INFO] - -------------------------------------------------------------------------
+[2025-07-30 16:19:51,563][DL_COMM][INFO] - [EXIT] All Done.
+[2025-07-30 16:19:51,563][DL_COMM][INFO] - -------------------------------------------------------------------------
+[2025-07-30 16:19:51,563][DL_COMM][INFO] - 
+[2025-07-30 16:19:51,563][DL_COMM][INFO] - ================================================================================
+[2025-07-30 16:19:51,563][DL_COMM][INFO] - [IMPLEMENTATION 2/4] ==================== SP-FSDP-REDUCESCATTER ====================
+[2025-07-30 16:19:51,563][DL_COMM][INFO] - ================================================================================
+[2025-07-30 16:19:51,563][DL_COMM][INFO] - 
+[2025-07-30 16:19:51,563][DL_COMM][INFO] - 
+[2025-07-30 16:19:51,563][DL_COMM][INFO] - [MODE 1/1] ---------- WITHIN_NODE ----------
+[2025-07-30 16:19:51,563][DL_COMM][INFO] - 
+[2025-07-30 16:19:51,564][DL_COMM][INFO] - 
+[2025-07-30 16:19:51,564][DL_COMM][INFO] - [CONFIG] Setup
+[2025-07-30 16:19:51,564][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-07-30 16:19:51,564][DL_COMM][INFO] - [CONFIG] Implementation       : SP-FSDP-reducescatter
+[2025-07-30 16:19:51,564][DL_COMM][INFO] - [CONFIG] Framework            : pytorch
+[2025-07-30 16:19:51,564][DL_COMM][INFO] - [CONFIG] Backend              : ccl
+[2025-07-30 16:19:51,564][DL_COMM][INFO] - [CONFIG] Use Profiler         : unitrace
+[2025-07-30 16:19:51,564][DL_COMM][INFO] - [CONFIG] Barrier Enabled      : True
+[2025-07-30 16:19:51,564][DL_COMM][INFO] - [CONFIG] World Size           : 8
+[2025-07-30 16:19:51,564][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-07-30 16:19:51,564][DL_COMM][INFO] - 
+[2025-07-30 16:19:51,564][DL_COMM][INFO] - [CONFIG] Communication Group
+[2025-07-30 16:19:51,564][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-07-30 16:19:51,564][DL_COMM][INFO] - [CONFIG] Mode                 : within_node
+[2025-07-30 16:19:51,564][DL_COMM][INFO] - [CONFIG] Topology             : 2 nodes x 2 GPUs
+[2025-07-30 16:19:51,564][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-07-30 16:19:51,564][DL_COMM][INFO] - 
+[2025-07-30 16:19:51,564][DL_COMM][INFO] - [CONFIG] Communication Group Details
+[2025-07-30 16:19:51,564][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-07-30 16:19:51,564][DL_COMM][INFO] - [CONFIG] Collective Name      : reducescatter
+[2025-07-30 16:19:51,564][DL_COMM][INFO] - [CONFIG] Operation            : min
+[2025-07-30 16:19:51,564][DL_COMM][INFO] - [CONFIG] Scale Up Algorithm   : topo
+[2025-07-30 16:19:51,564][DL_COMM][INFO] - [CONFIG] Scale Out Algorithm  : topo
+[2025-07-30 16:19:51,564][DL_COMM][INFO] - [CONFIG] Data Type            : bfloat16
+[2025-07-30 16:19:51,564][DL_COMM][INFO] - [CONFIG] Element Count        : 1024
+[2025-07-30 16:19:51,564][DL_COMM][INFO] - [CONFIG] Count                : 1024 elements (2048 bytes)
+[2025-07-30 16:19:51,564][DL_COMM][INFO] - [CONFIG] Iterations           : 5
+[2025-07-30 16:19:51,564][DL_COMM][INFO] - [CONFIG] Verify Correctness   : True
+[2025-07-30 16:19:51,565][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-07-30 16:19:51,565][DL_COMM][INFO] - 
+[2025-07-30 16:19:51,565][DL_COMM][INFO] - [COMM][CONFIG] Setting up communication groups for mode: Within
+[2025-07-30 16:19:51,565][DL_COMM][INFO] - [COMM][CONFIG] Within-node: 2 GPUs per node, Device IDs: [0, 2]
+[2025-07-30 16:19:51,565][DL_COMM][INFO] - [COMM][GROUP CREATION] Within-node groups:
+[2025-07-30 16:19:51,565][DL_COMM][INFO] - 
+[2025-07-30 16:19:51,565][DL_COMM][INFO] - [COMM][GROUP CREATION][Within Group-0] Ranks: [0, 1], Required GPUs: [0, 2], Logging: rank 0
+[2025-07-30 16:19:51,565][DL_COMM][INFO] - [COMM][GROUP CREATION][Within Group-1] Ranks: [4, 5], Required GPUs: [0, 2], Logging: rank 4
+[2025-07-30 16:19:51,565][DL_COMM][INFO] - [COMM][GROUP CREATION] Created 2 within-node groups
+[2025-07-30 16:19:51,565][DL_COMM][INFO] - 
+[2025-07-30 16:19:51,565][DL_COMM][OUTPUT] - 
+[2025-07-30 16:19:51,565][DL_COMM][OUTPUT] - [TIMERS - SETUP] -------------------------------------------
+[2025-07-30 16:19:51,565][DL_COMM][OUTPUT] - [TIMERS][LOGGING RANK - 0] Group Creation (Within)  = 0.000354 s
+[2025-07-30 16:19:51,565][DL_COMM][OUTPUT] - [TIMERS - SETUP] -------------------------------------------
+[2025-07-30 16:19:51,565][DL_COMM][OUTPUT] - 
+[2025-07-30 16:19:51,566][DL_COMM][OUTPUT] - [MPI] Launching profiling job
+[2025-07-30 16:19:51,566][DL_COMM][INFO] - 
+[2025-07-30 16:19:51,566][DL_COMM][INFO] -   [WARMUP] Running 2 warmup iterations...
+[2025-07-30 16:20:00,701][DL_COMM][INFO] -   [WARMUP] Warmup completed, starting timed iterations...
+[2025-07-30 16:20:00,701][DL_COMM][INFO] - 
+[2025-07-30 16:20:00,819][DL_COMM][OUTPUT] - [CORRECTNESS][Within-Group-1] ReduceScatter verification [PASSED] - All 2 ranks received correct values
+[2025-07-30 16:20:00,824][DL_COMM][OUTPUT] - [CORRECTNESS][Within-Group-0] ReduceScatter verification [PASSED] - All 2 ranks received correct values
+[2025-07-30 16:20:00,827][DL_COMM][OUTPUT] - 
+[2025-07-30 16:20:00,827][DL_COMM][OUTPUT] - [TIMERS] -------------------------------------------
+[2025-07-30 16:20:00,827][DL_COMM][OUTPUT] - 
+[2025-07-30 16:20:00,827][DL_COMM][INFO] -   [TIMERS] [BARRIER ENABLED] Timing measurements used MPI barriers for synchronization
+[2025-07-30 16:20:00,827][DL_COMM][OUTPUT] - 
+[2025-07-30 16:20:00,827][DL_COMM][OUTPUT] - [TIMERS] ITERATION TABLE FOR REDUCESCATTER:
+[2025-07-30 16:20:00,827][DL_COMM][OUTPUT] - Iteration     (Within-Group-0)    (Within-Group-1)  
+[2025-07-30 16:20:00,827][DL_COMM][OUTPUT] -               LOGGING RANK - 0    LOGGING RANK - 4  
+[2025-07-30 16:20:00,827][DL_COMM][OUTPUT] - ----------------------------------------------------
+[2025-07-30 16:20:00,827][DL_COMM][OUTPUT] - 0                 0.000380            0.003859      
+[2025-07-30 16:20:00,827][DL_COMM][OUTPUT] - 1                 0.000543            0.000485      
+[2025-07-30 16:20:00,827][DL_COMM][OUTPUT] - 2                 0.000393            0.000313      
+[2025-07-30 16:20:00,827][DL_COMM][OUTPUT] - 3                 0.000449            0.000284      
+[2025-07-30 16:20:00,827][DL_COMM][OUTPUT] - 4                 0.000434            0.000274      
+[2025-07-30 16:20:00,827][DL_COMM][OUTPUT] - ----------------------------------------------------
+[2025-07-30 16:20:00,827][DL_COMM][OUTPUT] - 
+[2025-07-30 16:20:00,828][DL_COMM][OUTPUT] - [TIMERS] -------------------------------------------
+[2025-07-30 16:20:00,828][DL_COMM][OUTPUT] - 
+[2025-07-30 16:20:00,828][DL_COMM][OUTPUT] - [BANDWIDTH] -------------------------------------------
+[2025-07-30 16:20:00,828][DL_COMM][OUTPUT] - [BANDWIDTH] Communication Group Bandwidths:
+[2025-07-30 16:20:00,828][DL_COMM][OUTPUT] - 
+[2025-07-30 16:20:00,828][DL_COMM][OUTPUT] - [BANDWIDTH] Within-Group-0:
+[2025-07-30 16:20:00,828][DL_COMM][OUTPUT] - [BANDWIDTH]   Group Size     : 2 GPUs
+[2025-07-30 16:20:00,828][DL_COMM][OUTPUT] - [BANDWIDTH]   Buffer Size    : 2048 bytes
+[2025-07-30 16:20:00,828][DL_COMM][OUTPUT] - [BANDWIDTH]   Time (iter 0)  : 0.000380 s
+[2025-07-30 16:20:00,828][DL_COMM][OUTPUT] - [BANDWIDTH]   Bandwidth      : 10771775 bytes/s
+[2025-07-30 16:20:00,828][DL_COMM][OUTPUT] - [BANDWIDTH]   Logging Rank   : 0
+[2025-07-30 16:20:00,828][DL_COMM][OUTPUT] - 
+[2025-07-30 16:20:00,828][DL_COMM][OUTPUT] - [BANDWIDTH] Within-Group-1:
+[2025-07-30 16:20:00,828][DL_COMM][OUTPUT] - [BANDWIDTH]   Group Size     : 2 GPUs
+[2025-07-30 16:20:00,828][DL_COMM][OUTPUT] - [BANDWIDTH]   Buffer Size    : 2048 bytes
+[2025-07-30 16:20:00,828][DL_COMM][OUTPUT] - [BANDWIDTH]   Time (iter 0)  : 0.003859 s
+[2025-07-30 16:20:00,828][DL_COMM][OUTPUT] - [BANDWIDTH]   Bandwidth      : 1061548 bytes/s
+[2025-07-30 16:20:00,828][DL_COMM][OUTPUT] - [BANDWIDTH]   Logging Rank   : 4
+[2025-07-30 16:20:00,828][DL_COMM][OUTPUT] - 
+[2025-07-30 16:20:00,828][DL_COMM][OUTPUT] - [BANDWIDTH] -------------------------------------------
+[2025-07-30 16:20:00,828][DL_COMM][OUTPUT] - 
+[2025-07-30 16:20:00,828][DL_COMM][INFO] - -------------------------------------------------------------------------
+[2025-07-30 16:20:00,828][DL_COMM][INFO] - [MPI] Job complete
+[2025-07-30 16:20:00,828][DL_COMM][INFO] - -------------------------------------------------------------------------
+[2025-07-30 16:20:00,828][DL_COMM][INFO] - -------------------------------------------------------------------------
+[2025-07-30 16:20:00,828][DL_COMM][INFO] - [EXIT] All Done.
+[2025-07-30 16:20:00,828][DL_COMM][INFO] - -------------------------------------------------------------------------
+[2025-07-30 16:20:00,828][DL_COMM][INFO] - 
+[2025-07-30 16:20:00,828][DL_COMM][INFO] - ================================================================================
+[2025-07-30 16:20:00,828][DL_COMM][INFO] - [IMPLEMENTATION 3/4] ==================== GRAD-SYNC ====================
+[2025-07-30 16:20:00,829][DL_COMM][INFO] - ================================================================================
+[2025-07-30 16:20:00,829][DL_COMM][INFO] - 
+[2025-07-30 16:20:00,829][DL_COMM][INFO] - 
+[2025-07-30 16:20:00,829][DL_COMM][INFO] - [MODE 1/1] ---------- ACROSS_NODE ----------
+[2025-07-30 16:20:00,829][DL_COMM][INFO] - 
+[2025-07-30 16:20:00,829][DL_COMM][INFO] - 
+[2025-07-30 16:20:00,829][DL_COMM][INFO] - [CONFIG] Setup
+[2025-07-30 16:20:00,829][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-07-30 16:20:00,829][DL_COMM][INFO] - [CONFIG] Implementation       : grad-sync
+[2025-07-30 16:20:00,829][DL_COMM][INFO] - [CONFIG] Framework            : pytorch
+[2025-07-30 16:20:00,830][DL_COMM][INFO] - [CONFIG] Backend              : ccl
+[2025-07-30 16:20:00,830][DL_COMM][INFO] - [CONFIG] Use Profiler         : unitrace
+[2025-07-30 16:20:00,830][DL_COMM][INFO] - [CONFIG] Barrier Enabled      : True
+[2025-07-30 16:20:00,830][DL_COMM][INFO] - [CONFIG] World Size           : 8
+[2025-07-30 16:20:00,830][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-07-30 16:20:00,830][DL_COMM][INFO] - 
+[2025-07-30 16:20:00,830][DL_COMM][INFO] - [CONFIG] Communication Group
+[2025-07-30 16:20:00,830][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-07-30 16:20:00,830][DL_COMM][INFO] - [CONFIG] Mode                 : across_node
+[2025-07-30 16:20:00,830][DL_COMM][INFO] - [CONFIG] Topology             : 2 nodes x 4 GPUs
+[2025-07-30 16:20:00,830][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-07-30 16:20:00,830][DL_COMM][INFO] - 
+[2025-07-30 16:20:00,830][DL_COMM][INFO] - [CONFIG] Communication Group Details
+[2025-07-30 16:20:00,830][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-07-30 16:20:00,830][DL_COMM][INFO] - [CONFIG] Collective Name      : allreduce
+[2025-07-30 16:20:00,830][DL_COMM][INFO] - [CONFIG] Operation            : min
+[2025-07-30 16:20:00,830][DL_COMM][INFO] - [CONFIG] Scale Up Algorithm   : topo
+[2025-07-30 16:20:00,830][DL_COMM][INFO] - [CONFIG] Scale Out Algorithm  : topo
+[2025-07-30 16:20:00,830][DL_COMM][INFO] - [CONFIG] Data Type            : bfloat16
+[2025-07-30 16:20:00,830][DL_COMM][INFO] - [CONFIG] Element Count        : 1024
+[2025-07-30 16:20:00,830][DL_COMM][INFO] - [CONFIG] Count                : 1024 elements (2048 bytes)
+[2025-07-30 16:20:00,830][DL_COMM][INFO] - [CONFIG] Iterations           : 5
+[2025-07-30 16:20:00,830][DL_COMM][INFO] - [CONFIG] Verify Correctness   : True
+[2025-07-30 16:20:00,830][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-07-30 16:20:00,830][DL_COMM][INFO] - 
+[2025-07-30 16:20:00,830][DL_COMM][INFO] - 
+[2025-07-30 16:20:00,830][DL_COMM][INFO] - [COMM][CONFIG] Setting up communication groups for mode: Across
+[2025-07-30 16:20:00,831][DL_COMM][INFO] - [COMM][CONFIG] Across-node: 2 nodes, 4 GPUs per node, Device IDs: [0, 1, 2, 3]
+[2025-07-30 16:20:00,831][DL_COMM][INFO] - [COMM][GROUP CREATION] Across-node groups:
+[2025-07-30 16:20:00,831][DL_COMM][INFO] - [COMM][GROUP CREATION][Across Group-0] Ranks: [0, 4], GPU ID: 0, Logging: rank 0
+[2025-07-30 16:20:00,831][DL_COMM][INFO] - [COMM][GROUP CREATION][Across Group-1] Ranks: [1, 5], GPU ID: 1, Logging: rank 1
+[2025-07-30 16:20:00,831][DL_COMM][INFO] - [COMM][GROUP CREATION][Across Group-2] Ranks: [2, 6], GPU ID: 2, Logging: rank 2
+[2025-07-30 16:20:00,831][DL_COMM][INFO] - [COMM][GROUP CREATION][Across Group-3] Ranks: [3, 7], GPU ID: 3, Logging: rank 3
+[2025-07-30 16:20:00,831][DL_COMM][INFO] - [COMM][GROUP CREATION] Created 4 across-node groups
+[2025-07-30 16:20:00,831][DL_COMM][INFO] - 
+[2025-07-30 16:20:00,831][DL_COMM][OUTPUT] - 
+[2025-07-30 16:20:00,831][DL_COMM][OUTPUT] - [TIMERS - SETUP] -------------------------------------------
+[2025-07-30 16:20:00,831][DL_COMM][OUTPUT] - [TIMERS][LOGGING RANK - 0] Group Creation (Across)  = 0.000437 s
+[2025-07-30 16:20:00,831][DL_COMM][OUTPUT] - [TIMERS - SETUP] -------------------------------------------
+[2025-07-30 16:20:00,831][DL_COMM][OUTPUT] - 
+[2025-07-30 16:20:00,831][DL_COMM][OUTPUT] - [MPI] Launching profiling job
+[2025-07-30 16:20:00,831][DL_COMM][INFO] - 
+[2025-07-30 16:20:00,831][DL_COMM][INFO] -   [WARMUP] Running 2 warmup iterations...
+2025:07:30-16:20:00:(133068) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:07:30-16:20:00:(133068) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:07:30-16:20:00:(133072) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:07:30-16:20:00:(133072) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:07:30-16:20:00:(133067) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:07:30-16:20:00:(133067) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:07:30-16:20:00:(133071) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:07:30-16:20:00:(133071) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:07:30-16:20:00:(133069) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:07:30-16:20:00:(133069) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:07:30-16:20:00:(133070) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:07:30-16:20:00:(133070) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:07:30-16:20:00:(133074) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:07:30-16:20:00:(133074) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:07:30-16:20:00:(133073) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:07:30-16:20:00:(133073) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+[2025-07-30 16:20:00,914][DL_COMM][INFO] -   [WARMUP] Warmup completed, starting timed iterations...
+[2025-07-30 16:20:00,914][DL_COMM][INFO] - 
+[2025-07-30 16:20:00,922][DL_COMM][OUTPUT] - [CORRECTNESS][Across-Group-0] AllReduce verification [PASSED] - All 2 ranks received correct values
+[2025-07-30 16:20:00,930][DL_COMM][OUTPUT] - [CORRECTNESS][Across-Group-1] AllReduce verification [PASSED] - All 2 ranks received correct values
+[2025-07-30 16:20:01,069][DL_COMM][OUTPUT] - [CORRECTNESS][Across-Group-3] AllReduce verification [PASSED] - All 2 ranks received correct values
+[2025-07-30 16:20:01,070][DL_COMM][OUTPUT] - [CORRECTNESS][Across-Group-2] AllReduce verification [PASSED] - All 2 ranks received correct values
+[2025-07-30 16:20:01,077][DL_COMM][OUTPUT] - 
+[2025-07-30 16:20:01,077][DL_COMM][OUTPUT] - [TIMERS] -------------------------------------------
+[2025-07-30 16:20:01,078][DL_COMM][OUTPUT] - 
+[2025-07-30 16:20:01,078][DL_COMM][INFO] -   [TIMERS] [BARRIER ENABLED] Timing measurements used MPI barriers for synchronization
+[2025-07-30 16:20:01,078][DL_COMM][OUTPUT] - 
+[2025-07-30 16:20:01,078][DL_COMM][OUTPUT] - [TIMERS] ITERATION TABLE FOR ALLREDUCE:
+[2025-07-30 16:20:01,078][DL_COMM][OUTPUT] - Iteration     (Across-Group-0)    (Across-Group-1)    (Across-Group-2)    (Across-Group-3)  
+[2025-07-30 16:20:01,078][DL_COMM][OUTPUT] -               LOGGING RANK - 0    LOGGING RANK - 1    LOGGING RANK - 2    LOGGING RANK - 3  
+[2025-07-30 16:20:01,078][DL_COMM][OUTPUT] - --------------------------------------------------------------------------------------------
+[2025-07-30 16:20:01,078][DL_COMM][OUTPUT] - 0                 0.005464            0.005502            0.000362            0.000420      
+[2025-07-30 16:20:01,078][DL_COMM][OUTPUT] - 1                 0.000397            0.002663            0.005294            0.004055      
+[2025-07-30 16:20:01,078][DL_COMM][OUTPUT] - 2                 0.000398            0.000403            0.000392            0.000433      
+[2025-07-30 16:20:01,078][DL_COMM][OUTPUT] - 3                 0.000372            0.000424            0.000360            0.000418      
+[2025-07-30 16:20:01,078][DL_COMM][OUTPUT] - 4                 0.000429            0.000416            0.000362            0.000381      
+[2025-07-30 16:20:01,078][DL_COMM][OUTPUT] - --------------------------------------------------------------------------------------------
+[2025-07-30 16:20:01,078][DL_COMM][OUTPUT] - 
+[2025-07-30 16:20:01,078][DL_COMM][OUTPUT] - [TIMERS] -------------------------------------------
+[2025-07-30 16:20:01,078][DL_COMM][OUTPUT] - 
+[2025-07-30 16:20:01,078][DL_COMM][OUTPUT] - [BANDWIDTH] -------------------------------------------
+[2025-07-30 16:20:01,078][DL_COMM][OUTPUT] - [BANDWIDTH] Communication Group Bandwidths:
+[2025-07-30 16:20:01,078][DL_COMM][OUTPUT] - 
+[2025-07-30 16:20:01,078][DL_COMM][OUTPUT] - [BANDWIDTH] Across-Group-0:
+[2025-07-30 16:20:01,079][DL_COMM][OUTPUT] - [BANDWIDTH]   Group Size     : 2 GPUs
+[2025-07-30 16:20:01,079][DL_COMM][OUTPUT] - [BANDWIDTH]   Buffer Size    : 2048 bytes
+[2025-07-30 16:20:01,079][DL_COMM][OUTPUT] - [BANDWIDTH]   Time (iter 0)  : 0.005464 s
+[2025-07-30 16:20:01,079][DL_COMM][OUTPUT] - [BANDWIDTH]   Bandwidth      : 749671 bytes/s
+[2025-07-30 16:20:01,079][DL_COMM][OUTPUT] - [BANDWIDTH]   Logging Rank   : 0
+[2025-07-30 16:20:01,079][DL_COMM][OUTPUT] - 
+[2025-07-30 16:20:01,079][DL_COMM][OUTPUT] - [BANDWIDTH] Across-Group-1:
+[2025-07-30 16:20:01,079][DL_COMM][OUTPUT] - [BANDWIDTH]   Group Size     : 2 GPUs
+[2025-07-30 16:20:01,079][DL_COMM][OUTPUT] - [BANDWIDTH]   Buffer Size    : 2048 bytes
+[2025-07-30 16:20:01,079][DL_COMM][OUTPUT] - [BANDWIDTH]   Time (iter 0)  : 0.005502 s
+[2025-07-30 16:20:01,079][DL_COMM][OUTPUT] - [BANDWIDTH]   Bandwidth      : 744466 bytes/s
+[2025-07-30 16:20:01,079][DL_COMM][OUTPUT] - [BANDWIDTH]   Logging Rank   : 1
+[2025-07-30 16:20:01,079][DL_COMM][OUTPUT] - 
+[2025-07-30 16:20:01,079][DL_COMM][OUTPUT] - [BANDWIDTH] Across-Group-2:
+[2025-07-30 16:20:01,079][DL_COMM][OUTPUT] - [BANDWIDTH]   Group Size     : 2 GPUs
+[2025-07-30 16:20:01,079][DL_COMM][OUTPUT] - [BANDWIDTH]   Buffer Size    : 2048 bytes
+[2025-07-30 16:20:01,079][DL_COMM][OUTPUT] - [BANDWIDTH]   Time (iter 0)  : 0.000362 s
+[2025-07-30 16:20:01,079][DL_COMM][OUTPUT] - [BANDWIDTH]   Bandwidth      : 11309575 bytes/s
+[2025-07-30 16:20:01,079][DL_COMM][OUTPUT] - [BANDWIDTH]   Logging Rank   : 2
+[2025-07-30 16:20:01,079][DL_COMM][OUTPUT] - 
+[2025-07-30 16:20:01,079][DL_COMM][OUTPUT] - [BANDWIDTH] Across-Group-3:
+[2025-07-30 16:20:01,079][DL_COMM][OUTPUT] - [BANDWIDTH]   Group Size     : 2 GPUs
+[2025-07-30 16:20:01,079][DL_COMM][OUTPUT] - [BANDWIDTH]   Buffer Size    : 2048 bytes
+[2025-07-30 16:20:01,079][DL_COMM][OUTPUT] - [BANDWIDTH]   Time (iter 0)  : 0.000420 s
+[2025-07-30 16:20:01,079][DL_COMM][OUTPUT] - [BANDWIDTH]   Bandwidth      : 9757469 bytes/s
+[2025-07-30 16:20:01,079][DL_COMM][OUTPUT] - [BANDWIDTH]   Logging Rank   : 3
+[2025-07-30 16:20:01,079][DL_COMM][OUTPUT] - 
+[2025-07-30 16:20:01,079][DL_COMM][OUTPUT] - [BANDWIDTH] -------------------------------------------
+[2025-07-30 16:20:01,079][DL_COMM][OUTPUT] - 
+[2025-07-30 16:20:01,079][DL_COMM][INFO] - -------------------------------------------------------------------------
+[2025-07-30 16:20:01,079][DL_COMM][INFO] - [MPI] Job complete
+[2025-07-30 16:20:01,079][DL_COMM][INFO] - -------------------------------------------------------------------------
+[2025-07-30 16:20:01,079][DL_COMM][INFO] - -------------------------------------------------------------------------
+[2025-07-30 16:20:01,079][DL_COMM][INFO] - [EXIT] All Done.
+[2025-07-30 16:20:01,079][DL_COMM][INFO] - -------------------------------------------------------------------------
+[2025-07-30 16:20:01,079][DL_COMM][INFO] - 
+[2025-07-30 16:20:01,079][DL_COMM][INFO] - ================================================================================
+[2025-07-30 16:20:01,079][DL_COMM][INFO] - [IMPLEMENTATION 4/4] ==================== FLAT ====================
+[2025-07-30 16:20:01,080][DL_COMM][INFO] - ================================================================================
+[2025-07-30 16:20:01,080][DL_COMM][INFO] - 
+[2025-07-30 16:20:01,080][DL_COMM][INFO] - 
+[2025-07-30 16:20:01,080][DL_COMM][INFO] - [MODE 1/1] ---------- FLATVIEW ----------
+[2025-07-30 16:20:01,080][DL_COMM][INFO] - 
+[2025-07-30 16:20:01,080][DL_COMM][INFO] - 
+[2025-07-30 16:20:01,080][DL_COMM][INFO] - [CONFIG] Setup
+[2025-07-30 16:20:01,080][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-07-30 16:20:01,081][DL_COMM][INFO] - [CONFIG] Implementation       : flat
+[2025-07-30 16:20:01,081][DL_COMM][INFO] - [CONFIG] Framework            : pytorch
+[2025-07-30 16:20:01,081][DL_COMM][INFO] - [CONFIG] Backend              : ccl
+[2025-07-30 16:20:01,081][DL_COMM][INFO] - [CONFIG] Use Profiler         : unitrace
+[2025-07-30 16:20:01,081][DL_COMM][INFO] - [CONFIG] Barrier Enabled      : True
+[2025-07-30 16:20:01,081][DL_COMM][INFO] - [CONFIG] World Size           : 8
+[2025-07-30 16:20:01,081][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-07-30 16:20:01,081][DL_COMM][INFO] - 
+[2025-07-30 16:20:01,081][DL_COMM][INFO] - [CONFIG] Communication Group
+[2025-07-30 16:20:01,081][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-07-30 16:20:01,081][DL_COMM][INFO] - [CONFIG] Mode                 : flatview
+[2025-07-30 16:20:01,081][DL_COMM][INFO] - [CONFIG] Topology             : 2 nodes x 3 GPUs
+[2025-07-30 16:20:01,081][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-07-30 16:20:01,081][DL_COMM][INFO] - 
+[2025-07-30 16:20:01,081][DL_COMM][INFO] - [CONFIG] Communication Group Details
+[2025-07-30 16:20:01,081][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-07-30 16:20:01,081][DL_COMM][INFO] - [CONFIG] Collective Name      : allreduce
+[2025-07-30 16:20:01,081][DL_COMM][INFO] - [CONFIG] Operation            : min
+[2025-07-30 16:20:01,081][DL_COMM][INFO] - [CONFIG] Scale Up Algorithm   : topo
+[2025-07-30 16:20:01,081][DL_COMM][INFO] - [CONFIG] Scale Out Algorithm  : topo
+[2025-07-30 16:20:01,081][DL_COMM][INFO] - [CONFIG] Data Type            : bfloat16
+[2025-07-30 16:20:01,081][DL_COMM][INFO] - [CONFIG] Element Count        : 512
+[2025-07-30 16:20:01,081][DL_COMM][INFO] - [CONFIG] Buffer Size          : 1KB (1024 bytes)
+[2025-07-30 16:20:01,081][DL_COMM][INFO] - [CONFIG] Iterations           : 5
+[2025-07-30 16:20:01,081][DL_COMM][INFO] - [CONFIG] Verify Correctness   : True
+[2025-07-30 16:20:01,081][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-07-30 16:20:01,081][DL_COMM][INFO] - 
+[2025-07-30 16:20:01,081][DL_COMM][INFO] - [COMM][CONFIG] Flatview: 2 nodes, 3 GPUs per node, Device IDs: [0, 1, 3]
+[2025-07-30 16:20:01,081][DL_COMM][INFO] - 
+[2025-07-30 16:20:01,081][DL_COMM][INFO] - [COMM][GROUP CREATION] Flatview groups:
+[2025-07-30 16:20:01,082][DL_COMM][INFO] - [COMM][GROUP CREATION][Flatview] Ranks: [0, 1, 2, 4, 5, 6], Required GPUs: [0, 1, 3], Logging: rank 0
+[2025-07-30 16:20:01,082][DL_COMM][OUTPUT] - 
+[2025-07-30 16:20:01,082][DL_COMM][OUTPUT] - [TIMERS - SETUP] -------------------------------------------
+[2025-07-30 16:20:01,082][DL_COMM][OUTPUT] - [TIMERS - SETUP] -------------------------------------------
+[2025-07-30 16:20:01,082][DL_COMM][OUTPUT] - 
+[2025-07-30 16:20:01,082][DL_COMM][OUTPUT] - [MPI] Launching profiling job
+[2025-07-30 16:20:01,082][DL_COMM][INFO] - 
+[2025-07-30 16:20:01,082][DL_COMM][INFO] -   [WARMUP] Running 2 warmup iterations...
+2025:07:30-16:20:01:(133068) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:07:30-16:20:01:(133068) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:07:30-16:20:01:(133068) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:07:30-16:20:01:(133068) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:07:30-16:20:01:(133068) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:07:30-16:20:01:(133068) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:07:30-16:20:01:(133072) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:07:30-16:20:01:(133072) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:07:30-16:20:01:(133072) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:07:30-16:20:01:(133072) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:07:30-16:20:01:(133072) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:07:30-16:20:01:(133072) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:07:30-16:20:01:(133067) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:07:30-16:20:01:(133067) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:07:30-16:20:01:(133067) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:07:30-16:20:01:(133067) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:07:30-16:20:01:(133067) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:07:30-16:20:01:(133067) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:07:30-16:20:01:(133069) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:07:30-16:20:01:(133069) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:07:30-16:20:01:(133069) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:07:30-16:20:01:(133069) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:07:30-16:20:01:(133069) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:07:30-16:20:01:(133069) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:07:30-16:20:01:(133071) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:07:30-16:20:01:(133071) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:07:30-16:20:01:(133071) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:07:30-16:20:01:(133071) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:07:30-16:20:01:(133071) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:07:30-16:20:01:(133071) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:07:30-16:20:01:(133073) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:07:30-16:20:01:(133073) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:07:30-16:20:01:(133073) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:07:30-16:20:01:(133073) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:07:30-16:20:01:(133073) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:07:30-16:20:01:(133073) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+[2025-07-30 16:20:01,149][DL_COMM][INFO] -   [WARMUP] Warmup completed, starting timed iterations...
+[2025-07-30 16:20:01,149][DL_COMM][INFO] - 
+[2025-07-30 16:20:01,275][DL_COMM][OUTPUT] - [CORRECTNESS][Flatview-Group-All] AllReduce verification [PASSED] - All 6 ranks received correct values
+[2025-07-30 16:20:01,282][DL_COMM][OUTPUT] - 
+[2025-07-30 16:20:01,283][DL_COMM][OUTPUT] - [TIMERS] -------------------------------------------
+[2025-07-30 16:20:01,283][DL_COMM][OUTPUT] - 
+[2025-07-30 16:20:01,283][DL_COMM][INFO] -   [TIMERS] [BARRIER ENABLED] Timing measurements used MPI barriers for synchronization
+[2025-07-30 16:20:01,283][DL_COMM][OUTPUT] - 
+[2025-07-30 16:20:01,283][DL_COMM][OUTPUT] - [TIMERS] ITERATION TABLE FOR ALLREDUCE:
+[2025-07-30 16:20:01,283][DL_COMM][OUTPUT] - Iteration        (Flatview)     
+[2025-07-30 16:20:01,283][DL_COMM][OUTPUT] -               LOGGING RANK - 0  
+[2025-07-30 16:20:01,283][DL_COMM][OUTPUT] - --------------------------------
+[2025-07-30 16:20:01,283][DL_COMM][OUTPUT] - 0                 0.000501      
+[2025-07-30 16:20:01,283][DL_COMM][OUTPUT] - 1                 0.005599      
+[2025-07-30 16:20:01,283][DL_COMM][OUTPUT] - 2                 0.000453      
+[2025-07-30 16:20:01,283][DL_COMM][OUTPUT] - 3                 0.000469      
+[2025-07-30 16:20:01,283][DL_COMM][OUTPUT] - 4                 0.000468      
+[2025-07-30 16:20:01,283][DL_COMM][OUTPUT] - --------------------------------
+[2025-07-30 16:20:01,283][DL_COMM][OUTPUT] - 
+[2025-07-30 16:20:01,283][DL_COMM][OUTPUT] - [TIMERS] -------------------------------------------
+[2025-07-30 16:20:01,283][DL_COMM][OUTPUT] - 
+[2025-07-30 16:20:01,283][DL_COMM][OUTPUT] - [BANDWIDTH] -------------------------------------------
+[2025-07-30 16:20:01,283][DL_COMM][OUTPUT] - [BANDWIDTH] Communication Group Bandwidths:
+[2025-07-30 16:20:01,283][DL_COMM][OUTPUT] - 
+[2025-07-30 16:20:01,283][DL_COMM][OUTPUT] - [BANDWIDTH] Flatview:
+[2025-07-30 16:20:01,283][DL_COMM][OUTPUT] - [BANDWIDTH]   Group Size     : 6 GPUs
+[2025-07-30 16:20:01,283][DL_COMM][OUTPUT] - [BANDWIDTH]   Buffer Size    : 1024 bytes
+[2025-07-30 16:20:01,283][DL_COMM][OUTPUT] - [BANDWIDTH]   Time (iter 0)  : 0.000501 s
+[2025-07-30 16:20:01,283][DL_COMM][OUTPUT] - [BANDWIDTH]   Bandwidth      : 12251294 bytes/s
+[2025-07-30 16:20:01,283][DL_COMM][OUTPUT] - [BANDWIDTH]   Logging Rank   : 0
+[2025-07-30 16:20:01,283][DL_COMM][OUTPUT] - 
+[2025-07-30 16:20:01,284][DL_COMM][OUTPUT] - [BANDWIDTH] -------------------------------------------
+[2025-07-30 16:20:01,284][DL_COMM][OUTPUT] - 
+[2025-07-30 16:20:01,284][DL_COMM][INFO] - -------------------------------------------------------------------------
+[2025-07-30 16:20:01,284][DL_COMM][INFO] - [MPI] Job complete
+[2025-07-30 16:20:01,284][DL_COMM][INFO] - -------------------------------------------------------------------------
+[2025-07-30 16:20:01,284][DL_COMM][INFO] - -------------------------------------------------------------------------
+[2025-07-30 16:20:01,284][DL_COMM][INFO] - [EXIT] All Done.
+[2025-07-30 16:20:01,284][DL_COMM][INFO] - -------------------------------------------------------------------------
+[2025-07-30 16:20:01,284][DL_COMM][INFO] - 
+[2025-07-30 16:20:01,284][DL_COMM][INFO] - ================================================================================
+[2025-07-30 16:20:01,284][DL_COMM][INFO] - [FINAL] All 4 implementations completed successfully!
+[2025-07-30 16:20:01,284][DL_COMM][INFO] - ================================================================================
+[2025-07-30 16:20:01,284][DL_COMM][INFO] - 
