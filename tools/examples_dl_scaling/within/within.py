@@ -15,8 +15,9 @@ import_timer = t2 - t1
 
 within_config = {
     'num_nodes': 2,
-    'num_gpus': 2,
-    'gpu_ids_per_node': [ 8, 9 ]
+    'num_gpus': 4,
+    'gpu_ids_per_node': [ 0,1,2,3 ],
+    'dim_size_param': 1024  # Default dimension size parameter
 }
 
 num_nodes = within_config['num_nodes']
@@ -90,13 +91,33 @@ def get_device_for_rank(rank):
         return torch.device('cpu')
 
 device = get_device_for_rank(dist_my_rank)
+
+# Print configuration - only once from rank 0
+if dist_my_rank == 0:
+    print("=== WITHIN-NODE COMMUNICATION BENCHMARK ===")
+    print(f"Configuration:")
+    print(f"  Communication type: within_node")
+    print(f"  Total nodes: {num_nodes}")
+    print(f"  GPUs per node: {num_gpus}")
+    print(f"  GPU IDs: {gpu_ids_per_node}")
+    print(f"  Backend: ccl")
+    print(f"  Collective: ALL_GATHER")
  
-dim_size = int(int(sys.argv[1])/4)
+dim_size = int(int(within_config['dim_size_param'])/4)
+
+if dist_my_rank == 0:
+    print(f"  Tensor dimension: [1, {dim_size}]")
+    print(f"  Data type: float32")
+    print("Starting benchmark...")
+
+# Calculate group info for results printing
+group_min_rank = node_id * num_gpus  # minimum rank in this node's group
+
 MPI.COMM_WORLD.Barrier()
 
 elapsed1 = []
 
-for i in range(50):
+for i in range(5):
     x = torch.ones([1, dim_size], dtype=torch.float32).to(device, non_blocking=True)
     
     group_size = dist.get_world_size(my_within_group)
@@ -110,3 +131,20 @@ for i in range(50):
     MPI.COMM_WORLD.Barrier()
  
     elapsed1.append(t6 - t5)
+
+# Print timing results - each group's minimum rank prints its results
+if dist_my_rank == group_min_rank:
+ 
+    print(f"\n=== BENCHMARK RESULTS (Group {node_id}) ===")
+    print(f"Iterations completed: {len(elapsed1)}")
+    print("Communication times per iteration:")
+    print("Iteration | Time (ms)")
+    print("----------|----------")
+    for i, time_ns in enumerate(elapsed1):
+        print(f"    {i+1:2d}    | {time_ns / 1e6:8.3f}")
+    print("----------|----------")
+    
+    print(f"Setup times:")
+    print(f"  Import time: {import_timer / 1e6:.3f} ms")
+    print(f"  Init time: {init_timer / 1e6:.3f} ms")
+    print(f"=== BENCHMARK COMPLETE (Group {node_id}) ===")
