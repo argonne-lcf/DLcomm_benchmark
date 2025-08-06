@@ -1,5 +1,5 @@
 framework  : pytorch
-ccl_backend : xccl
+ccl_backend : nccl
 ccl_debug   : on
 use_profiler: unitrace
 barrier     : on
@@ -10,7 +10,7 @@ implementations:
   - name: simple-allreduce
     comm_groups:
       flatview: 
-        num_compute_nodes: 2 
+        num_compute_nodes: 1 
         num_gpus_per_node: 4
         gpu_ids_per_node:  [0,1,2,3]   
         collective:

@@ -1,0 +1,452 @@
+[2025-08-06 20:04:42,413][DL_COMM][INFO] - -------------------------------------------------------------------------
+[2025-08-06 20:04:42,415][DL_COMM][INFO] - [CONFIG] Loading schema and validating user YAML
+[2025-08-06 20:04:42,415][DL_COMM][INFO] - [DEBUG] Current working directory: /lus/eagle/projects/datascience_collab/mcim/workspace/DLcomm_benchmark/examples
+[2025-08-06 20:04:42,415][DL_COMM][INFO] - [DEBUG] Script location: /lus/eagle/projects/datascience_collab/mcim/workspace/DLcomm_benchmark/dl_comm
+[2025-08-06 20:04:42,415][DL_COMM][INFO] - [DEBUG] Implementations to run: ['within-node-allgather', 'across-node-allreduce']
+[2025-08-06 20:04:42,415][DL_COMM][INFO] - [DEBUG] Config loaded successfully
+[2025-08-06 20:04:42,415][DL_COMM][INFO] - 
+[2025-08-06 20:04:42,415][DL_COMM][INFO] - [SYSTEM] Collecting environment information...
+[2025-08-06 20:04:42,415][DL_COMM][INFO] - [SYSTEM] ======================================================
+[2025-08-06 20:04:42,415][DL_COMM][INFO] - [SYSTEM] PyTorch version: 2.3.0
+[2025-08-06 20:04:43,828][DL_COMM][INFO] - [SYSTEM] CUDA used to build PyTorch: 12.4
+[2025-08-06 20:04:43,829][DL_COMM][INFO] - 
+[2025-08-06 20:04:43,834][DL_COMM][INFO] - [SYSTEM] OS: Linux-5.14.21-150500.55.49-default-x86_64-with-glibc2.31
+[2025-08-06 20:04:43,840][DL_COMM][INFO] - [SYSTEM] GCC version: gcc (SUSE Linux) 7.5.0
+[2025-08-06 20:04:43,840][DL_COMM][INFO] - 
+[2025-08-06 20:04:43,840][DL_COMM][INFO] - [SYSTEM] Python version: 3.11.8 | packaged by conda-forge | (main, Feb 16 2024, 20:53:32) [GCC 12.3.0]
+[2025-08-06 20:04:43,840][DL_COMM][INFO] - [SYSTEM] Python platform: Linux-5.14.21-150500.55.49-default-x86_64-with-glibc2.31
+[2025-08-06 20:04:43,841][DL_COMM][INFO] - [SYSTEM] Is CUDA available: True
+[2025-08-06 20:04:43,841][DL_COMM][INFO] - [SYSTEM] CUDA runtime version: 12.4
+[2025-08-06 20:04:43,841][DL_COMM][INFO] - [SYSTEM] GPU models and configuration:
+[2025-08-06 20:04:43,905][DL_COMM][INFO] - [SYSTEM] GPU 0: NVIDIA A100-SXM4-40GB (39.4 GB)
+[2025-08-06 20:04:43,905][DL_COMM][INFO] - [SYSTEM] GPU 1: NVIDIA A100-SXM4-40GB (39.4 GB)
+[2025-08-06 20:04:43,905][DL_COMM][INFO] - [SYSTEM] GPU 2: NVIDIA A100-SXM4-40GB (39.4 GB)
+[2025-08-06 20:04:43,905][DL_COMM][INFO] - [SYSTEM] GPU 3: NVIDIA A100-SXM4-40GB (39.4 GB)
+[2025-08-06 20:04:43,906][DL_COMM][INFO] - 
+[2025-08-06 20:04:43,906][DL_COMM][INFO] - [SYSTEM] Distributed Backend Availability:
+[2025-08-06 20:04:43,906][DL_COMM][INFO] - [SYSTEM] NCCL backend available: True
+[2025-08-06 20:04:43,906][DL_COMM][INFO] - [SYSTEM] MPI backend available: True
+[2025-08-06 20:04:43,906][DL_COMM][INFO] - [SYSTEM] XCCL backend available: Unknown (API not available)
+[2025-08-06 20:04:43,906][DL_COMM][INFO] - 
+[2025-08-06 20:04:43,906][DL_COMM][INFO] - [SYSTEM] Versions of relevant libraries:
+[2025-08-06 20:04:43,906][DL_COMM][INFO] - [SYSTEM] numpy: 1.26.4
+[2025-08-06 20:04:43,906][DL_COMM][INFO] - [SYSTEM] mpi4py: 3.1.6
+[2025-08-06 20:04:43,906][DL_COMM][INFO] - [SYSTEM] hydra-core: 1.3.2
+[2025-08-06 20:04:43,906][DL_COMM][INFO] - [SYSTEM] omegaconf: 2.3.0
+[2025-08-06 20:04:43,907][DL_COMM][INFO] - [SYSTEM] oneccl_bindings_for_pytorch: Not available
+[2025-08-06 20:04:43,907][DL_COMM][INFO] - [SYSTEM] intel_extension_for_pytorch: Not available
+[2025-08-06 20:04:43,907][DL_COMM][INFO] - [SYSTEM] NCCL version: 2.20.5
+[2025-08-06 20:04:43,907][DL_COMM][INFO] - 
+[2025-08-06 20:04:43,907][DL_COMM][INFO] - [SYSTEM] Relevant Environment Variables:
+[2025-08-06 20:04:43,908][DL_COMM][INFO] - [SYSTEM] CCL_ATL_SHM                    = 1
+[2025-08-06 20:04:43,908][DL_COMM][INFO] - [SYSTEM] CCL_ATL_TRANSPORT              = ofi
+[2025-08-06 20:04:43,908][DL_COMM][INFO] - [SYSTEM] CCL_ENABLE_AUTO_CACHE          = 1
+[2025-08-06 20:04:43,908][DL_COMM][INFO] - [SYSTEM] CCL_ENABLE_PROFILING           = 1
+[2025-08-06 20:04:43,908][DL_COMM][INFO] - [SYSTEM] CCL_KVS_CONNECTION_TIMEOUT     = 600
+[2025-08-06 20:04:43,908][DL_COMM][INFO] - [SYSTEM] CCL_KVS_MODE                   = mpi
+[2025-08-06 20:04:43,908][DL_COMM][INFO] - [SYSTEM] CCL_LOG_LEVEL                  = info
+[2025-08-06 20:04:43,908][DL_COMM][INFO] - [SYSTEM] CCL_OP_SYNC                    = 1
+[2025-08-06 20:04:43,908][DL_COMM][INFO] - [SYSTEM] CCL_PROCESS_LAUNCHER           = pmix
+[2025-08-06 20:04:43,908][DL_COMM][INFO] - [SYSTEM] CUDA_HOME                      = /soft/compilers/cudatoolkit/cuda-12.4.1/
+[2025-08-06 20:04:43,908][DL_COMM][INFO] - [SYSTEM] CUDA_MODULE_LOADING            = LAZY
+[2025-08-06 20:04:43,908][DL_COMM][INFO] - [SYSTEM] CUDA_PATH                      = /soft/compilers/cudatoolkit/cuda-12.4.1/
+[2025-08-06 20:04:43,908][DL_COMM][INFO] - [SYSTEM] CUDA_TOOLKIT_BASE              = /soft/compilers/cudatoolkit/cuda-12.4.1/
+[2025-08-06 20:04:43,909][DL_COMM][INFO] - [SYSTEM] MPI4JAX_USE_CUDA_MPI           = 1
+[2025-08-06 20:04:43,909][DL_COMM][INFO] - [SYSTEM] TORCH_CUDA_ARCH_LIST           = 8.0
+[2025-08-06 20:04:43,909][DL_COMM][INFO] - [SYSTEM] ======================================================
+[2025-08-06 20:04:43,909][DL_COMM][INFO] - 
+[2025-08-06 20:04:43,926][DL_COMM][INFO] - 
+[2025-08-06 20:04:43,926][DL_COMM][INFO] - ================================================================================
+[2025-08-06 20:04:43,926][DL_COMM][INFO] - [IMPLEMENTATION 1/2] ==================== WITHIN-NODE-ALLGATHER ====================
+[2025-08-06 20:04:43,926][DL_COMM][INFO] - ================================================================================
+[2025-08-06 20:04:43,926][DL_COMM][INFO] - 
+[2025-08-06 20:04:43,927][DL_COMM][INFO] - 
+[2025-08-06 20:04:43,927][DL_COMM][INFO] - [MODE 1/1] ---------- WITHIN_NODE ----------
+[2025-08-06 20:04:43,927][DL_COMM][INFO] - 
+[2025-08-06 20:04:43,927][DL_COMM][INFO] - 
+[2025-08-06 20:04:43,927][DL_COMM][INFO] - [CONFIG] Setup
+[2025-08-06 20:04:43,927][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-08-06 20:04:43,927][DL_COMM][INFO] - [CONFIG] Implementation       : within-node-allgather
+[2025-08-06 20:04:43,928][DL_COMM][INFO] - [CONFIG] Framework            : pytorch
+[2025-08-06 20:04:43,928][DL_COMM][INFO] - [CONFIG] Backend              : nccl
+[2025-08-06 20:04:43,928][DL_COMM][INFO] - [CONFIG] Use Profiler         : unitrace
+[2025-08-06 20:04:43,928][DL_COMM][INFO] - [CONFIG] Barrier Enabled      : True
+[2025-08-06 20:04:43,928][DL_COMM][INFO] - [CONFIG] World Size           : 4
+[2025-08-06 20:04:43,928][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-08-06 20:04:43,928][DL_COMM][INFO] - 
+[2025-08-06 20:04:43,928][DL_COMM][INFO] - [CONFIG] Communication Group
+[2025-08-06 20:04:43,928][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-08-06 20:04:43,928][DL_COMM][INFO] - [CONFIG] Mode                 : within_node
+[2025-08-06 20:04:43,928][DL_COMM][INFO] - [CONFIG] Topology             : 1 nodes x 4 GPUs
+[2025-08-06 20:04:43,928][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-08-06 20:04:43,929][DL_COMM][INFO] - 
+[2025-08-06 20:04:43,929][DL_COMM][INFO] - [CONFIG] Communication Group Details
+[2025-08-06 20:04:43,929][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-08-06 20:04:43,929][DL_COMM][INFO] - [CONFIG] Collective Name      : allgather
+[2025-08-06 20:04:43,929][DL_COMM][INFO] - [CONFIG] Operation            : N/A
+[2025-08-06 20:04:43,929][DL_COMM][INFO] - [CONFIG] Scale Up Algorithm   : default
+[2025-08-06 20:04:43,929][DL_COMM][INFO] - [CONFIG] Scale Out Algorithm  : default
+[2025-08-06 20:04:43,929][DL_COMM][INFO] - [CONFIG] Data Type            : float32
+[2025-08-06 20:04:43,929][DL_COMM][INFO] - [CONFIG] Element Count        : 131072
+[2025-08-06 20:04:43,929][DL_COMM][INFO] - [CONFIG] Buffer Size          : 512KB (524288 bytes)
+[2025-08-06 20:04:43,929][DL_COMM][INFO] - [CONFIG] Iterations           : 5
+[2025-08-06 20:04:43,929][DL_COMM][INFO] - [CONFIG] Verify Correctness   : True
+[2025-08-06 20:04:43,930][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-08-06 20:04:43,930][DL_COMM][INFO] - 
+[2025-08-06 20:04:43,930][DL_COMM][INFO] - [COMM][CONFIG] Setting up communication groups for mode: Within
+[2025-08-06 20:04:43,930][DL_COMM][INFO] - [COMM][CONFIG] Within-node: 4 GPUs per node, Device IDs: [0, 1, 2, 3]
+[2025-08-06 20:04:43,930][DL_COMM][INFO] - [COMM][GROUP CREATION] Within-node groups:
+[2025-08-06 20:04:43,930][DL_COMM][INFO] - 
+[2025-08-06 20:04:43,930][DL_COMM][INFO] - [COMM][GROUP CREATION][Within Group-0] Ranks: [0, 1, 2, 3], Required GPUs: [0, 1, 2, 3], Logging: rank 0
+[2025-08-06 20:04:43,930][DL_COMM][INFO] - [COMM][GROUP CREATION] Created 1 within-node groups
+[2025-08-06 20:04:43,931][DL_COMM][INFO] - 
+[2025-08-06 20:04:44,822][DL_COMM][OUTPUT] - 
+[2025-08-06 20:04:44,822][DL_COMM][OUTPUT] - [TIMERS - SETUP] -------------------------------------------
+[2025-08-06 20:04:44,822][DL_COMM][OUTPUT] - [TIMERS][LOGGING RANK - 0] import time              = 0.000005 s
+[2025-08-06 20:04:44,822][DL_COMM][OUTPUT] - [TIMERS][LOGGING RANK - 0] init time                = 0.015510 s
+[2025-08-06 20:04:44,823][DL_COMM][OUTPUT] - [TIMERS][LOGGING RANK - 0] Group Creation (Within)  = 0.000435 s
+[2025-08-06 20:04:44,823][DL_COMM][OUTPUT] - [TIMERS - SETUP] -------------------------------------------
+[2025-08-06 20:04:44,823][DL_COMM][OUTPUT] - 
+[2025-08-06 20:04:44,823][DL_COMM][OUTPUT] - [MPI] Launching profiling job
+[2025-08-06 20:04:44,823][DL_COMM][INFO] - 
+[2025-08-06 20:04:44,823][DL_COMM][INFO] -   [WARMUP] Running 2 warmup iterations...
+NCCL version 2.20.5+cuda12.4
+[2025-08-06 20:04:46,719][DL_COMM][INFO] -   [WARMUP] Warmup completed, starting timed iterations...
+[2025-08-06 20:04:46,719][DL_COMM][INFO] - 
+x3005c0s7b0n0:2166990:2167282 [0] NCCL INFO   Algorithm   |                            Tree                  |                            Ring                  |                   CollNetDirect                  |
+x3005c0s7b0n0:2166990:2167282 [0] NCCL INFO   Protocol    |             LL |          LL128 |         Simple |             LL |          LL128 |         Simple |             LL |          LL128 |         Simple |
+x3005c0s7b0n0:2166990:2167282 [0] NCCL INFO  Max NThreads |            512 |            640 |            512 |            512 |            640 |            512 |              0 |              0 |            640 |
+x3005c0s7b0n0:2166990:2167282 [0] NCCL INFO     Broadcast |     0.0/   0.0 |     0.0/   0.0 |     0.0/   0.0 |     9.0/  80.0 |    21.6/ 220.8 |   120.4/ 240.0 |     0.0/   0.0 |     0.0/   0.0 |     0.0/   0.0 |
+x3005c0s7b0n0:2166990:2167282 [0] NCCL INFO        Reduce |     0.0/   0.0 |     0.0/   0.0 |     0.0/   0.0 |     9.0/  60.0 |    21.6/ 220.8 |   120.4/ 240.0 |     0.0/   0.0 |     0.0/   0.0 |     0.0/   0.0 |
+x3005c0s7b0n0:2166990:2167282 [0] NCCL INFO     AllGather |     0.0/   0.0 |     0.0/   0.0 |     0.0/   0.0 |     8.4/ 106.7 |    19.7/ 294.4 |    18.6/ 320.0 |     2.4/   0.0 |     2.4/   0.0 |    40.8/   0.0 |
+x3005c0s7b0n0:2166990:2167282 [0] NCCL INFO ReduceScatter |     0.0/   0.0 |     0.0/   0.0 |     0.0/   0.0 |     8.4/ 106.7 |    19.7/ 294.4 |    18.6/ 320.0 |     2.4/   0.0 |     2.4/   0.0 |    40.8/   0.0 |
+x3005c0s7b0n0:2166990:2167282 [0] NCCL INFO     AllReduce |    10.4/  29.1 |    21.5/  85.9 |   168.0/ 110.4 |    10.2/  40.0 |    25.4/ 147.2 |    28.8/ 160.0 |     2.4/   0.0 |     2.4/   0.0 |    40.8/   0.0 |
+x3005c0s7b0n0:2166990:2167282 [0] NCCL INFO   Algorithm   |                    CollNetChain                  |                            NVLS                  |                        NVLSTree                  |
+x3005c0s7b0n0:2166990:2167282 [0] NCCL INFO   Protocol    |             LL |          LL128 |         Simple |             LL |          LL128 |         Simple |             LL |          LL128 |         Simple |
+x3005c0s7b0n0:2166990:2167282 [0] NCCL INFO  Max NThreads |              0 |              0 |            640 |              0 |              0 |            640 |              0 |              0 |            640 |
+x3005c0s7b0n0:2166990:2167282 [0] NCCL INFO     Broadcast |     0.0/   0.0 |     0.0/   0.0 |     0.0/   0.0 |     0.0/   0.0 |     0.0/   0.0 |     0.0/   0.0 |     0.0/   0.0 |     0.0/   0.0 |     0.0/   0.0 |
+x3005c0s7b0n0:2166990:2167282 [0] NCCL INFO        Reduce |     0.0/   0.0 |     0.0/   0.0 |     0.0/   0.0 |     0.0/   0.0 |     0.0/   0.0 |     0.0/   0.0 |     0.0/   0.0 |     0.0/   0.0 |     0.0/   0.0 |
+x3005c0s7b0n0:2166990:2167282 [0] NCCL INFO     AllGather |     0.0/   0.0 |     0.0/   0.0 |     0.0/   0.0 |     0.0/   0.0 |     0.0/   0.0 |     0.0/   0.0 |     0.0/   0.0 |     0.0/   0.0 |     0.0/   0.0 |
+x3005c0s7b0n0:2166990:2167282 [0] NCCL INFO ReduceScatter |     0.0/   0.0 |     0.0/   0.0 |     0.0/   0.0 |     0.0/   0.0 |     0.0/   0.0 |     0.0/   0.0 |     0.0/   0.0 |     0.0/   0.0 |     0.0/   0.0 |
+x3005c0s7b0n0:2166990:2167282 [0] NCCL INFO     AllReduce |     0.0/   0.0 |     0.0/   0.0 |    46.8/   0.0 |     0.0/   0.0 |     0.0/   0.0 |     0.0/   0.0 |     0.0/   0.0 |     0.0/   0.0 |     0.0/   0.0 |
+x3005c0s7b0n0:2166990:2166990 [0] NCCL INFO AllGather: opCount 0 sendbuff 0x14ef05200000 recvbuff 0x14eeee000000 count 524288 datatype 0 op 0 root 0 comm 0x5592dbc8d400 [nranks=4] stream 0x5592dbc8c5e0
+x3005c0s7b0n0:2166990:2166990 [0] NCCL INFO 2097152 Bytes -> Algo 1 proto 2 time 25.153601
+x3005c0s7b0n0:2166990:2166990 [0] NCCL INFO AllGather: opCount 1 sendbuff 0x14ef05480000 recvbuff 0x14eeee000000 count 524288 datatype 0 op 0 root 0 comm 0x5592dbc8d400 [nranks=4] stream 0x5592dbc8c5e0
+x3005c0s7b0n0:2166990:2166990 [0] NCCL INFO 2097152 Bytes -> Algo 1 proto 2 time 25.153601
+x3005c0s7b0n0:2166990:2166990 [0] NCCL INFO AllReduce: opCount 2 sendbuff 0x14eecad00200 recvbuff 0x14x3005c0s7b0n0:2166993:2166993 [3] NCCL INFO AllGather: opCount 0 sendbuff 0x152ab3200000 recvbuff 0x152a96000000 count 524288 datatype 0 op 0 root 0 comm 0x557aa56482d0 [nranks=4] stream 0x557aa5645fb0
+x3005c0s7b0n0:2166993:2166993 [3] NCCL INFO AllGather: opCount 1 sendbuff 0x152ab3480000 recvbuff 0x152a96000000 count 524288 datatype 0 op 0 root 0 comm 0x557aa56482d0 [nranks=4] stream 0x557aa5645fb0
+x3005c0s7b0n0:2166993:2166993 [3] NCCL INFO AllReduce: opCount 2 sendbuff 0x152a6ed00200 recvbuff 0x152a6ed00200 count 1 datatype 1 op 0 root 0 comm 0x557aa56482d0 [nranks=4] stream 0x557aa5645fb0
+x3005c0s7b0n0:2166993:2166993 [3] NCCL INFO AllGather: opCount 3 sendbuff 0x152a6ec80000 recvbuff 0x152a96000000 count 524288 datatype 0 op 0 root 0 comm 0x557aa56482d0 [nranks=4] stream 0x557aa5645fb0
+x3005c0s7b0n0:2166993:2166993 [3] NCCL INFO AllReduce: opCount 4 sendbuff 0x152a6ed00000 recvbuff 0x152a6ed00000 count 1 datatype 1 op 0 root 0 comm 0x557aa56482d0 [nranks=4] stream 0x557aa5645fb0
+x3005c0s7b0n0:2166992:2166992 [2] NCCL INFO AllGather: opCount 0 sendbuff 0x155033200000 recvbuff 0x155016000000 count 524288 datatype 0 op 0 root 0 comm 0x5589d60acc90 [nranks=4] stream 0x5589d60aa970
+x3005c0s7b0n0:2166992:2166992 [2] NCCL INFO AllGather: opCount 1 sendbuff 0x155033480000 recvbuff 0x155016000000 count 524288 datatype 0 op 0 root 0 comm 0x5589d60acc90 [nranks=4] stream 0x5589d60aa970
+x3005c0s7b0n0:2166992:2166992 [2] NCCL INFO AllReduce: opCount 2 sendbuff 0x154feed00200 recvbuff 0x154feed00200 count 1 datatype 1 op 0 root 0 comm 0x5589d60acc90 [nranks=4] stream 0x5589d60aa970
+x3005c0s7b0n0:2166992:2166992 [2] NCCL INFO AllGather: opCount 3 sendbuff 0x154feec80000 recvbuff 0x155016000000 count 524288 datatype 0 op 0 root 0 comm 0x5589d60acc90 [nranks=4] stream 0x5589d60aa970
+x3005c0s7b0n0:2166992:2166992 [2] NCCL INFO AllReduce: opCount 4 sendbuff 0x154feed00000 recvbuff 0x154feed00000 count 1 datatype 1 op 0 root 0 comm 0x5589d60acc90 [nranks=4] stream 0x5589d60aa970
+x3005c0s7b0n0:2166991:2166991 [1] NCCL INFO AllGather: opCount 0 sendbuff 0x15451b200000 recvbuff 0x1544fe000000 count 524288 datatype 0 op 0 root 0 comm 0x55f3bb24caa0 [nranks=4] stream 0x55f3bb24a780
+x3005c0s7b0n0:2166991:2166991 [1] NCCL INFO AllGather: opCount 1 sendbuff 0x15451b480000 recvbuff 0x1544fe000000 count 524288 datatype 0 op 0 root 0 comm 0x55f3bb24caa0 [nranks=4] stream 0x55f3bb24a780
+x3005c0s7b0n0:2166991:2166991 [1] NCCL INFO AllReduce: opCount 2 sendbuff 0x1544d6d00200 recvbuff 0x1544d6d00200 count 1 datatype 1 op 0 root 0 comm 0x55f3bb24caa0 [nranks=4] stream 0x55f3bb24a780
+x3005c0s7b0n0:2166991:2166991 [1] NCCL INFO AllGather: opCount 3 sendbuff 0x1544d6c80000 recvbuff 0x1544fe000000 count 524288 datatype 0 op 0 root 0 comm 0x55f3bb24caa0 [nranks=4] stream 0x55f3bb24a780
+x3005c0s7b0n0:2166991:2166991 [1] NCCL INFO AllReduce: opCount 4 sendbuff 0x1544d6d00000 recvbuff 0x1544d6d00000 count 1 datatype 1 op 0 root 0 comm 0x55f3bb24caa0 [nranks=4] stream 0x55f3bb24a780
+eecad00200 count 1 datatype 1 op 0 root 0 comm 0x5592dbc8d400 [nranks=4] stream 0x5592dbc8c5e0
+x3005c0s7b0n0:2166990:2166990 [0] NCCL INFO 1 Bytes -> Algo 1 proto 0 time 10.200025
+x3005c0s7b0n0:2166990:2166990 [0] NCCL INFO AllGather: opCount 3 sendbuff 0x14eecac80000 recvbuff 0x14eeee000000 count 524288 datatype 0 op 0 root 0 comm 0x5592dbc8d400 [nranks=4] stream 0x5592dbc8c5e0
+x3005c0s7b0n0:2166990:2166990 [0] NCCL INFO 2097152 Bytes -> Algo 1 proto 2 time 25.153601
+x3005c0s7b0n0:2166990:2166990 [0] NCCL INFO AllReduce: opCount 4 sendbuff 0x14eecad00000 recvbuff 0x14eecad00000 count 1 datatype 1 op 0 root 0 comm 0x5592dbc8d400 [nranks=4] stream 0x5592dbc8c5e0
+x3005c0s7b0n0:2166990:2166990 [0] NCCL INFO 1 Bytes -> Algo 1 proto 0 time 10.200025
+x3005c0s7b0n0:2166992:2166992 [2] NCCL INFO Send: opCount 5 sendbuff (nil) recvbuff 0x154feed00000 count 1 datatype 2 op 0 root 0 comm 0x5589d60acc90 [nranks=4] stream 0x5589d60aa970
+x3005c0s7b0n0:2166993:2166993 [3] NCCL INFO Send: opCount 5 sendbuff (nil) recvbuff 0x152a6ed00000 count 1 datatype 2 op 0 root 0 comm 0x557aa56482d0 [nranks=4] stream 0x557aa5645fb0
+x3005c0s7b0n0:2166991:2166991 [1] NCCL INFO Send: opCount 5 sendbuff (nil) recvbuff 0x1544d6d00000 count 1 datatype 2 op 0 root 0 comm 0x55f3bb24caa0 [nranks=4] stream 0x55f3bb24a780
+x3005c0s7b0n0:2166990:2166990 [0] NCCL INFO Recv: opCount 5 sendbuff (nil) recvbuff 0x14eecad80600 count 1 datatype 2 op 0 root 1 comm 0x5592dbc8d400 [nranks=4] stream 0x5592dbc8c5e0
+x3005c0s7b0n0:2166990:2166990 [0] NCCL INFO Recv: opCount 5 sendbuff (nil) recvbuff 0x14eecad80800 count 1 datatype 2 op 0 root 2 comm 0x5592dbc8d400 [nranks=4] stream 0x5592dbc8c5e0
+x3005c0s7b0n0:2166990:2166990 [0] NCCL INFO Recv: opCount 5 sendbuff (nil) recvbuff 0x14eecad80a00 count 1 datatype 2 op 0 root 3 comm 0x5592dbc8d400 [nranks=4] stream 0x5592dbc8c5e0
+[2025-08-06 20:04:46,897][DL_COMM][OUTPUT] - [CORRECTNESS][Within-Group-0] AllGather verification [PASSED] - All 4 ranks received correct values
+x3005c0s7b0n0:2166990:2166990 [0] NCCL INFO AllReduce: opCount 6 sendbuff 0x14eecad80200 recvbuff 0x14eecad80200 count 1 datatype 1 op 0 root 0 comm 0x5592dbc8d400 [nranks=4] stream 0x5592dbc8c5e0
+x3005c0s7b0n0:2166990:2166990 [0] NCCL INFO 1 Bytes -> Algo 1 proto 0 time 10.200025
+x3005c0s7b0n0:2166991:2166991 [1] NCCL INFO AllReduce: opCount 6 sendbuff 0x1544d6d80200 recvbuff 0x1544d6d80200 count 1 datatype 1 op 0 root 0 comm 0x55f3bb24caa0 [nranks=4] stream 0x55f3bb24a780
+x3005c0s7b0n0:2166992:2166992 [2] NCCL INFO AllReduce: opCount 6 sendbuff 0x154feed80200 recvbuff 0x154feed80200 count 1 datatype 1 op 0 root 0 comm 0x5589d60acc90 [nranks=4] stream 0x5589d60aa970
+x3005c0s7b0n0:2166992:2166992 [2] NCCL INFO AllGather: opCount 7 sendbuff 0x154feec00000 recvbuff 0x155016000000 count 524288 datatype 0 op 0 root 0 comm 0x5589d60acc90 [nranks=4] stream 0x5589d60aa970
+x3005c0s7b0n0:2166992:2166992 [2] NCCL INFO AllReduce: opCount 8 sendbuff 0x154feed80200 recvbuff 0x154feed80200 count 1 datatype 1 op 0 root 0 comm 0x5589d60acc90 [nranks=4] stream 0x5589d60aa970
+x3005c0s7b0n0:2166993:2166993 [3] NCCL INFO AllReduce: opCount 6 sendbuff 0x152a6ed80200 recvbuff 0x152a6ed80200 count 1 datatype 1 op 0 root 0 comm 0x557aa56482d0 [nranks=4] stream 0x557aa5645fb0
+x3005c0s7b0n0:2166993:2166993 [3] NCCL INFO AllGather: opCount 7 sendbuff 0x152a6ec00000 recvbuff 0x152a96000000 count 524288 datatype 0 op 0 root 0 comm 0x557aa56482d0 [nranks=4] stream 0x557aa5645fb0
+x3005c0s7b0n0:2166993:2166993 [3] NCCL INFO AllReduce: opCount 8 sendbuff 0x152a6ed80200 recvbuff 0x152a6ed80200 count 1 datatype 1 op 0 root 0 comm 0x557aa56482d0 [nranks=4] stream 0x557aa5645fb0
+x3005c0s7b0n0:2166990:2166990 [0] NCCL INFO AllGather: opCount 7 sendbuff 0x14eecac00000 recvbuff 0x14eeee000000 count 524288 datatype 0 op 0 root 0 comm 0x5592dbc8d400 [nranks=4] stream 0x5592dbc8c5e0
+x3005c0s7b0n0:2166990:2166990 [0] NCCL INFO 2097152 Bytes -> Algo 1 proto 2 time 25.153601
+x3005c0s7b0n0:2166990:2166990 [0] NCCL INFO AllReduce: opCount 8 sendbuff 0x14eecad80200 recvbuff 0x14eecad80200 count 1 datatype 1 op 0 root 0 comm 0x5592dbc8d400 [nranks=4] stream 0x5592dbc8c5e0
+x3005c0s7b0n0:2166990:2166990 [0] NCCL INFO 1 Bytes -> Algo 1 proto 0 time 10.200025
+x3005c0s7b0n0:2166991:2166991 [1] NCCL INFO AllGather: opCount 7 sendbuff 0x1544d6c00000 recvbuff 0x1544fe000000 count 524288 datatype 0 op 0 root 0 comm 0x55f3bb24caa0 [nranks=4] stream 0x55f3bb24a780
+x3005c0s7b0n0:2166991:2166991 [1] NCCL INFO AllReduce: opCount 8 sendbuff 0x1544d6d80200 recvbuff 0x1544d6d80200 count 1 datatype 1 op 0 root 0 comm 0x55f3bb24caa0 [nranks=4] stream 0x55f3bb24a780
+x3005c0s7b0n0:2166990:2166990 [0] NCCL INFO AllReduce: opCount 9 sendbuff 0x14eecac00200 recvbuff 0x14eecac00200 count 1 datatype 1 op 0 root 0 comm 0x5592dbc8d400 [nranks=4] stream 0x5592dbc8c5e0
+x3005c0s7b0n0:2166990:2166990 [0] NCCL INFO 1 Bytes -> Algo 1 proto 0 time 10.200025
+x3005c0s7b0n0:2166991:2166991 [1] NCCL INFO AllReduce: opCount 9 sendbuff 0x1544d6c00200 recvbuff 0x1544d6c00200 count 1 datatype 1 op 0 root 0 comm 0x55f3bb24caa0 [nranks=4] stream 0x55f3bb24a780
+x3005c0s7b0n0:2166992:2166992 [2] NCCL INFO AllReduce: opCount 9 sendbuff 0x154feec00200 recvbuff 0x154feec00200 count 1 datatype 1 op 0 root 0 comm 0x5589d60acc90 [nranks=4] stream 0x5589d60aa970
+x3005c0s7b0n0:2166993:2166993 [3] NCCL INFO AllReduce: opCount 9 sendbuff 0x152a6ec00200 recvbuff 0x152a6ec00200 count 1 datatype 1 op 0 root 0 comm 0x557aa56482d0 [nranks=4] stream 0x557aa5645fb0
+x3005c0s7b0n0:2166993:2166993 [3] NCCL INFO AllGather: opCount a sendbuff 0x152ab3280000 recvbuff 0x152a96000000 count 524288 datatype 0 op 0 root 0 comm 0x557aa56482d0 [nranks=4] stream 0x557aa5645fb0
+x3005c0s7b0n0:2166993:2166993 [3] NCCL INFO AllReduce: opCount b sendbuff 0x152ab3200200 recvbuff 0x152ab3200200 count 1 datatype 1 op 0 root 0 comm 0x557aa56482d0 [nranks=4] stream 0x557aa5645fb0
+x3005c0s7b0n0:2166990:2166990 [0] NCCL INFO AllGather: opCount a sendbuff 0x14ef05280000 recvbuff 0x14eeee000000 count 524288 datatype 0 op 0 root 0 comm 0x5592dbc8d400 [nranks=4] stream 0x5592dbc8c5e0
+x3005c0s7b0n0:2166990:2166990 [0] NCCL INFO 2097152 Bytes -> Algo 1 proto 2 time 25.153601
+x3005c0s7b0n0:2166990:2166990 [0] NCCL INFO AllReduce: opCount b sendbuff 0x14eecac00000 recvbuff 0x14eecac00000 count 1 datatype 1 op 0 root 0 comm 0x5592dbc8d400 [nranks=4] stream 0x5592dbc8c5e0
+x3005c0s7b0n0:2166990:2166990 [0] NCCL INFO 1 Bytes -> Algo 1 proto 0 time 10.200025
+x3005c0s7b0n0:2166991:2166991 [1] NCCL INFO AllGather: opCount a sendbuff 0x15451b280000 recvbuff 0x1544fe000000 count 524288 datatype 0 op 0 root 0 comm 0x55f3bb24caa0 [nranks=4] stream 0x55f3bb24a780
+x3005c0s7b0n0:2166991:2166991 [1] NCCL INFO AllReduce: opCount b sendbuff 0x1544d6c00000 recvbuff 0x1544d6c00000 count 1 datatype 1 op 0 root 0 comm 0x55f3bb24caa0 [nranks=4] stream 0x55f3bb24a780
+x3005c0s7b0n0:2166992:2166992 [2] NCCL INFO AllGather: opCount a sendbuff 0x155033280000 recvbuff 0x155016000000 count 524288 datatype 0 op 0 root 0 comm 0x5589d60acc90 [nranks=4] stream 0x5589d60aa970
+x3005c0s7b0n0:2166992:2166992 [2] NCCL INFO AllReduce: opCount b sendbuff 0x154feec00000 recvbuff 0x154feec00000 count 1 datatype 1 op 0 root 0 comm 0x5589d60acc90 [nranks=4] stream 0x5589d60aa970
+x3005c0s7b0n0:2166990:2166990 [0] NCCL INFO AllReduce: opCount c sendbuff 0x14eecac00200 recvbuff 0x14eecac00200 count 1 datatype 1 op 0 root 0 comm 0x5592dbc8d400 [nranks=4] stream 0x5592dbc8c5e0
+x3005c0s7b0n0:2166990:2166990 [0] NCCL INFO 1 Bytes -> Algo 1 proto 0 time 10.200025
+x3005c0s7b0n0:2166991:2166991 [1] NCCL INFO AllReduce: opCount c sendbuff 0x1544d6c00200 recvbuff 0x1544d6c00200 count 1 datatype 1 op 0 root 0 comm 0x55f3bb24caa0 [nranks=4] stream 0x55f3bb24a780
+x3005c0s7b0n0:2166992:2166992 [2] NCCL INFO AllReduce: opCount c sendbuff 0x154feec00200 recvbuff 0x154feec00200 count 1 datatype 1 op 0 root 0 comm 0x5589d60acc90 [nranks=4] stream 0x5589d60aa970
+x3005c0s7b0n0:2166993:2166993 [3] NCCL INFO AllReduce: opCount c sendbuff 0x152a6ec80200 recvbuff 0x152a6ec80200 count 1 datatype 1 op 0 root 0 comm 0x557aa56482d0 [nranks=4] stream 0x557aa5645fb0
+x3005c0s7b0n0:2166993:2166993 [3] NCCL INFO AllGather: opCount d sendbuff 0x152a6ec00000 recvbuff 0x152a96000000 count 524288 datatype 0 op 0 root 0 comm 0x557aa56482d0 [nranks=4] stream 0x557aa5645fb0
+x3005c0s7b0n0:2166993:2166993 [3] NCCL INFO AllReduce: opCount e sendbuff 0x152a6ec80000 recvbuff 0x152a6ec80000 count 1 datatype 1 op 0 root 0 comm 0x557aa56482d0 [nranks=4] stream 0x557aa5645fb0
+x3005c0s7b0n0:2166990:2166990 [0] NCCL INFO AllGather: opCount d sendbuff 0x14ef05200000 recvbuff 0x14eeee000000 count 524288 datatype 0 op 0 root 0 comm 0x5592dbc8d400 [nranks=4] stream 0x5592dbc8c5e0
+x3005c0s7b0n0:2166990:2166990 [0] NCCL INFO 2097152 Bytes -> Algo 1 proto 2 time 25.153601
+x3005c0s7b0n0:2166990:2166990 [0] NCCL INFO AllReduce: opCount e sendbuff 0x14eecac00000 recvbuff 0x14eecac00000 count 1 datatype 1 op 0 root 0 comm 0x5592dbc8d400 [nranks=4] stream 0x5592dbc8c5e0
+x3005c0s7b0n0:2166990:2166990 [0] NCCL INFO 1 Bytes -> Algo 1 proto 0 time 10.200025
+x3005c0s7b0n0:2166991:2166991 [1] NCCL INFO AllGather: opCount d sendbuff 0x15451b200000 recvbuff 0x1544fe000000 count 524288 datatype 0 op 0 root 0 comm 0x55f3bb24caa0 [nranks=4] stream 0x55f3bb24a780
+x3005c0s7b0n0:2166991:2166991 [1] NCCL INFO AllReduce: opCount e sendbuff 0x1544d6c00000 recvbuff 0x1544d6c00000 count 1 datatype 1 op 0 root 0 comm 0x55f3bb24caa0 [nranks=4] stream 0x55f3bb24a780
+x3005c0s7b0n0:2166992:2166992 [2] NCCL INFO AllGather: opCount d sendbuff 0x155033200000 recvbuff 0x155016000000 count 524288 datatype 0 op 0 root 0 comm 0x5589d60acc90 [nranks=4] stream 0x5589d60aa970
+x3005c0s7b0n0:2166992:2166992 [2] NCCL INFO AllReduce: opCount e sendbuff 0x154feec00000 recvbuff 0x154feec00000 count 1 datatype 1 op 0 root 0 comm 0x5589d60acc90 [nranks=4] stream 0x5589d60aa970
+x3005c0s7b0n0:2166990:2166990 [0] NCCL INFO AllReduce: opCount f sendbuff 0x14ef05200000 recvbuff 0x14ef05200000 count 1 datatype 1 op 0 root 0 comm 0x5592dbc8d400 [nranks=4] stream 0x5592dbc8c5e0
+x3005c0s7b0n0:2166990:2166990 [0] NCCL INFO 1 Bytes -> Algo 1 proto 0 time 10.200025
+x3005c0s7b0n0:2166991:2166991 [1] NCCL INFO AllReduce: opCount f sendbuff 0x15451b200000 recvbuff 0x15451b200000 count 1 datatype 1 op 0 root 0 comm 0x55f3bb24caa0 [nranks=4] stream 0x55f3bb24a780
+x3005c0s7b0n0:2166992:2166992 [2] NCCL INFO AllReduce: opCount f sendbuff 0x155033300000 recvbuff 0x155033300000 count 1 datatype 1 op 0 root 0 comm 0x5589d60acc90 [nranks=4] stream 0x5589d60aa970
+x3005c0s7b0n0:2166993:2166993 [3] NCCL INFO AllReduce: opCount f sendbuff 0x152ab3380200 recvbuff 0x152ab3380200 count 1 datatype 1 op 0 root 0 comm 0x557aa56482d0 [nranks=4] stream 0x557aa5645fb0
+x3005c0s7b0n0:2166993:2166993 [3] NCCL INFO AllGather: opCount 10 sendbuff 0x152ab3300000 recvbuff 0x152a96000000 count 524288 datatype 0 op 0 root 0 comm 0x557aa56482d0 [nranks=4] stream 0x557aa5645fb0
+x3005c0s7b0n0:2166993:2166993 [3] NCCL INFO AllReduce: opCount 11 sendbuff 0x152ab3380000 recvbuff 0x152ab3380000 count 1 datatype 1 op 0 root 0 comm 0x557aa56482d0 [nranks=4] stream 0x557aa5645fb0
+x3005c0s7b0n0:2166990:2166990 [0] NCCL INFO AllGather: opCount 10 sendbuff 0x14ef05300000 recvbuff 0x14eeee000000 count 524288 datatype 0 op 0 root 0 comm 0x5592dbc8d400 [nranks=4] stream 0x5592dbc8c5e0
+x3005c0s7b0n0:2166990:2166990 [0] NCCL INFO 2097152 Bytes -> Algo 1 proto 2 time 25.153601
+x3005c0s7b0n0:2166990:2166990 [0] NCCL INFO AllReduce: opCount 11 sendbuff 0x14eecac00000 recvbuff 0x14eecac00000 count 1 datatype 1 op 0 root 0 comm 0x5592dbc8d400 [nranks=4] stream 0x5592dbc8c5e0
+x3005c0s7b0n0:2166990:2166990 [0] NCCL INFO 1 Bytes -> Algo 1 proto 0 time 10.200025
+x3005c0s7b0n0:2166991:2166991 [1] NCCL INFO AllGather: opCount 10 sendbuff 0x15451b300000 recvbuff 0x1544fe000000 count 524288 datatype 0 op 0 root 0 comm 0x55f3bb24caa0 [nranks=4] stream 0x55f3bb24a780
+x3005c0s7b0n0:2166991:2166991 [1] NCCL INFO AllReduce: opCount 11 sendbuff 0x1544d6c00000 recvbuff 0x1544d6c00000 count 1 datatype 1 op 0 root 0 comm 0x55f3bb24caa0 [nranks=4] stream 0x55f3bb24a780
+x3005c0s7b0n0:2166992:2166992 [2] NCCL INFO AllGather: opCount 10 sendbuff 0x155033300200 recvbuff 0x155016000000 count 524288 datatype 0 op 0 root 0 comm 0x5589d60acc90 [nranks=4] stream 0x5589d60aa970
+x3005c0s7b0n0:2166992:2166992 [2] NCCL INFO AllReduce: opCount 11 sendbuff 0x154feec00000 recvbuff 0x154feec00000 count 1 datatype 1 op 0 root 0 comm 0x5589d60acc90 [nranks=4] stream 0x5589d60aa970
+[2025-08-06 20:04:46,907][DL_COMM][OUTPUT] - 
+[2025-08-06 20:04:46,907][DL_COMM][OUTPUT] - [TIMERS] -------------------------------------------
+[2025-08-06 20:04:46,908][DL_COMM][OUTPUT] - 
+[2025-08-06 20:04:46,908][DL_COMM][INFO] -   [TIMERS] [BARRIER ENABLED] Timing measurements used MPI barriers for synchronization
+[2025-08-06 20:04:46,908][DL_COMM][OUTPUT] - 
+[2025-08-06 20:04:46,908][DL_COMM][OUTPUT] - [TIMERS] ITERATION TABLE FOR ALLGATHER:
+[2025-08-06 20:04:46,908][DL_COMM][OUTPUT] - Iteration     (Within-Group-0)  
+[2025-08-06 20:04:46,908][DL_COMM][OUTPUT] -               LOGGING RANK - 0  
+[2025-08-06 20:04:46,908][DL_COMM][OUTPUT] - --------------------------------
+[2025-08-06 20:04:46,908][DL_COMM][OUTPUT] - 0                 0.000235      
+[2025-08-06 20:04:46,908][DL_COMM][OUTPUT] - 1                 0.000248      
+[2025-08-06 20:04:46,908][DL_COMM][OUTPUT] - 2                 0.000281      
+[2025-08-06 20:04:46,908][DL_COMM][OUTPUT] - 3                 0.000284      
+[2025-08-06 20:04:46,908][DL_COMM][OUTPUT] - 4                 0.000248      
+[2025-08-06 20:04:46,908][DL_COMM][OUTPUT] - --------------------------------
+[2025-08-06 20:04:46,909][DL_COMM][OUTPUT] - 
+[2025-08-06 20:04:46,909][DL_COMM][OUTPUT] - [TIMERS] -------------------------------------------
+[2025-08-06 20:04:46,909][DL_COMM][OUTPUT] - 
+[2025-08-06 20:04:46,909][DL_COMM][OUTPUT] - [BANDWIDTH] -------------------------------------------
+[2025-08-06 20:04:46,909][DL_COMM][OUTPUT] - [BANDWIDTH] Communication Group Bandwidths:
+[2025-08-06 20:04:46,909][DL_COMM][OUTPUT] - 
+[2025-08-06 20:04:46,909][DL_COMM][OUTPUT] - [BANDWIDTH] Within-Group-0:
+[2025-08-06 20:04:46,909][DL_COMM][OUTPUT] - [BANDWIDTH]   Group Size     : 4 GPUs
+[2025-08-06 20:04:46,909][DL_COMM][OUTPUT] - [BANDWIDTH]   Buffer Size    : 524288 bytes
+[2025-08-06 20:04:46,909][DL_COMM][OUTPUT] - [BANDWIDTH]   Time (iter 0)  : 0.000235 s
+[2025-08-06 20:04:46,909][DL_COMM][OUTPUT] - [BANDWIDTH]   Bandwidth      : 8910149902 bytes/s
+[2025-08-06 20:04:46,909][DL_COMM][OUTPUT] - [BANDWIDTH]   Logging Rank   : 0
+[2025-08-06 20:04:46,909][DL_COMM][OUTPUT] - 
+[2025-08-06 20:04:46,910][DL_COMM][OUTPUT] - [BANDWIDTH] -------------------------------------------
+[2025-08-06 20:04:46,910][DL_COMM][OUTPUT] - 
+[2025-08-06 20:04:46,910][DL_COMM][INFO] - -------------------------------------------------------------------------
+[2025-08-06 20:04:46,910][DL_COMM][INFO] - [MPI] Job complete
+[2025-08-06 20:04:46,910][DL_COMM][INFO] - -------------------------------------------------------------------------
+[2025-08-06 20:04:46,910][DL_COMM][INFO] - Querying Default Table selection
+[2025-08-06 20:04:46,965][DL_COMM][INFO] - [SELECTION] NCCL algorithm selections for allgather:
+[2025-08-06 20:04:46,966][DL_COMM][INFO] - [SELECTION] Algorithm: Ring (protocol: Simple) (user's selection: default)
+[2025-08-06 20:04:46,966][DL_COMM][INFO] - -------------------------------------------------------------------------
+[2025-08-06 20:04:46,966][DL_COMM][INFO] - [EXIT] All Done.
+[2025-08-06 20:04:46,966][DL_COMM][INFO] - -------------------------------------------------------------------------
+[2025-08-06 20:04:46,966][DL_COMM][INFO] - 
+[2025-08-06 20:04:46,966][DL_COMM][INFO] - ================================================================================
+[2025-08-06 20:04:46,966][DL_COMM][INFO] - [IMPLEMENTATION 2/2] ==================== ACROSS-NODE-ALLREDUCE ====================
+[2025-08-06 20:04:46,966][DL_COMM][INFO] - ================================================================================
+[2025-08-06 20:04:46,966][DL_COMM][INFO] - 
+[2025-08-06 20:04:46,967][DL_COMM][INFO] - 
+[2025-08-06 20:04:46,967][DL_COMM][INFO] - [MODE 1/1] ---------- ACROSS_NODE ----------
+[2025-08-06 20:04:46,967][DL_COMM][INFO] - 
+[2025-08-06 20:04:46,967][DL_COMM][INFO] - 
+[2025-08-06 20:04:46,967][DL_COMM][INFO] - [CONFIG] Setup
+[2025-08-06 20:04:46,967][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-08-06 20:04:46,968][DL_COMM][INFO] - [CONFIG] Implementation       : across-node-allreduce
+[2025-08-06 20:04:46,968][DL_COMM][INFO] - [CONFIG] Framework            : pytorch
+[2025-08-06 20:04:46,968][DL_COMM][INFO] - [CONFIG] Backend              : nccl
+[2025-08-06 20:04:46,968][DL_COMM][INFO] - [CONFIG] Use Profiler         : unitrace
+[2025-08-06 20:04:46,968][DL_COMM][INFO] - [CONFIG] Barrier Enabled      : True
+[2025-08-06 20:04:46,968][DL_COMM][INFO] - [CONFIG] World Size           : 4
+[2025-08-06 20:04:46,968][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-08-06 20:04:46,968][DL_COMM][INFO] - 
+[2025-08-06 20:04:46,968][DL_COMM][INFO] - [CONFIG] Communication Group
+[2025-08-06 20:04:46,968][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-08-06 20:04:46,968][DL_COMM][INFO] - [CONFIG] Mode                 : across_node
+[2025-08-06 20:04:46,968][DL_COMM][INFO] - [CONFIG] Topology             : 1 nodes x 4 GPUs
+[2025-08-06 20:04:46,969][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-08-06 20:04:46,969][DL_COMM][INFO] - 
+[2025-08-06 20:04:46,969][DL_COMM][INFO] - [CONFIG] Communication Group Details
+[2025-08-06 20:04:46,969][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-08-06 20:04:46,969][DL_COMM][INFO] - [CONFIG] Collective Name      : allreduce
+[2025-08-06 20:04:46,969][DL_COMM][INFO] - [CONFIG] Operation            : sum
+[2025-08-06 20:04:46,969][DL_COMM][INFO] - [CONFIG] Scale Up Algorithm   : default
+[2025-08-06 20:04:46,969][DL_COMM][INFO] - [CONFIG] Scale Out Algorithm  : default
+[2025-08-06 20:04:46,969][DL_COMM][INFO] - [CONFIG] Data Type            : float32
+[2025-08-06 20:04:46,969][DL_COMM][INFO] - [CONFIG] Element Count        : 131072
+[2025-08-06 20:04:46,969][DL_COMM][INFO] - [CONFIG] Buffer Size          : 512KB (524288 bytes)
+[2025-08-06 20:04:46,969][DL_COMM][INFO] - [CONFIG] Iterations           : 5
+[2025-08-06 20:04:46,970][DL_COMM][INFO] - [CONFIG] Verify Correctness   : True
+[2025-08-06 20:04:46,970][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-08-06 20:04:46,970][DL_COMM][INFO] - 
+[2025-08-06 20:04:46,970][DL_COMM][INFO] - 
+[2025-08-06 20:04:46,970][DL_COMM][INFO] - [COMM][CONFIG] Setting up communication groups for mode: Across
+[2025-08-06 20:04:46,970][DL_COMM][INFO] - [COMM][CONFIG] Across-node: 1 nodes, 4 GPUs per node, Device IDs: [0, 1, 2, 3]
+[2025-08-06 20:04:46,970][DL_COMM][INFO] - [COMM][GROUP CREATION] Across-node groups:
+[2025-08-06 20:04:46,970][DL_COMM][INFO] - [COMM][GROUP CREATION][Across Group-0] Ranks: [0], GPU ID: 0, Logging: rank 0
+[2025-08-06 20:04:46,970][DL_COMM][INFO] - [COMM][GROUP CREATION][Across Group-1] Ranks: [1], GPU ID: 1, Logging: rank 1
+[2025-08-06 20:04:46,971][DL_COMM][INFO] - [COMM][GROUP CREATION][Across Group-2] Ranks: [2], GPU ID: 2, Logging: rank 2
+[2025-08-06 20:04:46,971][DL_COMM][INFO] - [COMM][GROUP CREATION][Across Group-3] Ranks: [3], GPU ID: 3, Logging: rank 3
+[2025-08-06 20:04:46,971][DL_COMM][INFO] - [COMM][GROUP CREATION] Created 4 across-node groups
+[2025-08-06 20:04:46,971][DL_COMM][INFO] - 
+[2025-08-06 20:04:46,971][DL_COMM][OUTPUT] - 
+[2025-08-06 20:04:46,971][DL_COMM][OUTPUT] - [TIMERS - SETUP] -------------------------------------------
+[2025-08-06 20:04:46,971][DL_COMM][OUTPUT] - [TIMERS][LOGGING RANK - 0] Group Creation (Across)  = 0.000788 s
+[2025-08-06 20:04:46,971][DL_COMM][OUTPUT] - [TIMERS - SETUP] -------------------------------------------
+[2025-08-06 20:04:46,971][DL_COMM][OUTPUT] - 
+[2025-08-06 20:04:46,971][DL_COMM][OUTPUT] - [MPI] Launching profiling job
+[2025-08-06 20:04:46,972][DL_COMM][INFO] - 
+[2025-08-06 20:04:46,972][DL_COMM][INFO] -   [WARMUP] Running 2 warmup iterations...
+[2025-08-06 20:04:46,972][DL_COMM][INFO] -   [WARMUP] Warmup completed, starting timed iterations...
+[2025-08-06 20:04:46,972][DL_COMM][INFO] - 
+NCCL version 2.20.5+cuda12.4
+NCCL version 2.20.5+cuda12.4
+NCCL version 2.20.5+cuda12.4
+x3005c0s7b0n0:2166993:2166993 [3] NCCL INFO AllReduce: opCount 0 sendbuff 0x152ab3380600 recvbuff 0x152ab3380600 count 1 datatype 1 op 0 root 0 comm 0x557aac3702d0 [nranks=1] stream 0x557aa56462b0
+x3005c0s7b0n0:2166993:2166993 [3] NCCL INFO AllReduce: opCount 0 sendbuff 0x152a6ed00000 recvbuff 0x152a6ed00000 count 131072 datatype 7 op 0 root 0 comm 0x557aac3702d0 [nranks=1] stream 0x557aa56462b0
+x3005c0s7b0n0:2166993:2166993 [3] NCCL INFO AllReduce: opCount 0 sendbuff 0x152ab3380800 recvbuff 0x152ab3380800 count 1 datatype 1 op 0 root 0 comm 0x557aac3702d0 [nranks=1] stream 0x557aa56462b0
+[2025-08-06 20:04:47,131][DL_COMM][OUTPUT] - [CORRECTNESS][Across-Group-3] AllReduce verification [PASSED] - All 1 ranks received correct values
+x3005c0s7b0n0:2166993:2166993 [3] NCCL INFO AllReduce: opCount 0 sendbuff 0x152ab3380a00 recvbuff 0x152ab3380a00 count 1 datatype 1 op 0 root 0 comm 0x557aac3702d0 [nranks=1] stream 0x557aa56462b0
+x3005c0s7b0n0:2166993:2166993 [3] NCCL INFO AllReduce: opCount 0 sendbuff 0x152a6ed80000 recvbuff 0x152a6ed80000 count 131072 datatype 7 op 0 root 0 comm 0x557aac3702d0 [nranks=1] stream 0x557aa56462b0
+x3005c0s7b0n0:2166993:2166993 [3] NCCL INFO AllReduce: opCount 0 sendbuff 0x152ab3380c00 recvbuff 0x152ab3380c00 count 1 datatype 1 op 0 root 0 comm 0x557aac3702d0 [nranks=1] stream 0x557aa56462b0
+x3005c0s7b0n0:2166993:2166993 [3] NCCL INFO AllReduce: opCount 0 sendbuff 0x152ab3380e00 recvbuff 0x152ab3380e00 count 1 datatype 1 op 0 root 0 comm 0x557aac3702d0 [nranks=1] stream 0x557aa56462b0
+x3005c0s7b0n0:2166993:2166993 [3] NCCL INFO AllReduce: opCount 0 sendbuff 0x152a6ec00000 recvbuff 0x152a6ec00000 count 131072 datatype 7 op 0 root 0 comm 0x557aac3702d0 [nranks=1] stream 0x557aa56462b0
+x3005c0s7b0n0:2166993:2166993 [3] NCCL INFO AllReduce: opCount 0 sendbuff 0x152ab3381000 recvbuff 0x152ab3381000 count 1 datatype 1 op 0 root 0 comm 0x557aac3702d0 [nranks=1] stream 0x557aa56462b0
+x3005c0s7b0n0:2166993:2166993 [3] NCCL INFO AllReduce: opCount 0 sendbuff 0x152ab3381200 recvbuff 0x152ab3381200 count 1 datatype 1 op 0 root 0 comm 0x557aac3702d0 [nranks=1] stream 0x557aa56462b0
+x3005c0s7b0n0:2166993:2166993 [3] NCCL INFO AllReduce: opCount 0 sendbuff 0x152a6ec80000 recvbuff 0x152a6ec80000 count 131072 datatype 7 op 0 root 0 comm 0x557aac3702d0 [nranks=1] stream 0x557aa56462b0
+x3005c0s7b0n0:2166993:2166993 [3] NCCL INFO AllReduce: opCount 0 sendbuff 0x152ab3381400 recvbuff 0x152ab3381400 count 1 datatype 1 op 0 root 0 comm 0x557aac3702d0 [nranks=1] stream 0x557aa56462b0
+x3005c0s7b0n0:2166993:2166993 [3] NCCL INFO AllReduce: opCount 0 sendbuff 0x152ab3381600 recvbuff 0x152ab3381600 count 1 datatype 1 op 0 root 0 comm 0x557aac3702d0 [nranks=1] stream 0x557aa56462b0
+x3005c0s7b0n0:2166993:2166993 [3] NCCL INFO AllReduce: opCount 0 sendbuff 0x152a6ec00000 recvbuff 0x152a6ec00000 count 131072 datatype 7 op 0 root 0 comm 0x557aac3702d0 [nranks=1] stream 0x557aa56462b0
+x3005c0s7b0n0:2166993:2166993 [3] NCCL INFO AllReduce: opCount 0 sendbuff 0x152ab3381800 recvbuff 0x152ab3381800 count 1 datatype 1 op 0 root 0 comm 0x557aac3702d0 [nranks=1] stream 0x557aa56462b0
+x3005c0s7b0n0:2166991:2166991 [1] NCCL INFO AllReduce: opCount 0 sendbuff 0x15451b300200 recvbuff 0x15451b300200 count 1 datatype 1 op 0 root 0 comm 0x55f3c2075180 [nranks=1] stream 0x55f3bb24aa80
+x3005c0s7b0n0:2166992:2166992 [2] NCCL INFO AllReduce: opCount 0 sendbuff 0x154feec00200 recvbuff 0x154feec00200 count 1 datatype 1 op 0 root 0 comm 0x5589dcfd2c10 [nranks=1] stream 0x5589d60aac70
+x3005c0s7b0n0:2166992:2166992 [2] NCCL INFO AllReduce: opCount 0 sendbuff 0x155033280000 recvbuff 0x155033280000 count 131072 datatype 7 op 0 root 0 comm 0x5589dcfd2c10 [nranks=1] stream 0x5589d60aac70
+x3005c0s7b0n0:2166992:2166992 [2] NCCL INFO AllReduce: opCount 0 sendbuff 0x155033200200 recvbuff 0x155033200200 count 1 datatype 1 op 0 root 0 comm 0x5589dcfd2c10 [nranks=1] stream 0x5589d60aac70
+x3005c0s7b0n0:2166991:2166991 [1] NCCL INFO AllReduce: opCount 0 sendbuff 0x15451b280000 recvbuff 0x15451b280000 count 131072 datatype 7 op 0 root 0 comm 0x55f3c2075180 [nranks=1] stream 0x55f3bb24aa80
+x3005c0s7b0n0:2166991:2166991 [1] NCCL INFO AllReduce: opCount 0 sendbuff 0x15451b200200 recvbuff 0x15451b200200 count 1 datatype 1 op 0 root 0 comm 0x55f3c2075180 [nranks=1] stream 0x55f3bb24aa80
+[2025-08-06 20:04:47,135][DL_COMM][OUTPUT] - [CORRECTNESS][Across-Group-1] AllReduce verification [PASSED] - All 1 ranks received correct values
+[2025-08-06 20:04:47,135][DL_COMM][OUTPUT] - [CORRECTNESS][Across-Group-2] AllReduce verification [PASSED] - All 1 ranks received correct values
+x3005c0s7b0n0:2166990:2166990 [0] NCCL INFO AllReduce: opCount 0 sendbuff 0x14ef05300200 recvbuff 0x14ef05300200 count 1 datatype 1 op 0 root 0 comm 0x5592e3a487a0 [nranks=1] stream 0x5592dbc8c8e0
+x3005c0s7b0n0:2166990:2166990 [0] NCCL INFO AllReduce: opCount 0 sendbuff 0x14ef05280000 recvbuff 0x14ef05280000 count 131072 datatype 7 op 0 root 0 comm 0x5592e3a487a0 [nranks=1] stream 0x5592dbc8c8e0
+x3005c0s7b0n0:2166990:2166990 [0] NCCL INFO AllReduce: opCount 0 sendbuff 0x14ef05200200 recvbuff 0x14ef05200200 count 1 datatype 1 op 0 root 0 comm 0x5592e3a487a0 [nranks=1] stream 0x5592dbc8c8e0
+x3005c0s7b0n0:2166991:2166991 [1] NCCL INFO AllReduce: opCount 0 sendbuff 0x15451b380200 recvbuff 0x15451b380200 count 1 datatype 1 op 0 root 0 comm 0x55f3c2075180 [nranks=1] stream 0x55f3bb24aa80
+x3005c0s7b0n0:2166992:2166992 [2] NCCL INFO AllReduce: opCount 0 sendbuff 0x155033380200 recvbuff 0x155033380200 count 1 datatype 1 op 0 root 0 comm 0x5589dcfd2c10 [nranks=1] stream 0x5589d60aac70
+x3005c0s7b0n0:2166991:2166991 [1] NCCL INFO AllReduce: opCount 0 sendbuff 0x15451b300000 recvbuff 0x15451b300000 count 131072 datatype 7 op 0 root 0 comm 0x55f3c2075180 [nranks=1] stream 0x55f3bb24aa80
+x3005c0s7b0n0:2166991:2166991 [1] NCCL INFO AllReduce: opCount 0 sendbuff 0x15451b380000 recvbuff 0x15451b380000 count 1 datatype 1 op 0 root 0 comm 0x55f3c2075180 [nranks=1] stream 0x55f3bb24aa80
+x3005c0s7b0n0:2166992:2166992 [2] NCCL INFO AllReduce: opCount 0 sendbuff 0x155033300000 recvbuff 0x155033300000 count 131072 datatype 7 op 0 root 0 comm 0x5589dcfd2c10 [nranks=1] stream 0x5589d60aac70
+x3005c0s7b0n0:2166992:2166992 [2] NCCL INFO AllReduce: opCount 0 sendbuff 0x155033380000 recvbuff 0x155033380000 count 1 datatype 1 op 0 root 0 comm 0x5589dcfd2c10 [nranks=1] stream 0x5589d60aac70
+[2025-08-06 20:04:47,136][DL_COMM][OUTPUT] - [CORRECTNESS][Across-Group-0] AllReduce verification [PASSED] - All 1 ranks received correct values
+x3005c0s7b0n0:2166991:2166991 [1] NCCL INFO AllReduce: opCount 0 sendbuff 0x15451b380600 recvbuff 0x15451b380600 count 1 datatype 1 op 0 root 0 comm 0x55f3c2075180 [nranks=1] stream 0x55f3bb24aa80
+x3005c0s7b0n0:2166992:2166992 [2] NCCL INFO AllReduce: opCount 0 sendbuff 0x155033380600 recvbuff 0x155033380600 count 1 datatype 1 op 0 root 0 comm 0x5589dcfd2c10 [nranks=1] stream 0x5589d60aac70
+x3005c0s7b0n0:2166991:2166991 [1] NCCL INFO AllReduce: opCount 0 sendbuff 0x15451b200000 recvbuff 0x15451b200000 count 131072 datatype 7 op 0 root 0 comm 0x55f3c2075180 [nranks=1] stream 0x55f3bb24aa80
+x3005c0s7b0n0:2166991:2166991 [1] NCCL INFO AllReduce: opCount 0 sendbuff 0x15451b380800 recvbuff 0x15451b380800 count 1 datatype 1 op 0 root 0 comm 0x55f3c2075180 [nranks=1] stream 0x55f3bb24aa80
+x3005c0s7b0n0:2166992:2166992 [2] NCCL INFO AllReduce: opCount 0 sendbuff 0x155033200000 recvbuff 0x155033200000 count 131072 datatype 7 op 0 root 0 comm 0x5589dcfd2c10 [nranks=1] stream 0x5589d60aac70
+x3005c0s7b0n0:2166992:2166992 [2] NCCL INFO AllReduce: opCount 0 sendbuff 0x155033380800 recvbuff 0x155033380800 count 1 datatype 1 op 0 root 0 comm 0x5589dcfd2c10 [nranks=1] stream 0x5589d60aac70
+x3005c0s7b0n0:2166990:2166990 [0] NCCL INFO AllReduce: opCount 0 sendbuff 0x14ef05380200 recvbuff 0x14ef05380200 count 1 datatype 1 op 0 root 0 comm 0x5592e3a487a0 [nranks=1] stream 0x5592dbc8c8e0
+x3005c0s7b0n0:2166990:2166990 [0] NCCL INFO AllReduce: opCount 0 sendbuff 0x14ef05300000 recvbuff 0x14ef05300000 count 131072 datatype 7 op 0 root 0 comm 0x5592e3a487a0 [nranks=1] stream 0x5592dbc8c8e0
+x3005c0s7b0n0:2166990:2166990 [0] NCCL INFO AllReduce: opCount 0 sendbuff 0x14ef05380000 recvbuff 0x14ef05380000 count 1 datatype 1 op 0 root 0 comm 0x5592e3a487a0 [nranks=1] stream 0x5592dbc8c8e0
+x3005c0s7b0n0:2166992:2166992 [2] NCCL INFO AllReduce: opCount 0 sendbuff 0x155033380a00 recvbuff 0x155033380a00 count 1 datatype 1 op 0 root 0 comm 0x5589dcfd2c10 [nranks=1] stream 0x5589d60aac70
+x3005c0s7b0n0:2166992:2166992 [2] NCCL INFO AllReduce: opCount 0 sendbuff 0x155033280000 recvbuff 0x155033280000 count 131072 datatype 7 op 0 root 0 comm 0x5589dcfd2c10 [nranks=1] stream 0x5589d60aac70
+x3005c0s7b0n0:2166992:2166992 [2] NCCL INFO AllReduce: opCount 0 sendbuff 0x155033380c00 recvbuff 0x155033380c00 count 1 datatype 1 op 0 root 0 comm 0x5589dcfd2c10 [nranks=1] stream 0x5589d60aac70
+x3005c0s7b0n0:2166990:2166990 [0] NCCL INFO AllReduce: opCount 0 sendbuff 0x14ef05380600 recvbuff 0x14ef05380600 count 1 datatype 1 op 0 root 0 comm 0x5592e3a487a0 [nranks=1] stream 0x5592dbc8c8e0
+x3005c0s7b0n0:2166991:2166991 [1] NCCL INFO AllReduce: opCount 0 sendbuff 0x15451b380a00 recvbuff 0x15451b380a00 count 1 datatype 1 op 0 root 0 comm 0x55f3c2075180 [nranks=1] stream 0x55f3bb24aa80
+x3005c0s7b0n0:2166991:2166991 [1] NCCL INFO AllReduce: opCount 0 sendbuff 0x15451b280000 recvbuff 0x15451b280000 count 131072 datatype 7 op 0 root 0 comm 0x55f3c2075180 [nranks=1] stream 0x55f3bb24aa80
+x3005c0s7b0n0:2166991:2166991 [1] NCCL INFO AllReduce: opCount 0 sendbuff 0x15451b380c00 recvbuff 0x15451b380c00 count 1 datatype 1 op 0 root 0 comm 0x55f3c2075180 [nranks=1] stream 0x55f3bb24aa80
+x3005c0s7b0n0:2166990:2166990 [0] NCCL INFO AllReduce: opCount 0 sendbuff 0x14ef05200000 recvbuff 0x14ef05200000 count 131072 datatype 7 op 0 root 0 comm 0x5592e3a487a0 [nranks=1] stream 0x5592dbc8c8e0
+x3005c0s7b0n0:2166990:2166990 [0] NCCL INFO AllReduce: opCount 0 sendbuff 0x14ef05380800 recvbuff 0x14ef05380800 count 1 datatype 1 op 0 root 0 comm 0x5592e3a487a0 [nranks=1] stream 0x5592dbc8c8e0
+x3005c0s7b0n0:2166992:2166992 [2] NCCL INFO AllReduce: opCount 0 sendbuff 0x155033380e00 recvbuff 0x155033380e00 count 1 datatype 1 op 0 root 0 comm 0x5589dcfd2c10 [nranks=1] stream 0x5589d60aac70
+x3005c0s7b0n0:2166991:2166991 [1] NCCL INFO AllReduce: opCount 0 sendbuff 0x15451b380e00 recvbuff 0x15451b380e00 count 1 datatype 1 op 0 root 0 comm 0x55f3c2075180 [nranks=1] stream 0x55f3bb24aa80
+x3005c0s7b0n0:2166992:2166992 [2] NCCL INFO AllReduce: opCount 0 sendbuff 0x155033200000 recvbuff 0x155033200000 count 131072 datatype 7 op 0 root 0 comm 0x5589dcfd2c10 [nranks=1] stream 0x5589d60aac70
+x3005c0s7b0n0:2166992:2166992 [2] NCCL INFO AllReduce: opCount 0 sendbuff 0x155033381000 recvbuff 0x155033381000 count 1 datatype 1 op 0 root 0 comm 0x5589dcfd2c10 [nranks=1] stream 0x5589d60aac70
+x3005c0s7b0n0:2166990:2166990 [0] NCCL INFO AllReduce: opCount 0 sendbuff 0x14ef05380a00 recvbuff 0x14ef05380a00 count 1 datatype 1 op 0 root 0 comm 0x5592e3a487a0 [nranks=1] stream 0x5592dbc8c8e0
+x3005c0s7b0n0:2166990:2166990 [0] NCCL INFO AllReduce: opCount 0 sendbuff 0x14ef05280000 recvbuff 0x14ef05280000 count 131072 datatype 7 op 0 root 0 comm 0x5592e3a487a0 [nranks=1] stream 0x5592dbc8c8e0
+x3005c0s7b0n0:2166990:2166990 [0] NCCL INFO AllReduce: opCount 0 sendbuff 0x14ef05380c00 recvbuff 0x14ef05380c00 count 1 datatype 1 op 0 root 0 comm 0x5592e3a487a0 [nranks=1] stream 0x5592dbc8c8e0
+x3005c0s7b0n0:2166991:2166991 [1] NCCL INFO AllReduce: opCount 0 sendbuff 0x15451b200000 recvbuff 0x15451b200000 count 131072 datatype 7 op 0 root 0 comm 0x55f3c2075180 [nranks=1] stream 0x55f3bb24aa80
+x3005c0s7b0n0:2166991:2166991 [1] NCCL INFO AllReduce: opCount 0 sendbuff 0x15451b381000 recvbuff 0x15451b381000 count 1 datatype 1 op 0 root 0 comm 0x55f3c2075180 [nranks=1] stream 0x55f3bb24aa80
+x3005c0s7b0n0:2166990:2166990 [0] NCCL INFO AllReduce: opCount 0 sendbuff 0x14ef05380e00 recvbuff 0x14ef05380e00 count 1 datatype 1 op 0 root 0 comm 0x5592e3a487a0 [nranks=1] stream 0x5592dbc8c8e0
+x3005c0s7b0n0:2166990:2166990 [0] NCCL INFO AllReduce: opCount 0 sendbuff 0x14ef05200000 recvbuff 0x14ef05200000 count 131072 datatype 7 op 0 root 0 comm 0x5592e3a487a0 [nranks=1] stream 0x5592dbc8c8e0
+x3005c0s7b0n0:2166990:2166990 [0] NCCL INFO AllReduce: opCount 0 sendbuff 0x14ef05381000 recvbuff 0x14ef05381000 count 1 datatype 1 op 0 root 0 comm 0x5592e3a487a0 [nranks=1] stream 0x5592dbc8c8e0
+[2025-08-06 20:04:47,137][DL_COMM][OUTPUT] - 
+[2025-08-06 20:04:47,137][DL_COMM][OUTPUT] - [TIMERS] -------------------------------------------
+[2025-08-06 20:04:47,138][DL_COMM][OUTPUT] - 
+[2025-08-06 20:04:47,138][DL_COMM][INFO] -   [TIMERS] [BARRIER ENABLED] Timing measurements used MPI barriers for synchronization
+[2025-08-06 20:04:47,138][DL_COMM][OUTPUT] - 
+[2025-08-06 20:04:47,138][DL_COMM][OUTPUT] - [TIMERS] ITERATION TABLE FOR ALLREDUCE:
+[2025-08-06 20:04:47,138][DL_COMM][OUTPUT] - Iteration     (Across-Group-0)    (Across-Group-1)    (Across-Group-2)    (Across-Group-3)  
+[2025-08-06 20:04:47,138][DL_COMM][OUTPUT] -               LOGGING RANK - 0    LOGGING RANK - 1    LOGGING RANK - 2    LOGGING RANK - 3  
+[2025-08-06 20:04:47,138][DL_COMM][OUTPUT] - --------------------------------------------------------------------------------------------
+[2025-08-06 20:04:47,138][DL_COMM][OUTPUT] - 0                 0.000139            0.000156            0.000155            0.000141      
+[2025-08-06 20:04:47,138][DL_COMM][OUTPUT] - 1                 0.000090            0.000123            0.000094            0.000102      
+[2025-08-06 20:04:47,138][DL_COMM][OUTPUT] - 2                 0.000079            0.000090            0.000121            0.000130      
+[2025-08-06 20:04:47,138][DL_COMM][OUTPUT] - 3                 0.000076            0.000142            0.000099            0.000134      
+[2025-08-06 20:04:47,138][DL_COMM][OUTPUT] - 4                 0.000088            0.000081            0.000123            0.000089      
+[2025-08-06 20:04:47,138][DL_COMM][OUTPUT] - --------------------------------------------------------------------------------------------
+[2025-08-06 20:04:47,138][DL_COMM][OUTPUT] - 
+[2025-08-06 20:04:47,139][DL_COMM][OUTPUT] - [TIMERS] -------------------------------------------
+[2025-08-06 20:04:47,139][DL_COMM][OUTPUT] - 
+[2025-08-06 20:04:47,139][DL_COMM][OUTPUT] - [BANDWIDTH] -------------------------------------------
+[2025-08-06 20:04:47,139][DL_COMM][OUTPUT] - [BANDWIDTH] Communication Group Bandwidths:
+[2025-08-06 20:04:47,139][DL_COMM][OUTPUT] - 
+[2025-08-06 20:04:47,139][DL_COMM][OUTPUT] - [BANDWIDTH] Across-Group-0:
+[2025-08-06 20:04:47,139][DL_COMM][OUTPUT] - [BANDWIDTH]   Group Size     : 1 GPUs
+[2025-08-06 20:04:47,139][DL_COMM][OUTPUT] - [BANDWIDTH]   Buffer Size    : 524288 bytes
+[2025-08-06 20:04:47,139][DL_COMM][OUTPUT] - [BANDWIDTH]   Time (iter 0)  : 0.000139 s
+[2025-08-06 20:04:47,139][DL_COMM][OUTPUT] - [BANDWIDTH]   Bandwidth      : 3766584504 bytes/s
+[2025-08-06 20:04:47,139][DL_COMM][OUTPUT] - [BANDWIDTH]   Logging Rank   : 0
+[2025-08-06 20:04:47,139][DL_COMM][OUTPUT] - 
+[2025-08-06 20:04:47,140][DL_COMM][OUTPUT] - [BANDWIDTH] Across-Group-1:
+[2025-08-06 20:04:47,140][DL_COMM][OUTPUT] - [BANDWIDTH]   Group Size     : 1 GPUs
+[2025-08-06 20:04:47,140][DL_COMM][OUTPUT] - [BANDWIDTH]   Buffer Size    : 524288 bytes
+[2025-08-06 20:04:47,140][DL_COMM][OUTPUT] - [BANDWIDTH]   Time (iter 0)  : 0.000156 s
+[2025-08-06 20:04:47,140][DL_COMM][OUTPUT] - [BANDWIDTH]   Bandwidth      : 3357267391 bytes/s
+[2025-08-06 20:04:47,140][DL_COMM][OUTPUT] - [BANDWIDTH]   Logging Rank   : 1
+[2025-08-06 20:04:47,140][DL_COMM][OUTPUT] - 
+[2025-08-06 20:04:47,140][DL_COMM][OUTPUT] - [BANDWIDTH] Across-Group-2:
+[2025-08-06 20:04:47,140][DL_COMM][OUTPUT] - [BANDWIDTH]   Group Size     : 1 GPUs
+[2025-08-06 20:04:47,140][DL_COMM][OUTPUT] - [BANDWIDTH]   Buffer Size    : 524288 bytes
+[2025-08-06 20:04:47,140][DL_COMM][OUTPUT] - [BANDWIDTH]   Time (iter 0)  : 0.000155 s
+[2025-08-06 20:04:47,140][DL_COMM][OUTPUT] - [BANDWIDTH]   Bandwidth      : 3392163907 bytes/s
+[2025-08-06 20:04:47,140][DL_COMM][OUTPUT] - [BANDWIDTH]   Logging Rank   : 2
+[2025-08-06 20:04:47,140][DL_COMM][OUTPUT] - 
+[2025-08-06 20:04:47,140][DL_COMM][OUTPUT] - [BANDWIDTH] Across-Group-3:
+[2025-08-06 20:04:47,141][DL_COMM][OUTPUT] - [BANDWIDTH]   Group Size     : 1 GPUs
+[2025-08-06 20:04:47,141][DL_COMM][OUTPUT] - [BANDWIDTH]   Buffer Size    : 524288 bytes
+[2025-08-06 20:04:47,141][DL_COMM][OUTPUT] - [BANDWIDTH]   Time (iter 0)  : 0.000141 s
+[2025-08-06 20:04:47,141][DL_COMM][OUTPUT] - [BANDWIDTH]   Bandwidth      : 3710746654 bytes/s
+[2025-08-06 20:04:47,141][DL_COMM][OUTPUT] - [BANDWIDTH]   Logging Rank   : 3
+[2025-08-06 20:04:47,141][DL_COMM][OUTPUT] - 
+[2025-08-06 20:04:47,141][DL_COMM][OUTPUT] - [BANDWIDTH] -------------------------------------------
+[2025-08-06 20:04:47,141][DL_COMM][OUTPUT] - 
+[2025-08-06 20:04:47,141][DL_COMM][INFO] - -------------------------------------------------------------------------
+[2025-08-06 20:04:47,141][DL_COMM][INFO] - [MPI] Job complete
+[2025-08-06 20:04:47,141][DL_COMM][INFO] - -------------------------------------------------------------------------
+[2025-08-06 20:04:47,141][DL_COMM][INFO] - Querying Default Table selection
+[2025-08-06 20:04:47,233][DL_COMM][INFO] - [SELECTION] NCCL algorithm selections for allreduce:
+[2025-08-06 20:04:47,233][DL_COMM][INFO] - [SELECTION] No selections found
+[2025-08-06 20:04:47,233][DL_COMM][INFO] - [SELECTION] No implementations found using allreduce collective
+[2025-08-06 20:04:47,233][DL_COMM][INFO] - -------------------------------------------------------------------------
+[2025-08-06 20:04:47,233][DL_COMM][INFO] - [EXIT] All Done.
+[2025-08-06 20:04:47,233][DL_COMM][INFO] - -------------------------------------------------------------------------
+[2025-08-06 20:04:47,233][DL_COMM][INFO] - 
+[2025-08-06 20:04:47,233][DL_COMM][INFO] - ================================================================================
+[2025-08-06 20:04:47,233][DL_COMM][INFO] - [FINAL] All 2 implementations completed successfully!
+[2025-08-06 20:04:47,233][DL_COMM][INFO] - ================================================================================

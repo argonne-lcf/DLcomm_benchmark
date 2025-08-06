@@ -10,7 +10,7 @@ implementations:
   - name: allreduce-scale
     comm_groups:
       across_node: 
-        num_compute_nodes: 450
+        num_compute_nodes: 1
         num_gpus_per_node: 4
         gpu_ids_per_node: [0,1,2,3]
         collective:
@@ -29,7 +29,7 @@ implementations:
   - name: allgather-scale
     comm_groups:
       across_node: 
-        num_compute_nodes: 450
+        num_compute_nodes: 1
         num_gpus_per_node: 4
         gpu_ids_per_node: [0,1,2,3]
         collective:
@@ -48,7 +48,7 @@ implementations:
   - name: reducescatter-scale
     comm_groups:
       across_node: 
-        num_compute_nodes: 450
+        num_compute_nodes: 1
         num_gpus_per_node: 4
         gpu_ids_per_node: [0,1,2,3]
         collective:
@@ -67,7 +67,7 @@ implementations:
   - name: broadcast-scale
     comm_groups:
       across_node: 
-        num_compute_nodes: 450
+        num_compute_nodes: 1
         num_gpus_per_node: 4
         gpu_ids_per_node: [0,1,2,3]
         collective:
@@ -86,7 +86,7 @@ implementations:
   - name: reduce-scale
     comm_groups:
       across_node: 
-        num_compute_nodes: 450
+        num_compute_nodes: 1
         num_gpus_per_node: 4
         gpu_ids_per_node: [0,1,2,3]
         collective:
