@@ -1,6 +1,6 @@
 #!/bin/bash -l
 #PBS -A datascience_collab
-#PBS -l select=450:ncpus=256
+#PBS -l select=2:ncpus=256
 #PBS -l walltime=00:05:00
 #PBS -l filesystems=home:eagle
 #PBS -q prod
@@ -10,6 +10,15 @@
 module use /soft/modulefiles
 module load conda/2024-04-29
 conda activate base
+
+# --- Prefer CUDA 12.6.3 & NCCL 2.23.4 (system installs) ---
+export CUDA_HOME=/soft/compilers/cudatoolkit/cuda-12.6.3
+export NCCL_HOME=/soft/libraries/nccl/nccl_2.23.4-1+cuda12.6_x86_64
+export PATH=${CUDA_HOME}/bin:${PATH}
+# Put NCCL then CUDA at the very front so they win over conda/torch libs
+export LD_LIBRARY_PATH=${NCCL_HOME}/lib:${CUDA_HOME}/lib64:${LD_LIBRARY_PATH}
+# Defeat PyTorch-bundled libs by preloading
+export LD_PRELOAD=${NCCL_HOME}/lib/libnccl.so:${CUDA_HOME}/lib64/libcudart.so.12:${LD_PRELOAD}
 
 
 # Use the directory where the script is located (portable for any user)
@@ -75,16 +84,13 @@ mkdir -p "$RUN_LOG_DIR"
 export TERMINAL_LOG_FILE="$RUN_LOG_DIR/terminal_output.log"
 export DL_COMM_LOG_DIR="$RUN_LOG_DIR"
 
-# Create a config file for NCCL backend
-CONFIG_FILE="$RUN_LOG_DIR/config_nccl.yaml"
-sed 's/ccl_backend : ccl/ccl_backend : nccl/' "$EXAMPLES_DIR/config.yaml" > "$CONFIG_FILE"
 
 # Use mpiexec according to Polaris documentation
 mpiexec --np ${NRANKS} \
         -ppn ${RANKS_PER_NODE} \
         --depth 16 \
         --cpu-bind depth \
-        python3 -m dl_comm.dl_comm_main --config-path="$RUN_LOG_DIR" --config-name=config_nccl 2>&1 | tee "$TERMINAL_LOG_FILE"
+        python3 -m dl_comm.dl_comm_main --config-path="$EXAMPLES_DIR" --config-name=config 2>&1 | tee "$TERMINAL_LOG_FILE"
 
 EXIT_STATUS=${PIPESTATUS[0]}
 

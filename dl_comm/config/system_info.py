@@ -144,6 +144,14 @@ def print_system_info(log, mpi_rank):
         except:
             log.info("[SYSTEM] intel_extension_for_pytorch: Not available")
         
+        # NCCL Version
+        try:
+            nccl_version = torch.cuda.nccl.version()
+            version_str = f"{nccl_version[0]}.{nccl_version[1]}.{nccl_version[2]}"
+            log.info(f"[SYSTEM] NCCL version: {version_str}")
+        except:
+            log.info("[SYSTEM] NCCL version: Not available")
+        
         # Environment Variables
         log.info("")
         log.info("[SYSTEM] Relevant Environment Variables:")

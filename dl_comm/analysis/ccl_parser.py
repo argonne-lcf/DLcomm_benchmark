@@ -55,6 +55,8 @@ def parse_nccl_selection(log_path: str, collective_name: str):
     implementations = {}
     current_impl = None
     last_impl = None
+    nccl_version = None
+    cuda_version = None
     
     algo_map = {
         '0': 'Tree',
@@ -62,7 +64,8 @@ def parse_nccl_selection(log_path: str, collective_name: str):
         '2': 'CollNetDirect',
         '3': 'CollNetChain',
         '4': 'NVLS',
-        '5': 'NVLSTree'
+        '5': 'NVLSTree',
+        '6': 'PAT'
     }
     
     proto_map = {
@@ -73,8 +76,10 @@ def parse_nccl_selection(log_path: str, collective_name: str):
     
     impl_pattern = re.compile(r'.*\[CONFIG\]\s+Implementation\s+:\s+(.+)')
     job_complete_pattern = re.compile(r'.*\[MPI\]\s+Job\s+complete')
-    collective_pattern = re.compile(r'.*NCCL INFO\s+(AllReduce|Reduce|AllGather|ReduceScatter|Broadcast|Scatter|Gather|AllToAll):', re.IGNORECASE)
-    selection_pattern = re.compile(r'.*NCCL INFO\s+(\d+)\s+Bytes\s+->\s+Algo\s+(\d+)\s+proto\s+(\d+)')
+    # Updated pattern to match newer NCCL format: "NCCL INFO AllReduce: 1 Bytes -> Algo 1 proto 0 time 16.600084"
+    selection_pattern = re.compile(r'.*NCCL INFO\s+(AllReduce|Reduce|AllGather|ReduceScatter|Broadcast|Scatter|Gather|AllToAll):\s+(\d+)\s+Bytes\s+->\s+Algo\s+(\d+)\s+proto\s+(\d+)', re.IGNORECASE)
+    # Patterns to extract version info from NCCL debug output
+    nccl_version_pattern = re.compile(r'.*NCCL INFO NCCL version (.+)', re.IGNORECASE)
     
     try:
         with open(log_path, 'r') as f:
@@ -83,6 +88,19 @@ def parse_nccl_selection(log_path: str, collective_name: str):
         i = 0
         while i < len(lines):
             line = lines[i]
+            
+            # Extract version information from NCCL debug output
+            if not nccl_version:
+                nccl_match = nccl_version_pattern.search(line)
+                if nccl_match:
+                    version_info = nccl_match.group(1).strip()
+                    # Parse the version string like "2.23.4+cuda12.6"
+                    if '+cuda' in version_info:
+                        parts = version_info.split('+cuda')
+                        nccl_version = parts[0]
+                        cuda_version = parts[1] if len(parts) > 1 else None
+                    else:
+                        nccl_version = version_info
             
             impl_match = impl_pattern.search(line)
             if impl_match:
@@ -95,16 +113,48 @@ def parse_nccl_selection(log_path: str, collective_name: str):
             if job_complete_pattern.search(line) and current_impl:
                 last_impl = current_impl
             
-            collective_match = collective_pattern.search(line)
-            if current_impl and collective_match:
-                collective_op = collective_match.group(1)
-                for j in range(i + 1, min(i + 15, len(lines))):
-                    selection_match = selection_pattern.search(lines[j])
-                    if selection_match:
-                        buffer_size = int(selection_match.group(1))
-                        algo_id = selection_match.group(2)
-                        proto_id = selection_match.group(3)
-                        
+            # Look for NCCL algorithm selection lines directly
+            if current_impl:
+                selection_match = selection_pattern.search(line)
+                if selection_match:
+                    collective_op = selection_match.group(1)
+                    buffer_size = int(selection_match.group(2))
+                    algo_id = selection_match.group(3)
+                    proto_id = selection_match.group(4)
+                    
+                    # Map collective names to match implementation naming
+                    collective_mapping = {
+                        'AllReduce': 'allreduce',
+                        'Reduce': 'reduce', 
+                        'AllGather': 'allgather',
+                        'ReduceScatter': 'reducescatter',
+                        'Broadcast': 'broadcast',
+                        'Scatter': 'scatter',
+                        'Gather': 'gather',
+                        'AllToAll': 'alltoall'
+                    }
+                    
+                    # Only capture if this collective matches the current implementation
+                    impl_collective = None
+                    if 'allreduce' in current_impl.lower():
+                        impl_collective = 'AllReduce'
+                    elif 'allgather' in current_impl.lower():
+                        impl_collective = 'AllGather'
+                    elif 'reducescatter' in current_impl.lower():
+                        impl_collective = 'ReduceScatter'
+                    elif 'broadcast' in current_impl.lower():
+                        impl_collective = 'Broadcast'
+                    elif 'reduce' in current_impl.lower():
+                        impl_collective = 'Reduce'
+                    elif 'scatter' in current_impl.lower():
+                        impl_collective = 'Scatter'
+                    elif 'gather' in current_impl.lower():
+                        impl_collective = 'Gather'
+                    elif 'alltoall' in current_impl.lower():
+                        impl_collective = 'AllToAll'
+                    
+                    # Only record if this matches our current implementation's collective
+                    if impl_collective and collective_op == impl_collective:
                         algo_name = algo_map.get(algo_id, f'Algorithm{algo_id}')
                         proto_name = proto_map.get(proto_id, f'Protocol{proto_id}')
                         
@@ -113,16 +163,22 @@ def parse_nccl_selection(log_path: str, collective_name: str):
                         
                         key = f'{buffer_size} bytes'
                         implementations[current_impl][collective_op][key] = f'{algo_name} (protocol: {proto_name})'
-                        break
-                    if 'NCCL INFO' in lines[j] and any(op in lines[j] for op in ['AllReduce:', 'Reduce:', 'AllGather:', 'ReduceScatter:', 'Broadcast:']):
-                        break
             
             i += 1
         
+        result = {}
         if last_impl and last_impl in implementations:
-            return {last_impl: implementations[last_impl]}
+            result = {last_impl: implementations[last_impl]}
         else:
-            return implementations
+            result = implementations
+        
+        # Add version information to the result
+        result['_versions'] = {
+            'nccl_version': nccl_version,
+            'cuda_version': cuda_version
+        }
+        
+        return result
                     
     except Exception as e:
         return {}
@@ -138,6 +194,17 @@ def report_nccl_selection(log_path: str, collective_name: str, logger, scale_up_
         return
     
     logger.info(f"[SELECTION] NCCL algorithm selections for {collective_name}:")
+    
+    # Print version information if available
+    if '_versions' in selections:
+        versions = selections['_versions']
+        if versions['nccl_version']:
+            version_str = f"NCCL {versions['nccl_version']}"
+            if versions['cuda_version']:
+                version_str += f" + CUDA {versions['cuda_version']}"
+            logger.info(f"[SELECTION] {version_str}")
+        # Remove versions from selections for processing
+        del selections['_versions']
     
     collective_mapping = {
         'reduce': 'Reduce',
