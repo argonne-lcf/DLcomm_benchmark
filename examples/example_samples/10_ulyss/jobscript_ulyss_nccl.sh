@@ -1,4 +1,4 @@
-#!/bin/bash -l
+w#!/bin/bash -l
 #PBS -A datascience_collab
 #PBS -l select=2:ncpus=256
 #PBS -l walltime=00:05:00

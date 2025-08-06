@@ -1,4 +1,4 @@
-# ----------------------------------------------------------------------------
+th# ----------------------------------------------------------------------------
 # OVERALL STRUCTURE
 # ----------------------------------------------------------------------------
 
@@ -37,7 +37,7 @@ from time import perf_counter
 from omegaconf import DictConfig, OmegaConf
 # dl_comm packages
 from dl_comm.comm import setup_communication_groups
-from dl_comm.utils.utility import DLCOMMLogger, Profile
+from dl_comm.utils.utility import DLCOMMLogger, Profile, dummy_mxm_compute
 from dl_comm.analysis.correctness import check_collective_correctness
 from dl_comm.comm import COLLECTIVES, OPS_NEED_REDUCE, OP_MAP, DTYPES
 from dl_comm.analysis import report_ccl_selection, report_nccl_selection, print_all_bandwidths 
@@ -268,6 +268,7 @@ def main(cfg: DictConfig):
             dtype_str          = coll_cfg.payload.dtype
             iters              = coll_cfg.iterations
             warmup_iters       = getattr(coll_cfg, 'warmup_iterations', 0)  # Default to 0 if not specified
+            add_mxm_compute    = getattr(coll_cfg, 'add_mxm_compute', False)  # Default to False if not specified
             enable_correctness = mode_cfg.verify_correctness
 
             # Validate operation is provided for collectives that need it
@@ -430,6 +431,16 @@ def main(cfg: DictConfig):
                 if mpi_rank == 0:
                     log.info(f"  [WARMUP] Warmup completed, starting timed iterations...")
                     log.info("")
+            
+            # ----------------------------------------------------------------------------
+            #  MxM COMPUTE SECTION 
+            # ----------------------------------------------------------------------------
+            
+            if add_mxm_compute:
+                if mpi_rank == 0:
+                    log.info(f"  [MxM COMPUTE] Matrix multiplication compute enabled")
+                    log.info("")
+            
             # ----------------------------------------------------------------------------
             #  COLLECTIVE OP EXECUTION (TIMED)
             # ----------------------------------------------------------------------------
@@ -440,6 +451,9 @@ def main(cfg: DictConfig):
                 x = torch.ones(num_elems, dtype=torch_dtype).to(device, non_blocking=True)
                 context = {'mpi_rank': mpi_rank, 'cfg': cfg,'log': log, 'iteration': i}
 
+                if add_mxm_compute:
+                    dummy_mxm_compute(device, torch_dtype, size=512) # defined in ./utils/utility.py)
+                    
                 if comm_mode == "flatview":
                     if flat_group is not None:
                         time_barrier(group=flat_group, device=device)

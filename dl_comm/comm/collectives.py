@@ -20,8 +20,7 @@ DTYPES = {
     "float32": (torch.float32, 4),
     "float64": (torch.float64, 8),
     "int32":   (torch.int32,   4),
-    "int64":   (torch.int64,   8),
-    "float8": (torch.float32, 4), 
+    "int64":   (torch.int64,   8)
 }
 
 

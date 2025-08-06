@@ -10,11 +10,11 @@ module use /soft/modulefiles
 module load conda/2024-04-29
 conda activate base
 
-export CUDA_HOME=/soft/compilers/cudatoolkit/cuda-12.6.3
-export NCCL_HOME=/soft/libraries/nccl/nccl_2.23.4-1+cuda12.6_x86_64
-export PATH=${CUDA_HOME}/bin:${PATH}
-export LD_LIBRARY_PATH=${NCCL_HOME}/lib:${CUDA_HOME}/lib64:${LD_LIBRARY_PATH}
-export LD_PRELOAD=${NCCL_HOME}/lib/libnccl.so:${CUDA_HOME}/lib64/libcudart.so.12:${LD_PRELOAD}
+#export CUDA_HOME=/soft/compilers/cudatoolkit/cuda-12.6.3
+#export NCCL_HOME=/soft/libraries/nccl/nccl_2.23.4-1+cuda12.6_x86_64
+#export PATH=${CUDA_HOME}/bin:${PATH}
+#export LD_LIBRARY_PATH=${NCCL_HOME}/lib:${CUDA_HOME}/lib64:${LD_LIBRARY_PATH}
+#export LD_PRELOAD=${NCCL_HOME}/lib/libnccl.so:${CUDA_HOME}/lib64/libcudart.so.12:${LD_PRELOAD}
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 EXAMPLES_DIR="$SCRIPT_DIR"

@@ -76,8 +76,11 @@ def parse_nccl_selection(log_path: str, collective_name: str):
     
     impl_pattern = re.compile(r'.*\[CONFIG\]\s+Implementation\s+:\s+(.+)')
     job_complete_pattern = re.compile(r'.*\[MPI\]\s+Job\s+complete')
-    # Updated pattern to match newer NCCL format: "NCCL INFO AllReduce: 1 Bytes -> Algo 1 proto 0 time 16.600084"
-    selection_pattern = re.compile(r'.*NCCL INFO\s+(AllReduce|Reduce|AllGather|ReduceScatter|Broadcast|Scatter|Gather|AllToAll):\s+(\d+)\s+Bytes\s+->\s+Algo\s+(\d+)\s+proto\s+(\d+)', re.IGNORECASE)
+    # Pattern for same-line format: "NCCL INFO AllReduce: 1024 Bytes -> Algo 1 proto 0 time 13.570666"
+    selection_pattern_sameline = re.compile(r'.*NCCL INFO\s+(AllReduce|Reduce|AllGather|ReduceScatter|Broadcast|Scatter|Gather|AllToAll):\s+(\d+)\s+Bytes\s+->\s+Algo\s+(\d+)\s+proto\s+(\d+)', re.IGNORECASE)
+    # Pattern for two-line format: collective on previous line, algo info on current line
+    collective_pattern = re.compile(r'.*NCCL INFO\s+(AllReduce|Reduce|AllGather|ReduceScatter|Broadcast|Scatter|Gather|AllToAll):\s+opCount', re.IGNORECASE)
+    algo_pattern = re.compile(r'.*NCCL INFO\s+(\d+)\s+Bytes\s+->\s+Algo\s+(\d+)\s+proto\s+(\d+)', re.IGNORECASE)
     # Patterns to extract version info from NCCL debug output
     nccl_version_pattern = re.compile(r'.*NCCL INFO NCCL version (.+)', re.IGNORECASE)
     
@@ -113,27 +116,35 @@ def parse_nccl_selection(log_path: str, collective_name: str):
             if job_complete_pattern.search(line) and current_impl:
                 last_impl = current_impl
             
-            # Look for NCCL algorithm selection lines directly
+            # Look for NCCL algorithm selection lines
             if current_impl:
-                selection_match = selection_pattern.search(line)
+                collective_op = None
+                buffer_size = None
+                algo_id = None
+                proto_id = None
+                
+                # Try same-line format first: "NCCL INFO AllReduce: 1024 Bytes -> Algo 1 proto 0"
+                selection_match = selection_pattern_sameline.search(line)
                 if selection_match:
                     collective_op = selection_match.group(1)
                     buffer_size = int(selection_match.group(2))
                     algo_id = selection_match.group(3)
                     proto_id = selection_match.group(4)
-                    
-                    # Map collective names to match implementation naming
-                    collective_mapping = {
-                        'AllReduce': 'allreduce',
-                        'Reduce': 'reduce', 
-                        'AllGather': 'allgather',
-                        'ReduceScatter': 'reducescatter',
-                        'Broadcast': 'broadcast',
-                        'Scatter': 'scatter',
-                        'Gather': 'gather',
-                        'AllToAll': 'alltoall'
-                    }
-                    
+                else:
+                    # Try two-line format: check if current line has algo info
+                    algo_match = algo_pattern.search(line)
+                    if algo_match and i > 0:
+                        # Look at previous line for collective name
+                        prev_line = lines[i-1]
+                        collective_match = collective_pattern.search(prev_line)
+                        if collective_match:
+                            collective_op = collective_match.group(1)
+                            buffer_size = int(algo_match.group(1))
+                            algo_id = algo_match.group(2)
+                            proto_id = algo_match.group(3)
+                
+                # Process the matched collective operation
+                if collective_op and buffer_size and algo_id and proto_id:
                     # Only capture if this collective matches the current implementation
                     impl_collective = None
                     if 'allreduce' in current_impl.lower():
