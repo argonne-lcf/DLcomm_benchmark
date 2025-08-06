@@ -9,10 +9,10 @@ order_of_run: [allreduce-scale, allgather-scale, reducescatter-scale, broadcast-
 implementations:
   - name: allreduce-scale
     comm_groups:
-      flatview: 
-        num_compute_nodes: 8000
-        num_gpus_per_node: 12
-        gpu_ids_per_node: [0,1,2,3,4,5,6,7,8,9,10,11]
+      across_node: 
+        num_compute_nodes: 450
+        num_gpus_per_node: 4
+        gpu_ids_per_node: [0,1,2,3]
         collective:
           name: allreduce
           op: sum
@@ -28,10 +28,10 @@ implementations:
 
   - name: allgather-scale
     comm_groups:
-      flatview: 
-        num_compute_nodes: 8000
-        num_gpus_per_node: 12
-        gpu_ids_per_node: [0,1,2,3,4,5,6,7,8,9,10,11]
+      across_node: 
+        num_compute_nodes: 450
+        num_gpus_per_node: 4
+        gpu_ids_per_node: [0,1,2,3]
         collective:
           name: allgather
           op: 
@@ -47,10 +47,10 @@ implementations:
 
   - name: reducescatter-scale
     comm_groups:
-      flatview: 
-        num_compute_nodes: 8000
-        num_gpus_per_node: 12
-        gpu_ids_per_node: [0,1,2,3,4,5,6,7,8,9,10,11]
+      across_node: 
+        num_compute_nodes: 450
+        num_gpus_per_node: 4
+        gpu_ids_per_node: [0,1,2,3]
         collective:
           name: reducescatter
           op: sum
@@ -66,10 +66,10 @@ implementations:
 
   - name: broadcast-scale
     comm_groups:
-      flatview: 
-        num_compute_nodes: 8000
-        num_gpus_per_node: 12
-        gpu_ids_per_node: [0,1,2,3,4,5,6,7,8,9,10,11]
+      across_node: 
+        num_compute_nodes: 450
+        num_gpus_per_node: 4
+        gpu_ids_per_node: [0,1,2,3]
         collective:
           name: broadcast
           op: 
@@ -85,10 +85,10 @@ implementations:
 
   - name: reduce-scale
     comm_groups:
-      flatview: 
-        num_compute_nodes: 8000
-        num_gpus_per_node: 12
-        gpu_ids_per_node: [0,1,2,3,4,5,6,7,8,9,10,11]
+      across_node: 
+        num_compute_nodes: 450
+        num_gpus_per_node: 4
+        gpu_ids_per_node: [0,1,2,3]
         collective:
           name: reduce
           op: sum
@@ -104,10 +104,10 @@ implementations:
 
   - name: alltoall-scale
     comm_groups:
-      flatview: 
-        num_compute_nodes: 8000
-        num_gpus_per_node: 12
-        gpu_ids_per_node: [0,1,2,3,4,5,6,7,8,9,10,11]
+      across_node: 
+        num_compute_nodes: 450
+        num_gpus_per_node: 4
+        gpu_ids_per_node: [0,1,2,3]
         collective:
           name: alltoall
           op: 
@@ -123,10 +123,10 @@ implementations:
 
   - name: alltoallsingle-scale
     comm_groups:
-      flatview: 
-        num_compute_nodes: 8000
-        num_gpus_per_node: 12
-        gpu_ids_per_node: [0,1,2,3,4,5,6,7,8,9,10,11]
+      across_node: 
+        num_compute_nodes: 450
+        num_gpus_per_node: 4
+        gpu_ids_per_node: [0,1,2,3]
         collective:
           name: alltoallsingle
           op: 
@@ -142,10 +142,10 @@ implementations:
 
   - name: gather-scale
     comm_groups:
-      flatview: 
-        num_compute_nodes: 8000
-        num_gpus_per_node: 12
-        gpu_ids_per_node: [0,1,2,3,4,5,6,7,8,9,10,11]
+      across_node: 
+        num_compute_nodes: 450
+        num_gpus_per_node: 4
+        gpu_ids_per_node: [0,1,2,3]
         collective:
           name: gather
           op: 
@@ -161,10 +161,10 @@ implementations:
 
   - name: scatter-scale
     comm_groups:
-      flatview: 
-        num_compute_nodes: 8000
-        num_gpus_per_node: 12
-        gpu_ids_per_node: [0,1,2,3,4,5,6,7,8,9,10,11]
+      across_node: 
+        num_compute_nodes: 450
+        num_gpus_per_node: 4
+        gpu_ids_per_node: [0,1,2,3]
         collective:
           name: scatter
           op: 
@@ -180,10 +180,10 @@ implementations:
 
   - name: barrier-scale
     comm_groups:
-      flatview: 
-        num_compute_nodes: 8000
-        num_gpus_per_node: 12
-        gpu_ids_per_node: [0,1,2,3,4,5,6,7,8,9,10,11]
+      across_node: 
+        num_compute_nodes: 450
+        num_gpus_per_node: 4
+        gpu_ids_per_node: [0,1,2,3]
         collective:
           name: barrier
           op: 

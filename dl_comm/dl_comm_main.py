@@ -40,7 +40,7 @@ from dl_comm.comm import setup_communication_groups
 from dl_comm.utils.utility import DLCOMMLogger, Profile
 from dl_comm.analysis.correctness import check_collective_correctness
 from dl_comm.comm import COLLECTIVES, OPS_NEED_REDUCE, OP_MAP, DTYPES
-from dl_comm.analysis import report_ccl_selection, print_all_bandwidths 
+from dl_comm.analysis import report_ccl_selection, report_nccl_selection, print_all_bandwidths 
 from dl_comm.timer import timer, print_all_times, gather_and_print_all_times, reset_times
 from dl_comm.config import ConfigValidator, parse_buffer_size, validate_and_calculate_buffer_size, print_system_info
 from dl_comm.config import adjust_buffer_size_for_group_divisibility, validate_mpi_configuration
@@ -138,7 +138,7 @@ def main(cfg: DictConfig):
     if mpi_rank == 0:
        
         MASTER_ADDR = socket.gethostname()
-        MASTER_PORT = 2263
+        MASTER_PORT = 2267
     else:
         MASTER_ADDR = None
         MASTER_PORT = None
@@ -499,7 +499,9 @@ def main(cfg: DictConfig):
                     terminal_log_path = os.path.join(log_dir, "terminal_output.log")
                     if os.path.exists(terminal_log_path):
                         if ccl_backend in ["nccl", "rccl"]:
-                            log.info(f"[SELECTION] NCCL table selection parsing not yet implemented")
+                            scale_up_alg = getattr(coll_cfg, 'scale_up_algorithm', None)
+                            scale_out_alg = getattr(coll_cfg, 'scale_out_algorithm', None)
+                            report_nccl_selection(terminal_log_path, coll_name, log, scale_up_alg, scale_out_alg)
                         else:
                             # Get user's configured algorithms for display (preserve original values)
                             scale_up_alg = getattr(coll_cfg, 'scale_up_algorithm', None)
@@ -514,34 +516,7 @@ def main(cfg: DictConfig):
                 else:
                     log.info("[EXIT] All Done.")
                 log.info("-------------------------------------------------------------------------")
-
-        # ----------------------------------------------------------------------------
-        # CLEANUP COMMUNICATION GROUPS AFTER IMPLEMENTATION
-        # ----------------------------------------------------------------------------
-        
-        # Destroy communication groups created for this implementation
-        groups_cleaned = False
-        if 'my_within_group' in locals() and my_within_group is not None:
-            dist.destroy_process_group(my_within_group)
-            groups_cleaned = True
-        
-        if 'my_across_group' in locals() and my_across_group is not None:
-            dist.destroy_process_group(my_across_group)
-            groups_cleaned = True
-        
-        if 'flat_group' in locals() and flat_group is not None:
-            dist.destroy_process_group(flat_group)
-            groups_cleaned = True
-        
-        # Clear the group variables to prevent reuse
-        my_within_group = None
-        my_across_group = None
-        flat_group = None
-        
-        if mpi_rank == 0 and len(implementations_to_run) > 1 and groups_cleaned:
-            log.info(f"[CLEANUP] Communication groups cleaned up for implementation {impl_name}")
-
-    # End of multi-implementation execution loop
+ 
     
     if mpi_rank == 0 and len(implementations_to_run) > 1:
         log.info("")
