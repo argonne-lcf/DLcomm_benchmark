@@ -109,14 +109,22 @@ def _scatter(tensor, op=None, group=None, dist=None,log=None):
 @register_collective("reducescatter", needs_op=True)
 def _reduce_scatter(tensor, op, group=None, dist=None,log=None):
     world_size = dist.get_world_size(group)
-    global_rank = dist.get_rank()   
-
+    
+    # Split tensor into chunks for reduce_scatter
+    chunk_size = tensor.numel() // world_size
     input_list = []
+    
     for i in range(world_size):
-        chunk = tensor.clone()  
+        start_idx = i * chunk_size
+        end_idx = start_idx + chunk_size
+        chunk = tensor[start_idx:end_idx].contiguous()
         input_list.append(chunk)
     
-    dist.reduce_scatter(tensor, input_list, op=op, group=group)
+    # Output tensor should be same size as one chunk
+    output_tensor = torch.empty_like(input_list[0])
+    dist.reduce_scatter(output_tensor, input_list, op=op, group=group)
+    
+    return output_tensor
   
 
 @register_collective("alltoall", needs_op=False)
