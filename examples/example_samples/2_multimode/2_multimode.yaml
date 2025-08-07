@@ -1,5 +1,5 @@
 framework  : pytorch
-ccl_backend : nccl
+ccl_backend : ccl
 ccl_debug   : on
 use_profiler: unitrace
 barrier     : on
@@ -20,6 +20,7 @@ implementations:
           scale_out_algorithm: default
           iterations: 5
           warmup_iterations: 2
+          add_mxm_compute: on
           payload:
             dtype: float32
             count: 
@@ -39,6 +40,7 @@ implementations:
           scale_out_algorithm: default
           iterations: 5
           warmup_iterations: 2
+          add_mxm_compute: on
           payload:
             dtype: float32
             count: 
