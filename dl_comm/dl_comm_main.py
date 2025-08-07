@@ -1,4 +1,4 @@
-th# ----------------------------------------------------------------------------
+# ----------------------------------------------------------------------------
 # OVERALL STRUCTURE
 # ----------------------------------------------------------------------------
 
@@ -432,15 +432,9 @@ def main(cfg: DictConfig):
                     log.info(f"  [WARMUP] Warmup completed, starting timed iterations...")
                     log.info("")
             
-            # ----------------------------------------------------------------------------
-            #  MxM COMPUTE SECTION 
-            # ----------------------------------------------------------------------------
+
             
-            if add_mxm_compute:
-                if mpi_rank == 0:
-                    log.info(f"  [MxM COMPUTE] Matrix multiplication compute enabled")
-                    log.info("")
-            
+ 
             # ----------------------------------------------------------------------------
             #  COLLECTIVE OP EXECUTION (TIMED)
             # ----------------------------------------------------------------------------
@@ -450,10 +444,16 @@ def main(cfg: DictConfig):
             for i in range(iters):
                 x = torch.ones(num_elems, dtype=torch_dtype).to(device, non_blocking=True)
                 context = {'mpi_rank': mpi_rank, 'cfg': cfg,'log': log, 'iteration': i}
-
+                # ----------------------------------------------------------------------------
+                #  MxM COMPUTE SECTION 
+                # ----------------------------------------------------------------------------
                 if add_mxm_compute:
                     dummy_mxm_compute(device, torch_dtype, size=512) # defined in ./utils/utility.py)
-                    
+                    if mpi_rank == 0 and i==0:
+                        log.output("")
+                        log.output(f"[MxM COMPUTE] Matrix multiplication compute completed.")
+                        log.output("")
+            
                 if comm_mode == "flatview":
                     if flat_group is not None:
                         time_barrier(group=flat_group, device=device)
