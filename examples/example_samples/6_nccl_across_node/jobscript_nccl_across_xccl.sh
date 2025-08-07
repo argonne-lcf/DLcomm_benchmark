@@ -7,7 +7,6 @@
 #PBS -l filesystems=flare
 #PBS -j oe
 #PBS -o /dev/null
-#PBS -o /dev/null
 
 
 # Activate PyTorch 2.8 environment
@@ -55,7 +54,7 @@ export FI_MR_CACHE_MONITOR=userfaultfd
 
 export CCL_KVS_MODE=mpi
 export CCL_KVS_CONNECTION_TIMEOUT=600 
-export PALS_PMI=pmix # Required by Aurora mpix
+export PALS_PMI=pmix # Required by Aurora mpich
  
 
 export CCL_OP_SYNC=1

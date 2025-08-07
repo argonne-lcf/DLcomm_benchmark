@@ -16,8 +16,13 @@ conda activate /lus/flare/projects/datascience_collab/mcim/for-musa/sam_build/co
 # Load frameworks after conda to ensure missing modules are available
 module load frameworks
 
-# 
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+# Use PBS_O_WORKDIR if available (when using qsub), otherwise use script directory
+if [ -n "$PBS_O_WORKDIR" ]; then
+    cd "$PBS_O_WORKDIR"
+    SCRIPT_DIR="$PBS_O_WORKDIR"
+else
+    SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+fi
 EXAMPLES_DIR="$SCRIPT_DIR"
 WORKDIR="$EXAMPLES_DIR"
 cd "$WORKDIR"
@@ -31,7 +36,7 @@ NNODES=`wc -l < $PBS_NODEFILE`
 
 
  
-RANKS_PER_NODE=6
+RANKS_PER_NODE=4
 NRANKS=$(( NNODES * RANKS_PER_NODE ))
 
  

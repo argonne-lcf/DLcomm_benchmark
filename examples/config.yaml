@@ -1,5 +1,5 @@
 framework  : pytorch
-ccl_backend : nccl
+ccl_backend : ccl
 ccl_debug   : on
 use_profiler: unitrace
 barrier     : on
@@ -16,7 +16,7 @@ implementations:
         collective:
           name: allreduce
           op: sum
-          scale_up_algorithm: Tree
+          scale_up_algorithm: default
           scale_out_algorithm: default
           iterations: 10
           warmup_iterations: 0
@@ -36,7 +36,7 @@ implementations:
         collective:
           name: allgather
           op: 
-          scale_up_algorithm: Collnet
+          scale_up_algorithm: default
           scale_out_algorithm: default
           iterations: 10
           warmup_iterations: 0
@@ -56,7 +56,7 @@ implementations:
         collective:
           name: reducescatter
           op: sum
-          scale_up_algorithm: CollnetDirect
+          scale_up_algorithm: default
           scale_out_algorithm: default
           iterations: 10
           warmup_iterations: 0

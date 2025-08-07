@@ -1,10 +1,11 @@
-w#!/bin/bash -l
+#!/bin/bash -l
 #PBS -A datascience_collab
 #PBS -l select=2:ncpus=256
 #PBS -l walltime=00:05:00
 #PBS -l filesystems=home:eagle
 #PBS -q prod
 #PBS -j oe
+#PBS -o /dev/null
 
 module use /soft/modulefiles
 module load conda/2024-04-29
@@ -18,7 +19,13 @@ export CCL_KVS_CONNECTION_TIMEOUT=600
 export CCL_OP_SYNC=1
 export CCL_ENABLE_AUTO_CACHE=1
 
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+# Use PBS_O_WORKDIR if available (when using qsub), otherwise use script directory
+if [ -n "$PBS_O_WORKDIR" ]; then
+    cd "$PBS_O_WORKDIR"
+    SCRIPT_DIR="$PBS_O_WORKDIR"
+else
+    SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+fi
 EXAMPLES_DIR="$SCRIPT_DIR/../.."
 WORKDIR="$EXAMPLES_DIR"
 cd "$WORKDIR"

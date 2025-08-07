@@ -5,6 +5,7 @@
 #PBS -l filesystems=home:eagle
 #PBS -q prod
 #PBS -j oe
+#PBS -o /dev/null
 
 module use /soft/modulefiles
 module load conda/2024-04-29
@@ -16,7 +17,13 @@ conda activate base
 #export LD_LIBRARY_PATH=${NCCL_HOME}/lib:${CUDA_HOME}/lib64:${LD_LIBRARY_PATH}
 #export LD_PRELOAD=${NCCL_HOME}/lib/libnccl.so:${CUDA_HOME}/lib64/libcudart.so.12:${LD_PRELOAD}
 
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+# Use PBS_O_WORKDIR if available (when using qsub), otherwise use script directory
+if [ -n "$PBS_O_WORKDIR" ]; then
+    cd "$PBS_O_WORKDIR"
+    SCRIPT_DIR="$PBS_O_WORKDIR"
+else
+    SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+fi
 EXAMPLES_DIR="$SCRIPT_DIR"
 WORKDIR="$EXAMPLES_DIR"
 cd "$WORKDIR"
