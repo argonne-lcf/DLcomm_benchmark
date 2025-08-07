@@ -448,7 +448,7 @@ def main(cfg: DictConfig):
                 #  MxM COMPUTE SECTION 
                 # ----------------------------------------------------------------------------
                 if add_mxm_compute:
-                    dummy_mxm_compute(device, torch_dtype, size=512) # defined in ./utils/utility.py)
+                    dummy_mxm_compute(device, torch_dtype, size=21600) # defined in ./utils/utility.py)
                     if mpi_rank == 0 and i==0:
                         log.output("")
                         log.output(f"[MxM COMPUTE] Matrix multiplication compute completed.")

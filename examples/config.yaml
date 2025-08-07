@@ -1,16 +1,16 @@
 framework  : pytorch
 ccl_backend : ccl
-ccl_debug   : on
+ccl_debug   : off
 use_profiler: unitrace
 barrier     : on
 
-order_of_run: [allreduce, allgather, reducescatter]
+order_of_run: [allreduce ]
 
 implementations:
   - name: allreduce 
     comm_groups:
       within_node: 
-        num_compute_nodes: 2
+        num_compute_nodes: 1
         num_gpus_per_node: 4
         gpu_ids_per_node: [0,1,2,3]
         collective:

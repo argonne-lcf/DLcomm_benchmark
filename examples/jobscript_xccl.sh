@@ -16,13 +16,8 @@ conda activate /lus/flare/projects/datascience_collab/mcim/for-musa/sam_build/co
 # Load frameworks after conda to ensure missing modules are available
 module load frameworks
 
-# Use PBS_O_WORKDIR if available (when using qsub), otherwise use script directory
-if [ -n "$PBS_O_WORKDIR" ]; then
-    cd "$PBS_O_WORKDIR"
-    SCRIPT_DIR="$PBS_O_WORKDIR"
-else
-    SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-fi
+# Always use the actual script directory for examples
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 EXAMPLES_DIR="$SCRIPT_DIR"
 WORKDIR="$EXAMPLES_DIR"
 cd "$WORKDIR"
@@ -76,6 +71,7 @@ mkdir -p "$RUN_LOG_DIR"
 export TERMINAL_LOG_FILE="$RUN_LOG_DIR/terminal_output.log"
 export DL_COMM_LOG_DIR="$RUN_LOG_DIR"
 
+ 
 
 mpiexec --np ${NRANKS} \
         -ppn ${RANKS_PER_NODE} \

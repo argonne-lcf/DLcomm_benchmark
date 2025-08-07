@@ -120,7 +120,7 @@ def utcnow(format=LOG_TS_FORMAT):
     return datetime.now().strftime(format)
 
 
-def dummy_mxm_compute(device, dtype=None, size=512):
+def dummy_mxm_compute(device, dtype=None, size ):
     import torch
     
     dtype = torch.float32
