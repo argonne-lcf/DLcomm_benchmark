@@ -4,10 +4,10 @@ ccl_debug   : on
 use_profiler: unitrace
 barrier     : on
 
-order_of_run: [allreduce-scale, allgather-scale, reducescatter-scale  ]
+order_of_run: [allreduce, allgather, reducescatter]
 
 implementations:
-  - name: allreduce-scale
+  - name: allreduce 
     comm_groups:
       within_node: 
         num_compute_nodes: 2
@@ -24,10 +24,10 @@ implementations:
           payload:
             dtype: float32
             count: 
-            buffer_size: 1KB
+            buffer_size: 1GB
         verify_correctness: on
 
-  - name: allgather-scale
+  - name: allgather 
     comm_groups:
       across_node: 
         num_compute_nodes: 2
@@ -44,10 +44,10 @@ implementations:
           payload:
             dtype: float32
             count: 
-            buffer_size: 1KB
+            buffer_size: 1GB
         verify_correctness: on
 
-  - name: reducescatter-scale
+  - name: reducescatter 
     comm_groups:
       flatview: 
         num_compute_nodes: 2
@@ -64,6 +64,6 @@ implementations:
           payload:
             dtype: float32
             count: 
-            buffer_size: 1KB
+            buffer_size: 1GB
         verify_correctness: on
  

@@ -54,7 +54,9 @@ def gather_and_print_all_times(logger, ranks_responsible_for_logging, barrier_en
                         group_key = "group_creation_within"
                     elif "Group Creation (Across)" == label:
                         group_key = "group_creation_across"
-                    elif "(flatview)" == label.lower():
+                    elif "Group Creation (Flatview)" == label:
+                        group_key = "group_creation_flatview"
+                    elif "(flatview)" in label.lower():
                         group_key = "flatview"
                     elif "(within-group-" in label.lower():
                         match = re.search(r'\(within-group-(\d+)\)', label.lower())
