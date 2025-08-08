@@ -17,6 +17,10 @@ conda activate /lus/flare/projects/datascience_collab/mcim/for-musa/sam_build/co
 module load frameworks
 
 
+echo $PYTHONUSERBASE
+
+
+
 if [ -n "$PBS_O_WORKDIR" ]; then
     cd "$PBS_O_WORKDIR"
     SCRIPT_DIR="$PBS_O_WORKDIR"
@@ -36,7 +40,7 @@ NNODES=`wc -l < $PBS_NODEFILE`
 
 
  
-RANKS_PER_NODE=4
+RANKS_PER_NODE=12
 NRANKS=$(( NNODES * RANKS_PER_NODE ))
 
  
