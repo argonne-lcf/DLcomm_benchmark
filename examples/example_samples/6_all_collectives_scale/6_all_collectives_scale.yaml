@@ -1,0 +1,208 @@
+framework  : pytorch
+ccl_backend : ccl
+ccl_debug   : off
+use_profiler: unitrace
+barrier     : on
+
+order_of_run: [allreduce-scale, allgather-scale, reducescatter-scale, broadcast-scale, reduce-scale, alltoall-scale, alltoallsingle-scale, gather-scale, scatter-scale, barrier-scale]
+
+implementations:
+  - name: allreduce-scale
+    comm_groups:
+      across_node: 
+        num_compute_nodes: 4096
+        num_gpus_per_node: 12
+        gpu_ids_per_node: [0,1,2,3,4,5,6,7,8,9,10,11]
+        collective:
+          name: allreduce
+          op: sum
+          scale_up_algorithm: default
+          scale_out_algorithm: default
+          iterations: 10
+          warmup_iterations: 0
+          add_mxm_compute: off
+          payload:
+            dtype: float32
+            count: 
+            buffer_size: 100KB
+        verify_correctness: on
+
+  - name: allgather-scale
+    comm_groups:
+      across_node: 
+        num_compute_nodes: 4096
+        num_gpus_per_node: 12
+        gpu_ids_per_node: [0,1,2,3,4,5,6,7,8,9,10,11]
+        collective:
+          name: allgather
+          op: 
+          scale_up_algorithm: default
+          scale_out_algorithm: default
+          iterations: 10
+          warmup_iterations: 0
+          add_mxm_compute: off
+          payload:
+            dtype: float32
+            count: 
+            buffer_size: 100KB
+        verify_correctness: on
+
+  - name: reducescatter-scale
+    comm_groups:
+      across_node: 
+        num_compute_nodes: 4096
+        num_gpus_per_node: 12
+        gpu_ids_per_node: [0,1,2,3,4,5,6,7,8,9,10,11]
+        collective:
+          name: reducescatter
+          op: sum
+          scale_up_algorithm: default
+          scale_out_algorithm: default
+          iterations: 10
+          warmup_iterations: 0
+          add_mxm_compute: off
+          payload:
+            dtype: float32
+            count: 
+            buffer_size: 100KB
+        verify_correctness: on
+
+  - name: broadcast-scale
+    comm_groups:
+      across_node: 
+        num_compute_nodes: 4096
+        num_gpus_per_node: 12
+        gpu_ids_per_node: [0,1,2,3,4,5,6,7,8,9,10,11]
+        collective:
+          name: broadcast
+          op: 
+          scale_up_algorithm: default
+          scale_out_algorithm: default
+          iterations: 10
+          warmup_iterations: 0
+          add_mxm_compute: off
+          payload:
+            dtype: float32
+            count: 
+            buffer_size: 100KB
+        verify_correctness: on
+
+  - name: reduce-scale
+    comm_groups:
+      across_node: 
+        num_compute_nodes: 4096
+        num_gpus_per_node: 12
+        gpu_ids_per_node: [0,1,2,3,4,5,6,7,8,9,10,11]
+        collective:
+          name: reduce
+          op: sum
+          scale_up_algorithm: default
+          scale_out_algorithm: default
+          iterations: 10
+          warmup_iterations: 0
+          add_mxm_compute: off
+          payload:
+            dtype: float32
+            count: 
+            buffer_size: 100KB
+        verify_correctness: on
+
+  - name: alltoall-scale
+    comm_groups:
+      across_node: 
+        num_compute_nodes: 4096
+        num_gpus_per_node: 12
+        gpu_ids_per_node: [0,1,2,3,4,5,6,7,8,9,10,11]
+        collective:
+          name: alltoall
+          op: 
+          scale_up_algorithm: default
+          scale_out_algorithm: default
+          iterations: 10
+          warmup_iterations: 0
+          add_mxm_compute: off
+          payload:
+            dtype: float32
+            count: 
+            buffer_size: 100KB
+        verify_correctness: on
+
+  - name: alltoallsingle-scale
+    comm_groups:
+      across_node: 
+        num_compute_nodes: 4096
+        num_gpus_per_node: 12
+        gpu_ids_per_node: [0,1,2,3,4,5,6,7,8,9,10,11]
+        collective:
+          name: alltoallsingle
+          op: 
+          scale_up_algorithm: default
+          scale_out_algorithm: default
+          iterations: 10
+          warmup_iterations: 0
+          add_mxm_compute: off
+          payload:
+            dtype: float32
+            count: 
+            buffer_size: 100KB
+        verify_correctness: on
+
+  - name: gather-scale
+    comm_groups:
+      across_node: 
+        num_compute_nodes: 4096
+        num_gpus_per_node: 12
+        gpu_ids_per_node: [0,1,2,3,4,5,6,7,8,9,10,11]
+        collective:
+          name: gather
+          op: 
+          scale_up_algorithm: default
+          scale_out_algorithm: default
+          iterations: 10
+          warmup_iterations: 0
+          add_mxm_compute: off
+          payload:
+            dtype: float32
+            count: 
+            buffer_size: 100KB
+        verify_correctness: on
+
+  - name: scatter-scale
+    comm_groups:
+      across_node: 
+        num_compute_nodes: 4096
+        num_gpus_per_node: 12
+        gpu_ids_per_node: [0,1,2,3,4,5,6,7,8,9,10,11]
+        collective:
+          name: scatter
+          op: 
+          scale_up_algorithm: default
+          scale_out_algorithm: default
+          iterations: 10
+          warmup_iterations: 0
+          add_mxm_compute: off
+          payload:
+            dtype: float32
+            count: 
+            buffer_size: 100KB
+        verify_correctness: on
+
+  - name: barrier-scale
+    comm_groups:
+      across_node: 
+        num_compute_nodes: 4096
+        num_gpus_per_node: 12
+        gpu_ids_per_node: [0,1,2,3,4,5,6,7,8,9,10,11]
+        collective:
+          name: barrier
+          op: 
+          scale_up_algorithm: default
+          scale_out_algorithm: default
+          iterations: 10
+          warmup_iterations: 0
+          add_mxm_compute: off
+          payload:
+            dtype: float32
+            count: 
+            buffer_size: 100KB
+        verify_correctness: on

@@ -453,7 +453,11 @@ def main(cfg: DictConfig):
                         log.output("")
                         log.output(f"[MxM COMPUTE] Matrix multiplication compute completed.")
                         log.output("")
-            
+                
+                if i==0:
+                    MPI.COMM_WORLD.Barrier()
+
+                    
                 if comm_mode == "flatview":
                     if flat_group is not None:
                         time_barrier(group=flat_group, device=device)

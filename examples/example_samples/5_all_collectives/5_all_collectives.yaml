@@ -1,6 +1,6 @@
 framework  : pytorch
 ccl_backend : ccl
-ccl_debug   : on
+ccl_debug   : off
 use_profiler: unitrace
 barrier     : on
 
@@ -11,8 +11,8 @@ implementations:
     comm_groups:
       across_node: 
         num_compute_nodes: 2
-        num_gpus_per_node: 4
-        gpu_ids_per_node: [0,1,2,3]
+        num_gpus_per_node: 12
+        gpu_ids_per_node: [0,1,2,3,4,5,6,7,8,9,10,11]
         collective:
           name: allreduce
           op: sum
@@ -20,19 +20,19 @@ implementations:
           scale_out_algorithm: default
           iterations: 10
           warmup_iterations: 0
-          add_mxm_compute: on
+          add_mxm_compute: off
           payload:
             dtype: float32
             count: 
-            buffer_size: 1GB
+            buffer_size: 100KB
         verify_correctness: on
 
   - name: allgather-scale
     comm_groups:
       across_node: 
         num_compute_nodes: 2
-        num_gpus_per_node: 4
-        gpu_ids_per_node: [0,1,2,3]
+        num_gpus_per_node: 12
+        gpu_ids_per_node: [0,1,2,3,4,5,6,7,8,9,10,11]
         collective:
           name: allgather
           op: 
@@ -40,19 +40,19 @@ implementations:
           scale_out_algorithm: default
           iterations: 10
           warmup_iterations: 0
-          add_mxm_compute: on
+          add_mxm_compute: off
           payload:
             dtype: float32
             count: 
-            buffer_size: 1GB
+            buffer_size: 100KB
         verify_correctness: on
 
   - name: reducescatter-scale
     comm_groups:
       across_node: 
         num_compute_nodes: 2
-        num_gpus_per_node: 4
-        gpu_ids_per_node: [0,1,2,3]
+        num_gpus_per_node: 12
+        gpu_ids_per_node: [0,1,2,3,4,5,6,7,8,9,10,11]
         collective:
           name: reducescatter
           op: sum
@@ -60,19 +60,19 @@ implementations:
           scale_out_algorithm: default
           iterations: 10
           warmup_iterations: 0
-          add_mxm_compute: on
+          add_mxm_compute: off
           payload:
             dtype: float32
             count: 
-            buffer_size: 1GB
+            buffer_size: 100KB
         verify_correctness: on
 
   - name: broadcast-scale
     comm_groups:
       across_node: 
         num_compute_nodes: 2
-        num_gpus_per_node: 4
-        gpu_ids_per_node: [0,1,2,3]
+        num_gpus_per_node: 12
+        gpu_ids_per_node: [0,1,2,3,4,5,6,7,8,9,10,11]
         collective:
           name: broadcast
           op: 
@@ -80,19 +80,19 @@ implementations:
           scale_out_algorithm: default
           iterations: 10
           warmup_iterations: 0
-          add_mxm_compute: on
+          add_mxm_compute: off
           payload:
             dtype: float32
             count: 
-            buffer_size: 1GB
+            buffer_size: 100KB
         verify_correctness: on
 
   - name: reduce-scale
     comm_groups:
       across_node: 
         num_compute_nodes: 2
-        num_gpus_per_node: 4
-        gpu_ids_per_node: [0,1,2,3]
+        num_gpus_per_node: 12
+        gpu_ids_per_node: [0,1,2,3,4,5,6,7,8,9,10,11]
         collective:
           name: reduce
           op: sum
@@ -100,19 +100,19 @@ implementations:
           scale_out_algorithm: default
           iterations: 10
           warmup_iterations: 0
-          add_mxm_compute: on
+          add_mxm_compute: off
           payload:
             dtype: float32
             count: 
-            buffer_size: 1GB
+            buffer_size: 100KB
         verify_correctness: on
 
   - name: alltoall-scale
     comm_groups:
       across_node: 
         num_compute_nodes: 2
-        num_gpus_per_node: 4
-        gpu_ids_per_node: [0,1,2,3]
+        num_gpus_per_node: 12
+        gpu_ids_per_node: [0,1,2,3,4,5,6,7,8,9,10,11]
         collective:
           name: alltoall
           op: 
@@ -120,19 +120,19 @@ implementations:
           scale_out_algorithm: default
           iterations: 10
           warmup_iterations: 0
-          add_mxm_compute: on
+          add_mxm_compute: off
           payload:
             dtype: float32
             count: 
-            buffer_size: 1GB
+            buffer_size: 100KB
         verify_correctness: on
 
   - name: alltoallsingle-scale
     comm_groups:
       across_node: 
         num_compute_nodes: 2
-        num_gpus_per_node: 4
-        gpu_ids_per_node: [0,1,2,3]
+        num_gpus_per_node: 12
+        gpu_ids_per_node: [0,1,2,3,4,5,6,7,8,9,10,11]
         collective:
           name: alltoallsingle
           op: 
@@ -140,19 +140,19 @@ implementations:
           scale_out_algorithm: default
           iterations: 10
           warmup_iterations: 0
-          add_mxm_compute: on
+          add_mxm_compute: off
           payload:
             dtype: float32
             count: 
-            buffer_size: 1GB
+            buffer_size: 100KB
         verify_correctness: on
 
   - name: gather-scale
     comm_groups:
       across_node: 
         num_compute_nodes: 2
-        num_gpus_per_node: 4
-        gpu_ids_per_node: [0,1,2,3]
+        num_gpus_per_node: 12
+        gpu_ids_per_node: [0,1,2,3,4,5,6,7,8,9,10,11]
         collective:
           name: gather
           op: 
@@ -160,19 +160,19 @@ implementations:
           scale_out_algorithm: default
           iterations: 10
           warmup_iterations: 0
-          add_mxm_compute: on
+          add_mxm_compute: off
           payload:
             dtype: float32
             count: 
-            buffer_size: 1GB
+            buffer_size: 100KB
         verify_correctness: on
 
   - name: scatter-scale
     comm_groups:
       across_node: 
         num_compute_nodes: 2
-        num_gpus_per_node: 4
-        gpu_ids_per_node: [0,1,2,3]
+        num_gpus_per_node: 12
+        gpu_ids_per_node: [0,1,2,3,4,5,6,7,8,9,10,11]
         collective:
           name: scatter
           op: 
@@ -180,19 +180,19 @@ implementations:
           scale_out_algorithm: default
           iterations: 10
           warmup_iterations: 0
-          add_mxm_compute: on
+          add_mxm_compute: off
           payload:
             dtype: float32
             count: 
-            buffer_size: 1GB
+            buffer_size: 100KB
         verify_correctness: on
 
   - name: barrier-scale
     comm_groups:
       across_node: 
         num_compute_nodes: 2
-        num_gpus_per_node: 4
-        gpu_ids_per_node: [0,1,2,3]
+        num_gpus_per_node: 12
+        gpu_ids_per_node: [0,1,2,3,4,5,6,7,8,9,10,11]
         collective:
           name: barrier
           op: 
@@ -200,9 +200,9 @@ implementations:
           scale_out_algorithm: default
           iterations: 10
           warmup_iterations: 0
-          add_mxm_compute: on
+          add_mxm_compute: off
           payload:
             dtype: float32
             count: 
-            buffer_size: 1GB
+            buffer_size: 100KB
         verify_correctness: on
