@@ -140,8 +140,8 @@ class ConfigValidator:
         implementation_names = []
         
         for impl_config in cfg.implementations:
-            if hasattr(impl_config, 'name'):
-                impl_name = impl_config.name
+            if hasattr(impl_config, 'task_name'):
+                impl_name = impl_config.task_name
                 if impl_name in implementation_names:
                     if mpi_rank == 0:
                         log.error(f"[VALIDATION] Duplicate implementation name '{impl_name}' found. Implementation names must be unique.")
@@ -150,7 +150,7 @@ class ConfigValidator:
                     implementation_names.append(impl_name)
             else:
                 if mpi_rank == 0:
-                    log.error(f"[VALIDATION] Implementation missing 'name' field")
+                    log.error(f"[VALIDATION] Implementation missing 'task_name' field")
                 has_errors = True
         
         return has_errors
@@ -273,7 +273,7 @@ class ConfigValidator:
             elif comm_mode == "flatview":
                 coll_cfg = comm_groups.flatview.collective
             
-            collective_name = coll_cfg.name.lower()
+            collective_name = coll_cfg.collective_name.lower()
             op_name = getattr(coll_cfg, 'op', None)
             
             if collective_name in OPS_NEED_REDUCE:

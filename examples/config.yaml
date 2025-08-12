@@ -1,69 +1,45 @@
-framework  : pytorch
-ccl_backend : ccl
-ccl_debug   : off
-use_profiler: unitrace
-barrier     : on
+framework        : pytorch
+ccl_backend      : ccl
+extended_logging : off
+barrier          : on
 
-order_of_run: [allreduce ]
+order_of_run: [fsdp, sp]
 
-implementations:
-  - name: allreduce 
-    comm_groups:
-      within_node: 
-        num_compute_nodes: 1
-        num_gpus_per_node: 4
-        gpu_ids_per_node: [0,1,2,3]
-        collective:
-          name: allreduce
-          op: sum
-          scale_up_algorithm: default
-          scale_out_algorithm: default
-          iterations: 10
-          warmup_iterations: 0
-          add_mxm_compute: on
-          payload:
-            dtype: float32
-            count: 
-            buffer_size: 1GB
-        verify_correctness: on
+fsdp: # Task Name
+  comm_group: within_node
+  num_compute_nodes: 2
+  num_gpus_per_node: 4
+  gpu_ids_per_node: [0,1,2,3]
+  verify_correctness: on
+  collective:
+    collective_name: allreduce
+    collective_op: sum
+    scale_up_algorithm: default
+    scale_out_algorithm: default
+    iterations: 10
+    warmup_iterations: 0
+    add_mxm_compute: on
+    payload:
+      dtype: float32
+      count: 
+      buffer_size: 1GB
 
-  - name: allgather 
-    comm_groups:
-      across_node: 
-        num_compute_nodes: 2
-        num_gpus_per_node: 4
-        gpu_ids_per_node: [0,1,2,3]
-        collective:
-          name: allgather
-          op: 
-          scale_up_algorithm: default
-          scale_out_algorithm: default
-          iterations: 10
-          warmup_iterations: 0
-          add_mxm_compute: on
-          payload:
-            dtype: float32
-            count: 
-            buffer_size: 1GB
-        verify_correctness: on
-
-  - name: reducescatter 
-    comm_groups:
-      flatview: 
-        num_compute_nodes: 2
-        num_gpus_per_node: 4
-        gpu_ids_per_node: [0,1,2,3]
-        collective:
-          name: reducescatter
-          op: sum
-          scale_up_algorithm: default
-          scale_out_algorithm: default
-          iterations: 10
-          warmup_iterations: 0
-          add_mxm_compute: on
-          payload:
-            dtype: float32
-            count: 
-            buffer_size: 1GB
-        verify_correctness: on
- 
+sp: # Task Name 
+  comm_group: within_node
+  num_compute_nodes: 2
+  num_gpus_per_node: 4
+  gpu_ids_per_node: [0,1,2,3]
+  verify_correctness: on
+  collective:
+    collective_name: allgather
+    collective_op: sum
+    scale_up_algorithm: default
+    scale_out_algorithm: default
+    iterations: 10
+    warmup_iterations: 0
+    add_mxm_compute: on
+    payload:
+      dtype: float32
+      count: 
+      buffer_size: 1GB
+    

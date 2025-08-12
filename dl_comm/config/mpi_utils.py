@@ -1,29 +1,20 @@
 def calculate_max_ranks_needed(cfg):
     mode_requirements = {}
   
-    # Handle new implementations structure
-    implementations_to_run = cfg.order_of_run
-    if isinstance(implementations_to_run, str):
-        implementations_to_run = [implementations_to_run]
+    # Handle new task structure
+    tasks_to_run = cfg.order_of_run
+    if isinstance(tasks_to_run, str):
+        tasks_to_run = [tasks_to_run]
     
-    # Check all implementations and their modes
-    for impl_name in implementations_to_run:
-        # Find the implementation configuration
-        implementation_config = None
-        for impl_config in cfg.implementations:
-            if hasattr(impl_config, 'name') and impl_config.name == impl_name:
-                implementation_config = impl_config
-                break
-        
-        if implementation_config:
-            comm_groups = implementation_config.comm_groups
-            # Check all available modes in this implementation
-            for mode_name in ['within_node', 'across_node', 'flatview']:
-                if hasattr(comm_groups, mode_name):
-                    mode_config = getattr(comm_groups, mode_name)
-                    total_ranks = mode_config.num_compute_nodes * len(mode_config.gpu_ids_per_node)
-                    key = f"{impl_name}_{mode_name}"
-                    mode_requirements[key] = total_ranks
+    # Check all tasks
+    for task_name in tasks_to_run:
+        # Get the task configuration
+        if hasattr(cfg, task_name):
+            task_config = getattr(cfg, task_name)
+            comm_mode = task_config.comm_group
+            total_ranks = task_config.num_compute_nodes * len(task_config.gpu_ids_per_node)
+            key = f"{task_name}_{comm_mode}"
+            mode_requirements[key] = total_ranks
     
     if not mode_requirements:
         return 1, None, {}

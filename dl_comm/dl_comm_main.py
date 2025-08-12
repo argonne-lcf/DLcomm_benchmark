@@ -65,12 +65,12 @@ def main(cfg: DictConfig):
     framework       = cfg.framework
     ccl_backend     = cfg.ccl_backend
     
-    # Extract implementations from new config format
-    raw_implementations = cfg.order_of_run
-    if isinstance(raw_implementations, (list, tuple)) or (hasattr(raw_implementations, '__iter__') and not isinstance(raw_implementations, str)):
-        implementations_to_run = list(raw_implementations)
+    # Extract task names from order_of_run
+    raw_tasks = cfg.order_of_run
+    if isinstance(raw_tasks, (list, tuple)) or (hasattr(raw_tasks, '__iter__') and not isinstance(raw_tasks, str)):
+        tasks_to_run = list(raw_tasks)
     else:
-        implementations_to_run = [raw_implementations]
+        tasks_to_run = [raw_tasks]
     
     barrier_enabled = cfg.barrier
 
@@ -101,7 +101,7 @@ def main(cfg: DictConfig):
 
         log.info(f"[DEBUG] Current working directory: {os.getcwd()}")
         log.info(f"[DEBUG] Script location: {os.path.dirname(os.path.abspath(__file__))}")
-        log.info(f"[DEBUG] Implementations to run: {implementations_to_run}")
+        log.info(f"[DEBUG] Tasks to run: {tasks_to_run}")
         log.info(f"[DEBUG] Config loaded successfully")
 
     # ----------------------------------------------------------------------------
@@ -183,71 +183,50 @@ def main(cfg: DictConfig):
     
     validator = ConfigValidator(spec)
     
-    # Validate implementation names are unique
-    if validator.validate_implementation_names(cfg, mpi_rank, log):
+    # Validate task names are unique (tasks_to_run should have unique names)
+    if len(tasks_to_run) != len(set(tasks_to_run)):
         if mpi_rank == 0:
-            log.error("[EXIT] Exiting due to duplicate implementation names")
+            log.error("[EXIT] Exiting due to duplicate task names in order_of_run")
         sys.exit(1)
     
-    # Start multi-implementation execution loop
-    for impl_index, impl_name in enumerate(implementations_to_run):
-        if mpi_rank == 0 and len(implementations_to_run) > 1:
+    # Start multi-task execution loop
+    for task_index, task_name in enumerate(tasks_to_run):
+        if mpi_rank == 0 and len(tasks_to_run) > 1:
             log.info("")
             log.info("=" * 80)
-            log.info(f"[IMPLEMENTATION {impl_index + 1}/{len(implementations_to_run)}] ==================== {impl_name.upper()} ====================")
+            log.info(f"[TASK {task_index + 1}/{len(tasks_to_run)}] ==================== {task_name.upper()} ====================")
             log.info("=" * 80)
             log.info("")
 
-        # Get the implementation configuration
-        implementation_config = None
-        for impl_config in cfg.implementations:
-            if hasattr(impl_config, 'name') and impl_config.name == impl_name:
-                implementation_config = impl_config
-                break
-        
-        if implementation_config is None:
+        # Get the task configuration
+        if not hasattr(cfg, task_name):
             if mpi_rank == 0:
-                log.error(f"[CONFIG] Implementation '{impl_name}' not found in configuration")
+                log.error(f"[CONFIG] Task '{task_name}' not found in configuration")
             continue
         
-        # Get communication groups for this implementation
-        comm_groups = implementation_config.comm_groups
-        available_modes = []
-        if hasattr(comm_groups, 'within_node'):
-            available_modes.append('within_node')
-        if hasattr(comm_groups, 'across_node'):
-            available_modes.append('across_node')
-        if hasattr(comm_groups, 'flatview'):
-            available_modes.append('flatview')
+        task_config = getattr(cfg, task_name)
+        
+        # Get communication mode for this task
+        comm_mode = task_config.comm_group
+        available_modes = [comm_mode]  # Single mode per task now
         
 
         
-        # Execute each available mode in this implementation
-        for mode_index, comm_mode in enumerate(available_modes):
-            if mpi_rank == 0:
+        # Execute the single mode for this task
+        for mode_index, current_mode in enumerate(available_modes):
+            if mpi_rank == 0 and len(available_modes) > 1:
                 log.info("")
-                log.info(f"[MODE {mode_index + 1}/{len(available_modes)}] ---------- {comm_mode.upper()} ----------")
+                log.info(f"[MODE {mode_index + 1}/{len(available_modes)}] ---------- {current_mode.upper()} ----------")
                 log.info("")
 
-            # Reset timers for each mode (except the first one to preserve setup times)
-            if impl_index > 0 or mode_index > 0:
+            # Reset timers for each task (except the first one to preserve setup times)
+            if task_index > 0 or mode_index > 0:
                 reset_times()
 
-            # 1) Pick the right config block based on comm_mode from current implementation
-            if comm_mode == "flatview":
-                coll_cfg = comm_groups.flatview.collective
-                mode_cfg = comm_groups.flatview
-
-            elif comm_mode == "within_node":
-                coll_cfg = comm_groups.within_node.collective
-                mode_cfg = comm_groups.within_node
-
-            elif comm_mode == "across_node":
-                coll_cfg = comm_groups.across_node.collective
-                mode_cfg = comm_groups.across_node
-
-            else:
-                raise ValueError(f"Unknown comm_mode: {comm_mode}")
+            # Get collective and mode configuration directly from task
+            coll_cfg = task_config.collective
+            mode_cfg = task_config
+            comm_mode = current_mode  # Use the current mode from the loop
 
             # Check if we have enough ranks for this mode
             if comm_mode == "flatview":
@@ -259,12 +238,12 @@ def main(cfg: DictConfig):
             
             if mpi_size < required_ranks:
                 if mpi_rank == 0:
-                    log.warning(f"[SKIP] {impl_name}_{comm_mode} requires {required_ranks} ranks but only {mpi_size} available - skipping")
+                    log.warning(f"[SKIP] {task_name}_{comm_mode} requires {required_ranks} ranks but only {mpi_size} available - skipping")
                 continue
 
             # Extract configuration
-            coll_name          = coll_cfg.name
-            op_name            = coll_cfg.op
+            coll_name          = coll_cfg.collective_name
+            op_name            = coll_cfg.collective_op
             dtype_str          = coll_cfg.payload.dtype
             iters              = coll_cfg.iterations
             warmup_iters       = getattr(coll_cfg, 'warmup_iterations', 0)  # Default to 0 if not specified
@@ -275,17 +254,17 @@ def main(cfg: DictConfig):
             if coll_name in OPS_NEED_REDUCE:
                 if not op_name or (isinstance(op_name, str) and op_name.strip() == ''):
                     if mpi_rank == 0:
-                        log.error(f"[VALIDATION] {impl_name}_{comm_mode}: Collective '{coll_name}' requires an operation (op). Valid operations: {list(OP_MAP.keys())}")
-                    continue  # Skip this mode
+                        log.error(f"[VALIDATION] {task_name}_{comm_mode}: Collective '{coll_name}' requires an operation (op). Valid operations: {list(OP_MAP.keys())}")
+                    continue  # Skip this task
                 elif op_name not in OP_MAP:
                     if mpi_rank == 0:
-                        log.error(f"[VALIDATION] {impl_name}_{comm_mode}: Invalid operation '{op_name}' for collective '{coll_name}'. Valid operations: {list(OP_MAP.keys())}")
-                    continue  # Skip this mode
+                        log.error(f"[VALIDATION] {task_name}_{comm_mode}: Invalid operation '{op_name}' for collective '{coll_name}'. Valid operations: {list(OP_MAP.keys())}")
+                    continue  # Skip this task
 
             # compute buffer/count using new validation function
-            buffer_in_bytes, num_elems, buffer_errors = validate_and_calculate_buffer_size(coll_cfg.payload, f"{impl_name}_{comm_mode}", log, mpi_rank)
+            buffer_in_bytes, num_elems, buffer_errors = validate_and_calculate_buffer_size(coll_cfg.payload, f"{task_name}_{comm_mode}", log, mpi_rank)
             if buffer_errors:
-                continue  # Skip this implementation due to validation errors
+                continue  # Skip this task due to validation errors
             torch_dtype, elem_size = DTYPES[dtype_str]
             
             # Calculate group size for buffer adjustment
@@ -311,8 +290,8 @@ def main(cfg: DictConfig):
             # CONFIG VALIDATION 
             # ----------------------------------------------------------------------------
             
-            # ConfigValidator and spec loaded once per implementation above
-            config_valid, validation_buffer_bytes = validator.validate(cfg, implementation_config, comm_mode, mpi_rank, log)
+            # ConfigValidator and spec loaded once per task above
+            config_valid, validation_buffer_bytes = validator.validate(cfg, task_config, comm_mode, mpi_rank, log)
             
             if not config_valid:
                 if mpi_rank == 0:
@@ -329,10 +308,10 @@ def main(cfg: DictConfig):
                 log.info("")
                 log.info("[CONFIG] Setup")
                 log.info("[CONFIG] ------------------------------------------------------")
-                log.info(f"[CONFIG] Implementation       : {impl_name}")
+                log.info(f"[CONFIG] Task Name            : {task_name}")
                 log.info(f"[CONFIG] Framework            : {framework}")
                 log.info(f"[CONFIG] Backend              : {cfg.ccl_backend}")
-                log.info(f"[CONFIG] Use Profiler         : {cfg.get('use_profiler', 'none')}")
+                log.info(f"[CONFIG] Extended Logging     : {cfg.get('extended_logging', 'off')}")
                 log.info(f"[CONFIG] Barrier Enabled      : {cfg.barrier}")
                 log.info(f"[CONFIG] World Size           : {mpi_size}")
                 log.info("[CONFIG] ------------------------------------------------------")
@@ -511,7 +490,7 @@ def main(cfg: DictConfig):
                 log.info("[MPI] Job complete")
                 log.info("-------------------------------------------------------------------------")
                 
-                if cfg.ccl_debug:
+                if cfg.get('extended_logging', 'off') == 'on':
                     log.info("Querying Default Table selection")
 
                     terminal_log_path = os.path.join(log_dir, "terminal_output.log")
@@ -536,10 +515,10 @@ def main(cfg: DictConfig):
                 log.info("-------------------------------------------------------------------------")
  
     
-    if mpi_rank == 0 and len(implementations_to_run) > 1:
+    if mpi_rank == 0 and len(tasks_to_run) > 1:
         log.info("")
         log.info("=" * 80)
-        log.info(f"[FINAL] All {len(implementations_to_run)} implementations completed successfully!")
+        log.info(f"[FINAL] All {len(tasks_to_run)} tasks completed successfully!")
         log.info("=" * 80)
         
     # ----------------------------------------------------------------------------
