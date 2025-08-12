@@ -93,6 +93,16 @@ comm_group:
 
 Make sure to use the correct backend name for your PyTorch version to avoid initialization errors.
 
+## Correctness Verification
+
+DLComm includes built-in correctness verification for all collective operations. When `verify_correctness: on` is set in the configuration:
+
+- **Verification Scope**: Correctness is checked on **all iterations** to ensure consistent behavior
+- **Failure-Only Reporting**: Correctness results are **only printed when failures occur** to reduce log noise
+- **Detailed Diagnostics**: Failed verifications include iteration number and specific rank information
+- **Comprehensive Coverage**: All collective operations (AllReduce, AllGather, ReduceScatter, etc.) are validated
+
+
 ## How to contribute
 
 We welcome contributions from the community to the benchmark code.

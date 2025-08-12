@@ -230,11 +230,11 @@ def main(cfg: DictConfig):
 
             # Check if we have enough ranks for this mode
             if comm_mode == "flatview":
-                required_ranks = mode_cfg.num_gpus_per_node * mode_cfg.num_compute_nodes
+                required_ranks = mode_cfg.num_devices_per_node * mode_cfg.num_compute_nodes
             elif comm_mode == "within_node":
-                required_ranks = mode_cfg.num_gpus_per_node * mode_cfg.num_compute_nodes
+                required_ranks = mode_cfg.num_devices_per_node * mode_cfg.num_compute_nodes
             elif comm_mode == "across_node":
-                required_ranks = mode_cfg.num_gpus_per_node * mode_cfg.num_compute_nodes
+                required_ranks = mode_cfg.num_devices_per_node * mode_cfg.num_compute_nodes
             
             if mpi_size < required_ranks:
                 if mpi_rank == 0:
@@ -269,9 +269,9 @@ def main(cfg: DictConfig):
             
             # Calculate group size for buffer adjustment
             if comm_mode == "flatview":
-                group_size = mode_cfg.num_gpus_per_node*mode_cfg.num_compute_nodes
+                group_size = mode_cfg.num_devices_per_node*mode_cfg.num_compute_nodes
             elif comm_mode == "within_node":
-                group_size = mode_cfg.num_gpus_per_node
+                group_size = mode_cfg.num_devices_per_node
             elif comm_mode == "across_node":
                 group_size = mode_cfg.num_compute_nodes
             else:
@@ -321,8 +321,8 @@ def main(cfg: DictConfig):
                 log.info("[CONFIG] ------------------------------------------------------")
                 log.info(f"[CONFIG] Mode                 : {comm_mode}")
                 nodes = mode_cfg.num_compute_nodes
-                gpus = mode_cfg.num_gpus_per_node
-                log.info(f"[CONFIG] Topology             : {nodes} nodes x {gpus} GPUs")
+                devices = mode_cfg.num_devices_per_node
+                log.info(f"[CONFIG] Topology             : {nodes} nodes x {devices} devices")
                 log.info("[CONFIG] ------------------------------------------------------")
                 log.info("")
                     
@@ -359,7 +359,7 @@ def main(cfg: DictConfig):
 
             # setup_communication_groups defined in ./comm/comm_setup.py
             # Pass the current mode as force_mode for multi-mode support and pre-allocated device
-            comm_info = setup_communication_groups(mode_cfg, mpi_rank, log, dist, force_mode=comm_mode)
+            comm_info = setup_communication_groups(mode_cfg, mpi_rank, log, dist, force_mode=comm_mode, full_cfg=cfg)
             my_within_group = comm_info['my_within_group']
             my_across_group = comm_info['my_across_group'] 
             flat_group = comm_info['flat_group']

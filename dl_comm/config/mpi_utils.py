@@ -12,7 +12,7 @@ def calculate_max_ranks_needed(cfg):
         if hasattr(cfg, task_name):
             task_config = getattr(cfg, task_name)
             comm_mode = task_config.comm_group
-            total_ranks = task_config.num_compute_nodes * len(task_config.gpu_ids_per_node)
+            total_ranks = task_config.num_compute_nodes * len(task_config.device_ids_per_node)
             key = f"{task_name}_{comm_mode}"
             mode_requirements[key] = total_ranks
     

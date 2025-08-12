@@ -196,15 +196,15 @@ class ConfigValidator:
                 has_errors = True
             else:
                 within_config = comm_groups.within_node
-                if not hasattr(within_config, 'num_gpus_per_node') or not hasattr(within_config, 'gpu_ids_per_node'):
+                if not hasattr(within_config, 'num_devices_per_node') or not hasattr(within_config, 'device_ids_per_node'):
                     if mpi_rank == 0:
-                        log.error("[VALIDATION] within_node config requires 'num_gpus_per_node' and 'gpu_ids_per_node'")
+                        log.error("[VALIDATION] within_node config requires 'num_devices_per_node' and 'device_ids_per_node'")
                     has_errors = True
                 else:
-                    # Validate that num_gpus_per_node matches length of gpu_ids_per_node
-                    if within_config.num_gpus_per_node != len(within_config.gpu_ids_per_node):
+                    # Validate that num_devices_per_node matches length of device_ids_per_node
+                    if within_config.num_devices_per_node != len(within_config.device_ids_per_node):
                         if mpi_rank == 0:
-                            log.error(f"[VALIDATION] within_node: num_gpus_per_node ({within_config.num_gpus_per_node}) must equal length of gpu_ids_per_node ({len(within_config.gpu_ids_per_node)})")
+                            log.error(f"[VALIDATION] within_node: num_devices_per_node ({within_config.num_devices_per_node}) must equal length of device_ids_per_node ({len(within_config.device_ids_per_node)})")
                         has_errors = True
                 
                 # Validate payload configuration
@@ -220,15 +220,15 @@ class ConfigValidator:
                 has_errors = True
             else:
                 across_config = comm_groups.across_node
-                if not hasattr(across_config, 'num_compute_nodes') or not hasattr(across_config, 'num_gpus_per_node') or not hasattr(across_config, 'gpu_ids_per_node'):
+                if not hasattr(across_config, 'num_compute_nodes') or not hasattr(across_config, 'num_devices_per_node') or not hasattr(across_config, 'device_ids_per_node'):
                     if mpi_rank == 0:
-                        log.error("[VALIDATION] across_node config requires 'num_compute_nodes', 'num_gpus_per_node' and 'gpu_ids_per_node'")
+                        log.error("[VALIDATION] across_node config requires 'num_compute_nodes', 'num_devices_per_node' and 'device_ids_per_node'")
                     has_errors = True
                 else:
-                    # Validate that num_gpus_per_node matches length of gpu_ids_per_node
-                    if across_config.num_gpus_per_node != len(across_config.gpu_ids_per_node):
+                    # Validate that num_devices_per_node matches length of device_ids_per_node
+                    if across_config.num_devices_per_node != len(across_config.device_ids_per_node):
                         if mpi_rank == 0:
-                            log.error(f"[VALIDATION] across_node: num_gpus_per_node ({across_config.num_gpus_per_node}) must equal length of gpu_ids_per_node ({len(across_config.gpu_ids_per_node)})")
+                            log.error(f"[VALIDATION] across_node: num_devices_per_node ({across_config.num_devices_per_node}) must equal length of device_ids_per_node ({len(across_config.device_ids_per_node)})")
                         has_errors = True
                 
                 # Validate payload configuration
@@ -244,15 +244,15 @@ class ConfigValidator:
                 has_errors = True
             else:
                 flatview_config = comm_groups.flatview
-                if not hasattr(flatview_config, 'num_compute_nodes') or not hasattr(flatview_config, 'num_gpus_per_node') or not hasattr(flatview_config, 'gpu_ids_per_node'):
+                if not hasattr(flatview_config, 'num_compute_nodes') or not hasattr(flatview_config, 'num_devices_per_node') or not hasattr(flatview_config, 'device_ids_per_node'):
                     if mpi_rank == 0:
-                        log.error("[VALIDATION] flatview config requires 'num_compute_nodes', 'num_gpus_per_node' and 'gpu_ids_per_node'")
+                        log.error("[VALIDATION] flatview config requires 'num_compute_nodes', 'num_devices_per_node' and 'device_ids_per_node'")
                     has_errors = True
                 else:
-                    # Validate that num_gpus_per_node matches length of gpu_ids_per_node
-                    if flatview_config.num_gpus_per_node != len(flatview_config.gpu_ids_per_node):
+                    # Validate that num_devices_per_node matches length of device_ids_per_node
+                    if flatview_config.num_devices_per_node != len(flatview_config.device_ids_per_node):
                         if mpi_rank == 0:
-                            log.error(f"[VALIDATION] flatview: num_gpus_per_node ({flatview_config.num_gpus_per_node}) must equal length of gpu_ids_per_node ({len(flatview_config.gpu_ids_per_node)})")
+                            log.error(f"[VALIDATION] flatview: num_devices_per_node ({flatview_config.num_devices_per_node}) must equal length of device_ids_per_node ({len(flatview_config.device_ids_per_node)})")
                         has_errors = True
                 
                 # Validate payload configuration
@@ -348,7 +348,7 @@ class ConfigValidator:
         
         def validate_basic_config(config_section, mode_name): 
             nonlocal has_errors
-            num_gpus = config_section.num_gpus_per_node
+            num_gpus = config_section.num_devices_per_node
             num_nodes = config_section.num_compute_nodes
             
              

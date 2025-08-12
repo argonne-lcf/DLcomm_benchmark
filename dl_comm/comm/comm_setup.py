@@ -4,12 +4,33 @@ from omegaconf import DictConfig
 from dl_comm.timer import timer
 
 
-def setup_communication_groups(mode_cfg, mpi_rank, log, dist=None, force_mode=None):
+def allocate_device(device_type, assigned_device_id, log, mpi_rank):
+ 
+    if device_type == 'gpu':
+        if torch.cuda.is_available():
+            device = torch.device(f"cuda:{assigned_device_id}")
+            torch.cuda.set_device(assigned_device_id)
+            return device
+        elif torch.xpu.is_available():
+            device = torch.device(f"xpu:{assigned_device_id}")
+            return device
+
+    elif device_type == 'cpu':
+        return torch.device('cpu')
+
+
+
+def setup_communication_groups(mode_cfg, mpi_rank, log, dist=None, force_mode=None, full_cfg=None):
  
     
     # With the new structure, force_mode is always required as we pass the specific mode_cfg
     if not force_mode:
         raise ValueError("setup_communication_groups() requires force_mode parameter")
+    
+    # Get device type from config (default to 'gpu' for backward compatibility)
+    device_type = 'gpu'  # default
+    if full_cfg and hasattr(full_cfg, 'device_type'):
+        device_type = full_cfg.device_type.lower()
     
     comm_mode = force_mode
     
@@ -44,12 +65,12 @@ def setup_communication_groups(mode_cfg, mpi_rank, log, dist=None, force_mode=No
 
         # CONFIG PARSING
         within_config = mode_cfg
-        num_gpus_per_node = within_config.num_gpus_per_node
+        num_devices_per_node = within_config.num_devices_per_node
         num_compute_nodes = within_config.num_compute_nodes
-        gpu_ids_per_node = within_config.gpu_ids_per_node
+        device_ids_per_node = within_config.device_ids_per_node
         
         if mpi_rank == 0:
-            log.info(f"[COMM][CONFIG] Within-node: {num_gpus_per_node} GPUs per node, Device IDs: {gpu_ids_per_node}")
+            log.info(f"[COMM][CONFIG] Within-node: {num_devices_per_node} devices per node, Device IDs: {device_ids_per_node}")
             log.info("[COMM][GROUP CREATION] Within-node groups:")
             log.info("")
         with timer("Group Creation (Within)"):
@@ -66,7 +87,7 @@ def setup_communication_groups(mode_cfg, mpi_rank, log, dist=None, force_mode=No
                 
                 # Use actual ranks per physical node from MPI configuration
                 ranks_per_physical_node = mpi_size // num_compute_nodes
-                for gpu_idx, gpu_id in enumerate(gpu_ids_per_node):
+                for gpu_idx, gpu_id in enumerate(device_ids_per_node):
                     rank = node * ranks_per_physical_node + gpu_idx
                     if rank < mpi_size:  # Ensure rank exists
                         group_ranks.append(rank)
@@ -83,22 +104,15 @@ def setup_communication_groups(mode_cfg, mpi_rank, log, dist=None, force_mode=No
                     
                     # Assign device based on position in gpu_ids list
                     gpu_idx_in_group = group_ranks.index(mpi_rank)
-                    assigned_gpu_id = gpu_ids_per_node[gpu_idx_in_group]
+                    assigned_device_id = device_ids_per_node[gpu_idx_in_group]
                     
-                    # Set device based on backend
-                  
-                    if torch.cuda.is_available():
-                        device = torch.device(f"cuda:{assigned_gpu_id}")
-                        torch.cuda.set_device(assigned_gpu_id)
-                    elif torch.xpu.is_available():
-                        device = torch.device(f"xpu:{assigned_gpu_id}")
-                    else:
-                        device = torch.device('cpu')
+                    # Set device based on device_type configuration
+                    device = allocate_device(device_type, assigned_device_id, log, mpi_rank)
                         
  
                         
                 if mpi_rank == 0:
-                    log.info(f"[COMM][GROUP CREATION][Within Group-{node}] Ranks: {group_ranks}, Required GPUs: {gpu_ids_per_node}, Logging: rank {responsible_rank}")
+                    log.info(f"[COMM][GROUP CREATION][Within Group-{node}] Ranks: {group_ranks}, Required Devices: {device_ids_per_node}, Logging: rank {responsible_rank}")
                     
  
                     
@@ -123,12 +137,12 @@ def setup_communication_groups(mode_cfg, mpi_rank, log, dist=None, force_mode=No
         # CONFIG PARSING
         across_config = mode_cfg
         num_compute_nodes = across_config.num_compute_nodes
-        num_gpus_per_node = across_config.num_gpus_per_node
-        gpu_ids_per_node = across_config.gpu_ids_per_node
+        num_devices_per_node = across_config.num_devices_per_node
+        device_ids_per_node = across_config.device_ids_per_node
         
         if mpi_rank == 0:
 
-            log.info(f"[COMM][CONFIG] Across-node: {num_compute_nodes} nodes, {num_gpus_per_node} GPUs per node, Device IDs: {gpu_ids_per_node}")
+            log.info(f"[COMM][CONFIG] Across-node: {num_compute_nodes} nodes, {num_devices_per_node} devices per node, Device IDs: {device_ids_per_node}")
 
             log.info("[COMM][GROUP CREATION] Across-node groups:")
         with timer("Group Creation (Across)"):
@@ -139,7 +153,7 @@ def setup_communication_groups(mode_cfg, mpi_rank, log, dist=None, force_mode=No
              
             
              
-            for gpu_idx, required_gpu_id in enumerate(gpu_ids_per_node):
+            for gpu_idx, required_gpu_id in enumerate(device_ids_per_node):
                 group_ranks = []
                 # Use actual ranks per physical node from MPI configuration
                 ranks_per_physical_node = mpi_size // num_compute_nodes
@@ -152,7 +166,7 @@ def setup_communication_groups(mode_cfg, mpi_rank, log, dist=None, force_mode=No
                     responsible_rank = min(group_ranks)
                     ranks_responsible_for_logging.add(responsible_rank)
                     if mpi_rank == 0:
-                        log.info(f"[COMM][GROUP CREATION][Across Group-{gpu_idx}] Ranks: {group_ranks}, GPU ID: {required_gpu_id}, Logging: rank {responsible_rank}")
+                        log.info(f"[COMM][GROUP CREATION][Across Group-{gpu_idx}] Ranks: {group_ranks}, Device ID: {required_gpu_id}, Logging: rank {responsible_rank}")
                      
                     group = dist.new_group(ranks=group_ranks,use_local_synchronization=True)
                     if mpi_rank in group_ranks:
@@ -160,16 +174,10 @@ def setup_communication_groups(mode_cfg, mpi_rank, log, dist=None, force_mode=No
                         across_group_id = gpu_idx
                         
                         # Assign device based on gpu_id for this group
-                        assigned_gpu_id = required_gpu_id
+                        assigned_device_id = required_gpu_id
                         
-                        # Set device based on backend
-                        if torch.cuda.is_available():
-                            device = torch.device(f"cuda:{assigned_gpu_id}")
-                            torch.cuda.set_device(assigned_gpu_id)
-                        elif torch.xpu.is_available():
-                            device = torch.device(f"xpu:{assigned_gpu_id}")
-                        else:
-                            device = torch.device('cpu')
+                        # Set device based on device_type configuration
+                        device = allocate_device(device_type, assigned_device_id, log, mpi_rank)
  
 
 
@@ -179,7 +187,7 @@ def setup_communication_groups(mode_cfg, mpi_rank, log, dist=None, force_mode=No
         # Device already allocated globally 
 
         if mpi_rank == 0:
-            log.info(f"[COMM][GROUP CREATION] Created {num_gpus_per_node} across-node groups")
+            log.info(f"[COMM][GROUP CREATION] Created {num_devices_per_node} across-node groups")
             log.info("")
 
     # ----------------------------------------------------------------------------
@@ -191,13 +199,13 @@ def setup_communication_groups(mode_cfg, mpi_rank, log, dist=None, force_mode=No
         # CONFIG PARSING
         flatview_config = mode_cfg
         num_compute_nodes = flatview_config.num_compute_nodes
-        num_gpus_per_node = flatview_config.num_gpus_per_node
-        gpu_ids_per_node = flatview_config.gpu_ids_per_node
+        num_devices_per_node = flatview_config.num_devices_per_node
+        device_ids_per_node = flatview_config.device_ids_per_node
         
         
         
         if mpi_rank == 0:
-            log.info(f"[COMM][CONFIG] Flatview: {num_compute_nodes} nodes, {num_gpus_per_node} GPUs per node, Device IDs: {gpu_ids_per_node}")
+            log.info(f"[COMM][CONFIG] Flatview: {num_compute_nodes} nodes, {num_devices_per_node} devices per node, Device IDs: {device_ids_per_node}")
             log.info("")
             log.info("[COMM][GROUP CREATION] Flatview groups:")
 
@@ -213,7 +221,7 @@ def setup_communication_groups(mode_cfg, mpi_rank, log, dist=None, force_mode=No
             # Use actual ranks per physical node from MPI configuration  
             ranks_per_physical_node = mpi_size // num_compute_nodes
             for node in range(num_compute_nodes):
-                for gpu_idx, required_gpu_id in enumerate(gpu_ids_per_node):
+                for gpu_idx, required_gpu_id in enumerate(device_ids_per_node):
                     # Sequential rank assignment based on gpu_ids order
                     rank = node * ranks_per_physical_node + gpu_idx
                     if rank < mpi_size and rank not in group_ranks:
@@ -225,27 +233,21 @@ def setup_communication_groups(mode_cfg, mpi_rank, log, dist=None, force_mode=No
                 ranks_responsible_for_logging.add(responsible_rank)
                 
                 if mpi_rank == 0:
-                    log.info(f"[COMM][GROUP CREATION][Flatview] Ranks: {group_ranks}, Required GPUs: {gpu_ids_per_node}, Logging: rank {responsible_rank}")
+                    log.info(f"[COMM][GROUP CREATION][Flatview] Ranks: {group_ranks}, Required Devices: {device_ids_per_node}, Logging: rank {responsible_rank}")
                 
                 flat_group = dist.new_group(ranks=group_ranks, use_local_synchronization=True)
                 flat_group_ranks = group_ranks
                 
                 # Assign device if this rank is in the flatview group
                 if mpi_rank in group_ranks:
-                    # Calculate which GPU this rank should use
+                    # Calculate which device this rank should use
                     rank_idx_in_group = group_ranks.index(mpi_rank)
-                    node_id = rank_idx_in_group // len(gpu_ids_per_node)
-                    gpu_idx_in_node = rank_idx_in_group % len(gpu_ids_per_node)
-                    assigned_gpu_id = gpu_ids_per_node[gpu_idx_in_node]
+                    node_id = rank_idx_in_group // len(device_ids_per_node)
+                    device_idx_in_node = rank_idx_in_group % len(device_ids_per_node)
+                    assigned_device_id = device_ids_per_node[device_idx_in_node]
                     
-                    # Set device based on backend
-                    if torch.cuda.is_available():
-                        device = torch.device(f"cuda:{assigned_gpu_id}")
-                        torch.cuda.set_device(assigned_gpu_id)
-                    elif torch.xpu.is_available():
-                        device = torch.device(f"xpu:{assigned_gpu_id}")
-                    else:
-                        device = torch.device('cpu')
+                    # Set device based on device_type configuration
+                    device = allocate_device(device_type, assigned_device_id, log, mpi_rank)
                         
  
             else:

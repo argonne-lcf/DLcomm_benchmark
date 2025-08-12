@@ -2,14 +2,15 @@ framework        : pytorch
 ccl_backend      : ccl
 extended_logging : off
 barrier          : on
+device_type      : gpu
 
 order_of_run: [fsdp, sp]
 
 fsdp: # Task Name
   comm_group: within_node
   num_compute_nodes: 2
-  num_gpus_per_node: 4
-  gpu_ids_per_node: [0,1,2,3]
+  num_devices_per_node: 4
+  device_ids_per_node: [0,1,2,3]
   verify_correctness: on
   collective:
     collective_name: allreduce
@@ -27,8 +28,8 @@ fsdp: # Task Name
 sp: # Task Name 
   comm_group: within_node
   num_compute_nodes: 2
-  num_gpus_per_node: 4
-  gpu_ids_per_node: [0,1,2,3]
+  num_devices_per_node: 4
+  device_ids_per_node: [0,1,2,3]
   verify_correctness: on
   collective:
     collective_name: allgather

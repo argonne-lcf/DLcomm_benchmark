@@ -104,7 +104,7 @@ def print_all_bandwidths(logger, cfg, mpi_size, ranks_responsible_for_logging, p
                 if group_key == "flatview":
                     # Calculate actual flatview group size from config
                     if current_mode_cfg and comm_mode == "flatview":
-                        group_size = current_mode_cfg.num_gpus_per_node * current_mode_cfg.num_compute_nodes
+                        group_size = current_mode_cfg.num_devices_per_node * current_mode_cfg.num_compute_nodes
                     else:
                         # Fallback to mpi_size if config not available (shouldn't happen in normal flow)
                         group_size = mpi_size
@@ -124,7 +124,7 @@ def print_all_bandwidths(logger, cfg, mpi_size, ranks_responsible_for_logging, p
                         within_mode_cfg = current_mode_cfg
                     else:
                         within_mode_cfg = cfg.comm_group.combined.within_node if comm_mode == "combined" else cfg.comm_group.within_node
-                    group_size = within_mode_cfg.num_gpus_per_node
+                    group_size = within_mode_cfg.num_devices_per_node
                     buffer_size = buffer_configs.get('within', 0)
                     bandwidth = calculate_group_bandwidth(group_size, buffer_size, first_iteration_time)
                     group_bandwidths[f'Within-Group-{group_id}'] = {
