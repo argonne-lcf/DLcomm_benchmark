@@ -3,8 +3,8 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "DLcomm"
-version = "0.2.0"
+name = "dlcomm"
+version = "0.3.3"
 description = "Distributed GPU Communication Benchmarking Framework for Deep Learning"
 authors = [
     { name = "Musa Cim", email = "musaoguzhancim@gmail.com" },
@@ -30,7 +30,6 @@ classifiers = [
     "Operating System :: POSIX :: Linux",
 ]
 dependencies = [
-    "torch>=1.12.0",
     "mpi4py>=3.1.0",
     "hydra-core>=1.1.0",
     "omegaconf>=2.1.0",
@@ -47,6 +46,9 @@ Repository = "https://github.com/argonne-lcf/DLcomm_benchmark"
 dlcomm = "dl_comm.dl_comm_main:main"
 
 [project.optional-dependencies]
+pytorch = [
+    "torch>=1.12.0"
+]
 intel = [
     "intel-extension-for-pytorch",
     "oneccl-bindings-for-pytorch"
