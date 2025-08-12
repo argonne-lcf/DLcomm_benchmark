@@ -1,28 +1,31 @@
-import torch
-import torch.distributed as dist
-
-
 def check_collective_correctness(context, tensor_after, collective_name, op=None, group=None, result_data=None, group_type=None, group_id=None):
     # Verify correctness on all iterations, but only print failures
+    framework = context['cfg'].framework.lower()
+    
+    if framework == 'pytorch':
+        import torch
+        import torch.distributed as dist
         
-    if collective_name == "allreduce":
-        _check_allreduce(context, tensor_after, op, group, group_type, group_id)
-    elif collective_name == "reduce":
-        _check_reduce(context, tensor_after, op, group, group_type, group_id)
-    elif collective_name == "broadcast":
-        _check_broadcast(context, tensor_after, op, group, group_type, group_id)
-    elif collective_name == "gather":
-        _check_gather(context, tensor_after, op, group, group_type, group_id, result_data)
-    elif collective_name == "scatter":
-        _check_scatter(context, tensor_after, op, group, group_type, group_id)
-    elif collective_name == "reducescatter":
-        _check_reducescatter(context, tensor_after, op, group, group_type, group_id)
-    elif collective_name == "alltoall":
-        _check_alltoall(context, tensor_after, op, group, group_type, group_id, result_data)
-    elif collective_name == "alltoallsingle":
-        _check_alltoallsingle(context, tensor_after, op, group, group_type, group_id, result_data)
-    elif collective_name == "allgather":
-        _check_allgather(context, tensor_after, op, group, group_type, group_id, result_data)
+        if collective_name == "allreduce":
+            _check_allreduce(context, tensor_after, op, group, group_type, group_id)
+        elif collective_name == "reduce":
+            _check_reduce(context, tensor_after, op, group, group_type, group_id)
+        elif collective_name == "broadcast":
+            _check_broadcast(context, tensor_after, op, group, group_type, group_id)
+        elif collective_name == "gather":
+            _check_gather(context, tensor_after, op, group, group_type, group_id, result_data)
+        elif collective_name == "scatter":
+            _check_scatter(context, tensor_after, op, group, group_type, group_id)
+        elif collective_name == "reducescatter":
+            _check_reducescatter(context, tensor_after, op, group, group_type, group_id)
+        elif collective_name == "alltoall":
+            _check_alltoall(context, tensor_after, op, group, group_type, group_id, result_data)
+        elif collective_name == "alltoallsingle":
+            _check_alltoallsingle(context, tensor_after, op, group, group_type, group_id, result_data)
+        elif collective_name == "allgather":
+            _check_allgather(context, tensor_after, op, group, group_type, group_id, result_data)
+    elif framework == 'jax':
+        pass
 
 
 def _check_allreduce(context, tensor_after, op, group, group_type, group_id):

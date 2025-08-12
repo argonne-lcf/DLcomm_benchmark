@@ -27,7 +27,6 @@ import sys
 import json
 import time
 import pytz
-import torch
 import hydra
 import socket
 import datetime
@@ -40,6 +39,7 @@ from dl_comm.comm import setup_communication_groups
 from dl_comm.utils.utility import DLCOMMLogger, Profile, dummy_mxm_compute
 from dl_comm.analysis.correctness import check_collective_correctness
 from dl_comm.comm import COLLECTIVES, OPS_NEED_REDUCE, OP_MAP, DTYPES
+from dl_comm.comm.collectives import init_framework_constants
 from dl_comm.analysis import report_ccl_selection, report_nccl_selection, print_all_bandwidths 
 from dl_comm.timer import timer, print_all_times, gather_and_print_all_times, reset_times
 from dl_comm.config import ConfigValidator, parse_buffer_size, validate_and_calculate_buffer_size, print_system_info
@@ -62,8 +62,11 @@ def main(cfg: DictConfig):
     # EXTRACT CONFIG VALUES (before logging)
     # ----------------------------------------------------------------------------
 
-    framework       = cfg.framework
+    framework       = cfg.framework.lower()
     ccl_backend     = cfg.ccl_backend
+    
+    # Initialize framework-specific constants
+    init_framework_constants(framework)
     
     # Extract task names from order_of_run
     raw_tasks = cfg.order_of_run
@@ -107,9 +110,10 @@ def main(cfg: DictConfig):
     # ----------------------------------------------------------------------------
     # FRAMEWORK-SPECIFIC IMPORTS (once per execution)
     # ----------------------------------------------------------------------------
-    if cfg.framework == "pytorch":
+    if framework == "pytorch":
         # timer func defined in ./timer/timer.py
         with timer("import time"):
+            import torch
             import torch.nn.parallel
             import torch.distributed as dist
             
@@ -117,19 +121,24 @@ def main(cfg: DictConfig):
             if ccl_backend in ["xccl", "ccl"]:
                 import intel_extension_for_pytorch
                 import oneccl_bindings_for_pytorch
+    elif framework == "jax":
+        pass
 
     # Define barrier function for timing synchronization
     def time_barrier(group=None, device=None):
         if barrier_enabled:
-            if group is not None and device is not None:
-                dist.barrier(group=group,device_ids=[device.index])
+            if framework == "pytorch":
+                if group is not None and device is not None:
+                    dist.barrier(group=group,device_ids=[device.index])
+            elif framework == "jax":
+                pass
           
     # ----------------------------------------------------------------------------
     # SYSTEM INFORMATION LOGGING (once per execution)
     # ----------------------------------------------------------------------------
 
     # print_system_info defined in ./config/system_info.py
-    print_system_info(log, mpi_rank)
+    print_system_info(log, mpi_rank, framework)
     
     # ----------------------------------------------------------------------------
     # MPI RANK COORDINATION (once per execution) 
@@ -164,13 +173,16 @@ def main(cfg: DictConfig):
      
     MPI.COMM_WORLD.Barrier()
     with timer("init time"):
-        dist.init_process_group(
-            backend=ccl_backend,
-            init_method='env://',
-            world_size=mpi_size,
-            rank=mpi_rank,
-            timeout=datetime.timedelta(seconds=3600)
-        )
+        if framework == "pytorch":
+            dist.init_process_group(
+                backend=ccl_backend,
+                init_method='env://',
+                world_size=mpi_size,
+                rank=mpi_rank,
+                timeout=datetime.timedelta(seconds=3600)
+            )
+        elif framework == "jax":
+            pass
 
     # ----------------------------------------------------------------------------
     # DEVICE ALLOCATION - Moved inside implementation loop for sequential assignment
@@ -265,7 +277,10 @@ def main(cfg: DictConfig):
             buffer_in_bytes, num_elems, buffer_errors = validate_and_calculate_buffer_size(coll_cfg.payload, f"{task_name}_{comm_mode}", log, mpi_rank)
             if buffer_errors:
                 continue  # Skip this task due to validation errors
-            torch_dtype, elem_size = DTYPES[dtype_str]
+            if framework == "pytorch":
+                torch_dtype, elem_size = DTYPES[dtype_str]
+            elif framework == "jax":
+                pass
             
             # Calculate group size for buffer adjustment
             if comm_mode == "flatview":
@@ -364,9 +379,7 @@ def main(cfg: DictConfig):
             my_across_group = comm_info['my_across_group'] 
             flat_group = comm_info['flat_group']
             device = comm_info['device']  # Device assigned based on group membership
-            if device is None:
-                # Fallback to CPU if rank is not in any group
-                device = torch.device('cpu')
+    
             within_group_id = comm_info['within_group_id']
             across_group_id = comm_info['across_group_id']
             ranks_responsible_for_logging = comm_info['ranks_responsible_for_logging']
@@ -392,19 +405,22 @@ def main(cfg: DictConfig):
                     log.info(f"  [WARMUP] Running {warmup_iters} warmup iterations...")
                 
                 for i in range(warmup_iters):
-                    x = torch.ones(num_elems, dtype=torch_dtype).to(device, non_blocking=True)
+                    if framework == "pytorch":
+                        x = torch.ones(num_elems, dtype=torch_dtype).to(device, non_blocking=True)
+                    elif framework == "jax":
+                        pass
                     
                     if comm_mode == "flatview":
                         if flat_group is not None and participating:
-                            result = run_collective(x, op_obj, group=flat_group, dist=dist)
+                            result = run_collective(x, op_obj, group=flat_group, dist=dist, framework=framework)
                     
                     elif comm_mode == "within_node":
                         if my_within_group is not None and participating:
-                            result = run_collective(x, op_obj, group=my_within_group, dist=dist, log=log)
+                            result = run_collective(x, op_obj, group=my_within_group, dist=dist, log=log, framework=framework)
                     
                     elif comm_mode == "across_node":
                         if my_across_group is not None and participating:
-                            result = run_collective(x, op_obj, group=my_across_group, dist=dist, log=log)
+                            result = run_collective(x, op_obj, group=my_across_group, dist=dist, log=log, framework=framework)
                 
                 MPI.COMM_WORLD.Barrier()
                 if mpi_rank == 0:
@@ -421,13 +437,16 @@ def main(cfg: DictConfig):
 
             # Collective execution for all modes
             for i in range(iters):
-                x = torch.ones(num_elems, dtype=torch_dtype).to(device, non_blocking=True)
+                if framework == "pytorch":
+                    x = torch.ones(num_elems, dtype=torch_dtype).to(device, non_blocking=True)
+                elif framework == "jax":
+                    pass
                 context = {'mpi_rank': mpi_rank, 'cfg': cfg,'log': log, 'iteration': i}
                 # ----------------------------------------------------------------------------
                 #  MxM COMPUTE SECTION 
                 # ----------------------------------------------------------------------------
                 if add_mxm_compute:
-                    dummy_mxm_compute(device, torch_dtype, size=21600) # defined in ./utils/utility.py)
+                    dummy_mxm_compute(device, torch_dtype, size=21600, framework=framework) # defined in ./utils/utility.py)
                     if mpi_rank == 0 and i==0:
                         log.output("")
                         log.output(f"[MxM COMPUTE] Matrix multiplication compute completed.")
@@ -441,7 +460,7 @@ def main(cfg: DictConfig):
                     if flat_group is not None:
                         time_barrier(group=flat_group, device=device)
                         with timer("(Flatview)"):
-                            result = run_collective(x, op_obj, group=flat_group, dist=dist)
+                            result = run_collective(x, op_obj, group=flat_group, dist=dist, framework=framework)
                             time_barrier(group=flat_group, device=device)
                         if enable_correctness:
                             check_collective_correctness(context, x, coll_name, op=op_obj, group=flat_group, result_data=result, group_type="Flatview", group_id="All")
@@ -450,7 +469,7 @@ def main(cfg: DictConfig):
                     if my_within_group is not None and participating:
                         time_barrier(group=my_within_group, device=device)
                         with timer(f"(Within-Group-{within_group_id})"):
-                            result = run_collective(x, op_obj, group=my_within_group, dist=dist, log=log)
+                            result = run_collective(x, op_obj, group=my_within_group, dist=dist, log=log, framework=framework)
                             time_barrier(group=my_within_group, device=device)
                         if enable_correctness:
                             check_collective_correctness(context, x, coll_name, op=op_obj, group=my_within_group, result_data=result, group_type="Within", group_id=within_group_id)
@@ -459,7 +478,7 @@ def main(cfg: DictConfig):
                     if my_across_group is not None:
                         time_barrier(group=my_across_group , device=device)
                         with timer(f"(Across-Group-{across_group_id})"):
-                            result = run_collective(x, op_obj, group=my_across_group, dist=dist, log=log)
+                            result = run_collective(x, op_obj, group=my_across_group, dist=dist, log=log, framework=framework)
                             time_barrier(group=my_across_group,  device=device)
                         if enable_correctness:
                             check_collective_correctness(context, x, coll_name, op=op_obj, group=my_across_group, result_data=result, group_type="Across", group_id=across_group_id)
@@ -527,8 +546,11 @@ def main(cfg: DictConfig):
 
     DLCOMMLogger.flush()
     DLCOMMLogger.reset()
-    MPI.COMM_WORLD.Barrier()   
-    dist.destroy_process_group()
+    MPI.COMM_WORLD.Barrier()
+    if framework == "pytorch":
+        dist.destroy_process_group()
+    elif framework == "jax":
+        pass
     reset_times()
     
 if __name__ == "__main__":

@@ -120,18 +120,21 @@ def utcnow(format=LOG_TS_FORMAT):
     return datetime.now().strftime(format)
 
 
-def dummy_mxm_compute(device, dtype=None, size=None ):
-    import torch
-    
-    dtype = torch.float32
-    
-    A = torch.randn(size, size, dtype=dtype, device=device)
-    B = torch.randn(size, size, dtype=dtype, device=device)
-    C = torch.matmul(A, B)
-    
-    if device.type == 'cuda':
-        torch.cuda.synchronize()
-    elif device.type == 'xpu':
-        torch.xpu.synchronize()
-    
-    del A, B, C
+def dummy_mxm_compute(device, dtype=None, size=None, framework):
+    if framework == 'pytorch':
+        import torch
+        
+        dtype = torch.float32
+        
+        A = torch.randn(size, size, dtype=dtype, device=device)
+        B = torch.randn(size, size, dtype=dtype, device=device)
+        C = torch.matmul(A, B)
+        
+        if device.type == 'cuda':
+            torch.cuda.synchronize()
+        elif device.type == 'xpu':
+            torch.xpu.synchronize()
+        
+        del A, B, C
+    elif framework == 'jax':
+        pass

@@ -1,36 +1,35 @@
-import torch
+# Framework imports are handled dynamically
 from mpi4py import MPI
 from omegaconf import DictConfig
 from dl_comm.timer import timer
 
 
-def allocate_device(device_type, assigned_device_id, log, mpi_rank):
+def allocate_device(device_type, assigned_device_id, log, mpi_rank, framework):
  
-    if device_type == 'gpu':
-        if torch.cuda.is_available():
-            device = torch.device(f"cuda:{assigned_device_id}")
-            torch.cuda.set_device(assigned_device_id)
-            return device
-        elif torch.xpu.is_available():
-            device = torch.device(f"xpu:{assigned_device_id}")
-            return device
-
-    elif device_type == 'cpu':
-        return torch.device('cpu')
+    if framework == 'pytorch':
+        if device_type == 'gpu':
+            if torch.cuda.is_available():
+                device = torch.device(f"cuda:{assigned_device_id}")
+                torch.cuda.set_device(assigned_device_id)
+                return device
+            elif torch.xpu.is_available():
+                device = torch.device(f"xpu:{assigned_device_id}")
+                return device
+        elif device_type == 'cpu':
+            return torch.device('cpu')
+    
+    elif framework == 'jax':
+        pass
 
 
 
 def setup_communication_groups(mode_cfg, mpi_rank, log, dist=None, force_mode=None, full_cfg=None):
  
     
-    # With the new structure, force_mode is always required as we pass the specific mode_cfg
-    if not force_mode:
-        raise ValueError("setup_communication_groups() requires force_mode parameter")
+ 
     
-    # Get device type from config (default to 'gpu' for backward compatibility)
-    device_type = 'gpu'  # default
-    if full_cfg and hasattr(full_cfg, 'device_type'):
-        device_type = full_cfg.device_type.lower()
+    device_type = full_cfg.device_type.lower()
+    framework = full_cfg.framework.lower()
     
     comm_mode = force_mode
     
@@ -46,11 +45,15 @@ def setup_communication_groups(mode_cfg, mpi_rank, log, dist=None, force_mode=No
     mpi_size=MPI.COMM_WORLD.Get_size()
     
     # Calculate available devices once at the beginning
-    if torch.cuda.is_available():
-        available_devices = torch.cuda.device_count()
-    elif torch.xpu.is_available():
-        available_devices = torch.xpu.device_count()
-    else:
+    if framework == 'pytorch':
+        import torch
+        if torch.cuda.is_available():
+            available_devices = torch.cuda.device_count()
+        elif torch.xpu.is_available():
+            available_devices = torch.xpu.device_count()
+        else:
+            available_devices = 1
+    elif framework == 'jax':
         available_devices = 1
 
     
@@ -107,7 +110,7 @@ def setup_communication_groups(mode_cfg, mpi_rank, log, dist=None, force_mode=No
                     assigned_device_id = device_ids_per_node[gpu_idx_in_group]
                     
                     # Set device based on device_type configuration
-                    device = allocate_device(device_type, assigned_device_id, log, mpi_rank)
+                    device = allocate_device(device_type, assigned_device_id, log, mpi_rank, framework)
                         
  
                         
@@ -177,7 +180,7 @@ def setup_communication_groups(mode_cfg, mpi_rank, log, dist=None, force_mode=No
                         assigned_device_id = required_gpu_id
                         
                         # Set device based on device_type configuration
-                        device = allocate_device(device_type, assigned_device_id, log, mpi_rank)
+                        device = allocate_device(device_type, assigned_device_id, log, mpi_rank, framework)
  
 
 
@@ -210,11 +213,15 @@ def setup_communication_groups(mode_cfg, mpi_rank, log, dist=None, force_mode=No
             log.info("[COMM][GROUP CREATION] Flatview groups:")
 
         with timer("Group Creation (Flatview)"):
-            if torch.cuda.is_available():
-                available_devices = torch.cuda.device_count()
-            elif torch.xpu.is_available():
-                available_devices = torch.xpu.device_count()
-            else:
+            if framework == 'pytorch':
+                import torch
+                if torch.cuda.is_available():
+                    available_devices = torch.cuda.device_count()
+                elif torch.xpu.is_available():
+                    available_devices = torch.xpu.device_count()
+                else:
+                    available_devices = 1
+            elif framework == 'jax':
                 available_devices = 1
             
             group_ranks = []
@@ -247,7 +254,7 @@ def setup_communication_groups(mode_cfg, mpi_rank, log, dist=None, force_mode=No
                     assigned_device_id = device_ids_per_node[device_idx_in_node]
                     
                     # Set device based on device_type configuration
-                    device = allocate_device(device_type, assigned_device_id, log, mpi_rank)
+                    device = allocate_device(device_type, assigned_device_id, log, mpi_rank, framework)
                         
  
             else:

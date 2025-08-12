@@ -2,24 +2,27 @@ import os
 import sys
 import platform
 import subprocess
-import torch
 
 
-def print_system_info(log, mpi_rank):
+def print_system_info(log, mpi_rank, framework):
     
     if mpi_rank == 0:
         log.info("")
         log.info("[SYSTEM] Collecting environment information...")
         log.info("[SYSTEM] ======================================================")
         
-        # PyTorch Information
-        log.info(f"[SYSTEM] PyTorch version: {torch.__version__}")
-        
-        # CUDA Information
-        if torch.cuda.is_available():
-            log.info(f"[SYSTEM] CUDA used to build PyTorch: {torch.version.cuda}")
-        else:
-            log.info("[SYSTEM] CUDA used to build PyTorch: N/A")
+        # Framework Information
+        if framework == 'pytorch':
+            import torch
+            log.info(f"[SYSTEM] PyTorch version: {torch.__version__}")
+            
+            # CUDA Information
+            if torch.cuda.is_available():
+                log.info(f"[SYSTEM] CUDA used to build PyTorch: {torch.version.cuda}")
+            else:
+                log.info("[SYSTEM] CUDA used to build PyTorch: N/A")
+        elif framework == 'jax':
+            log.info(f"[SYSTEM] JAX framework: Not yet implemented")
         
         # System Information
         log.info("")
@@ -42,55 +45,61 @@ def print_system_info(log, mpi_rank):
         log.info(f"[SYSTEM] Python platform: {platform.platform()}")
         
         # GPU Information
-        log.info(f"[SYSTEM] Is CUDA available: {torch.cuda.is_available()}")
-        if torch.cuda.is_available():
-            log.info(f"[SYSTEM] CUDA runtime version: {torch.version.cuda}")
-            log.info("[SYSTEM] GPU models and configuration:")
-            for i in range(torch.cuda.device_count()):
-                gpu_name = torch.cuda.get_device_name(i)
-                gpu_memory = torch.cuda.get_device_properties(i).total_memory / (1024**3)
-                log.info(f"[SYSTEM] GPU {i}: {gpu_name} ({gpu_memory:.1f} GB)")
-        else:
-            log.info("[SYSTEM] CUDA runtime version: N/A")
-            log.info("[SYSTEM] GPU models and configuration: N/A")
-        
-        # Intel XPU Information
-        if hasattr(torch, 'xpu') and torch.xpu.is_available():
-            log.info(f"[SYSTEM] Is XPU available: {torch.xpu.is_available()}")
-            log.info(f"[SYSTEM] XPU device count: {torch.xpu.device_count()}")
+        if framework == 'pytorch':
+            log.info(f"[SYSTEM] Is CUDA available: {torch.cuda.is_available()}")
+            if torch.cuda.is_available():
+                log.info(f"[SYSTEM] CUDA runtime version: {torch.version.cuda}")
+                log.info("[SYSTEM] GPU models and configuration:")
+                for i in range(torch.cuda.device_count()):
+                    gpu_name = torch.cuda.get_device_name(i)
+                    gpu_memory = torch.cuda.get_device_properties(i).total_memory / (1024**3)
+                    log.info(f"[SYSTEM] GPU {i}: {gpu_name} ({gpu_memory:.1f} GB)")
+            else:
+                log.info("[SYSTEM] CUDA runtime version: N/A")
+                log.info("[SYSTEM] GPU models and configuration: N/A")
+            
+            # Intel XPU Information
+            if hasattr(torch, 'xpu') and torch.xpu.is_available():
+                log.info(f"[SYSTEM] Is XPU available: {torch.xpu.is_available()}")
+                log.info(f"[SYSTEM] XPU device count: {torch.xpu.device_count()}")
+        elif framework == 'jax':
+            log.info("[SYSTEM] GPU Information: JAX framework support not yet implemented")
         
         # Distributed Backend Availability
         log.info("")
         log.info("[SYSTEM] Distributed Backend Availability:")
         
-        # NCCL Backend
-        try:
-            import torch.distributed as dist
-            nccl_available = dist.is_nccl_available()
-            log.info(f"[SYSTEM] NCCL backend available: {nccl_available}")
-        except AttributeError:
-            log.info("[SYSTEM] NCCL backend available: Unknown (API not available)")
-        except Exception:
-            log.info("[SYSTEM] NCCL backend available: Error checking")
-        
-        # MPI Backend
-        try:
-            mpi_available = dist.is_mpi_available()
-            log.info(f"[SYSTEM] MPI backend available: {mpi_available}")
-        except AttributeError:
-            log.info("[SYSTEM] MPI backend available: Unknown (API not available)")
-        except Exception:
-            log.info("[SYSTEM] MPI backend available: Error checking")
-        
-        # XCCL Backend (Intel CCL)
-        try:
-            from torch.distributed import distributed_c10d
-            xccl_available = distributed_c10d.is_xccl_available()
-            log.info(f"[SYSTEM] XCCL backend available: {xccl_available}")
-        except AttributeError:
-            log.info("[SYSTEM] XCCL backend available: Unknown (API not available)")
-        except Exception:
-            log.info("[SYSTEM] XCCL backend available: Error checking")
+        if framework == 'pytorch':
+            # NCCL Backend
+            try:
+                import torch.distributed as dist
+                nccl_available = dist.is_nccl_available()
+                log.info(f"[SYSTEM] NCCL backend available: {nccl_available}")
+            except AttributeError:
+                log.info("[SYSTEM] NCCL backend available: Unknown (API not available)")
+            except Exception:
+                log.info("[SYSTEM] NCCL backend available: Error checking")
+            
+            # MPI Backend
+            try:
+                mpi_available = dist.is_mpi_available()
+                log.info(f"[SYSTEM] MPI backend available: {mpi_available}")
+            except AttributeError:
+                log.info("[SYSTEM] MPI backend available: Unknown (API not available)")
+            except Exception:
+                log.info("[SYSTEM] MPI backend available: Error checking")
+            
+            # XCCL Backend (Intel CCL)
+            try:
+                from torch.distributed import distributed_c10d
+                xccl_available = distributed_c10d.is_xccl_available()
+                log.info(f"[SYSTEM] XCCL backend available: {xccl_available}")
+            except AttributeError:
+                log.info("[SYSTEM] XCCL backend available: Unknown (API not available)")
+            except Exception:
+                log.info("[SYSTEM] XCCL backend available: Error checking")
+        elif framework == 'jax':
+            log.info("[SYSTEM] JAX distributed backend information not yet implemented")
         
         # Library Versions
         log.info("")
@@ -145,12 +154,15 @@ def print_system_info(log, mpi_rank):
             log.info("[SYSTEM] intel_extension_for_pytorch: Not available")
         
         # NCCL Version
-        try:
-            nccl_version = torch.cuda.nccl.version()
-            version_str = f"{nccl_version[0]}.{nccl_version[1]}.{nccl_version[2]}"
-            log.info(f"[SYSTEM] NCCL version: {version_str}")
-        except:
-            log.info("[SYSTEM] NCCL version: Not available")
+        if framework == 'pytorch':
+            try:
+                nccl_version = torch.cuda.nccl.version()
+                version_str = f"{nccl_version[0]}.{nccl_version[1]}.{nccl_version[2]}"
+                log.info(f"[SYSTEM] NCCL version: {version_str}")
+            except:
+                log.info("[SYSTEM] NCCL version: Not available")
+        elif framework == 'jax':
+            log.info("[SYSTEM] NCCL version: Not applicable for JAX")
         
         # Environment Variables
         log.info("")

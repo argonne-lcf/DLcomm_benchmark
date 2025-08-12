@@ -1,5 +1,3 @@
-import torch
-import torch.distributed as dist
 from omegaconf import DictConfig
 
 
@@ -35,6 +33,7 @@ def validate_and_calculate_buffer_size(payload_config, mode_name: str, log=None,
         has_errors = True
         return 0, 0, has_errors
     
+    # Framework-specific dtype handling will be added later
     torch_dtype, elem_size_bytes = DTYPES[dtype_str]
     
     has_buffer_size = hasattr(payload_config, 'buffer_size') and payload_config.buffer_size is not None
@@ -306,44 +305,54 @@ class ConfigValidator:
         # Validate distributed backend availability
         backend = cfg.ccl_backend.lower()
         
-        if backend == "nccl":
-            try:
-                if not dist.is_nccl_available():
+        if cfg.framework == "pytorch":
+            import torch.distributed as dist
+            
+            if backend == "nccl":
+                try:
+                    if not dist.is_nccl_available():
+                        if mpi_rank == 0:
+                            log.error("[VALIDATION] NCCL backend requested but not available")
+                        has_errors = True
+                except AttributeError:
                     if mpi_rank == 0:
-                        log.error("[VALIDATION] NCCL backend requested but not available")
-                    has_errors = True
-            except AttributeError:
-                if mpi_rank == 0:
-                    log.warning("[VALIDATION] Cannot check NCCL availability (API not available)")
+                        log.warning("[VALIDATION] Cannot check NCCL availability (API not available)")
+            
+            elif backend == "mpi":
+                try:
+                    if not dist.is_mpi_available():
+                        if mpi_rank == 0:
+                            log.error("[VALIDATION] MPI backend requested but not available")
+                        has_errors = True
+                except AttributeError:
+                    if mpi_rank == 0:
+                        log.warning("[VALIDATION] Cannot check MPI availability (API not available)")
+            
+            elif backend in ["ccl", "xccl"]:
+                try: 
+                    if not torch.distributed.distributed_c10d.is_xccl_available():
+                        if mpi_rank == 0:
+                            log.error("[VALIDATION] CCL/XCCL backend requested but not available")
+                        has_errors = True
+                except (AttributeError, ImportError):
+                    if mpi_rank == 0 and not self.backend_warning_shown:
+                        log.warning("[VALIDATION] Cannot check CCL/XCCL availability (API not available)")
+                        self.backend_warning_shown = True
         
-        elif backend == "mpi":
-            try:
-                if not dist.is_mpi_available():
-                    if mpi_rank == 0:
-                        log.error("[VALIDATION] MPI backend requested but not available")
-                    has_errors = True
-            except AttributeError:
-                if mpi_rank == 0:
-                    log.warning("[VALIDATION] Cannot check MPI availability (API not available)")
-        
-        elif backend in ["ccl", "xccl"]:
-            try: 
-                if not torch.distributed.distributed_c10d.is_xccl_available():
-                    if mpi_rank == 0:
-                        log.error("[VALIDATION] CCL/XCCL backend requested but not available")
-                    has_errors = True
-            except (AttributeError, ImportError):
-                if mpi_rank == 0 and not self.backend_warning_shown:
-                    log.warning("[VALIDATION] Cannot check CCL/XCCL availability (API not available)")
-                    self.backend_warning_shown = True
+        elif cfg.framework == "jax":
+            pass
 
                     
  
-        if torch.cuda.is_available():
-            available_devices = torch.cuda.device_count()
-        elif torch.xpu.is_available():
-            available_devices = torch.xpu.device_count()
-        else:
+        if cfg.framework == "pytorch":
+            import torch
+            if torch.cuda.is_available():
+                available_devices = torch.cuda.device_count()
+            elif torch.xpu.is_available():
+                available_devices = torch.xpu.device_count()
+            else:
+                available_devices = 1
+        elif cfg.framework == "jax":
             available_devices = 1   
         
         def validate_basic_config(config_section, mode_name): 
