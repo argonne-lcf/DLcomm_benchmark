@@ -2,11 +2,15 @@
 from mpi4py import MPI
 from omegaconf import DictConfig
 from dl_comm.timer import timer
+import os
 
 
 def allocate_device(device_type, assigned_device_id, log, mpi_rank, framework):
- 
+    
+    # FRAMEWORK-PYTORCH
     if framework == 'pytorch':
+
+        # GPU ALLOCATION
         if device_type == 'gpu':
             if torch.cuda.is_available():
                 device = torch.device(f"cuda:{assigned_device_id}")
@@ -15,9 +19,20 @@ def allocate_device(device_type, assigned_device_id, log, mpi_rank, framework):
             elif torch.xpu.is_available():
                 device = torch.device(f"xpu:{assigned_device_id}")
                 return device
+
+
+        # CPU ALLOCATION
         elif device_type == 'cpu':
+             
+            cpu_binding = os.environ.get("CPU_BINDING")
+            if cpu_binding and cpu_binding.startswith("list:"):
+                cpu_cores = [int(x) for x in cpu_binding[5:].split(":")]
+                cpu_core = cpu_cores[assigned_device_id]
+                os.sched_setaffinity(0, {cpu_core})
+                log.info(f"[CPU] Rank {mpi_rank} bound to CPU core {cpu_core}")
             return torch.device('cpu')
-    
+            
+    # FRAMEWORK-JAX
     elif framework == 'jax':
         pass
 
