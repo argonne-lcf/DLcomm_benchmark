@@ -35,3 +35,9 @@ jobscript.sh.e*
 # Temporary files
 temp_terminal_output.log
 .tmp/
+
+# Virtual environments
+venv/
+local/
+env/
+.env/
