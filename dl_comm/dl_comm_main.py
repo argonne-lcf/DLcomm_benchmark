@@ -396,6 +396,20 @@ def main(cfg: DictConfig):
                 log.output("[MPI] Launching profiling job")
 
             # ----------------------------------------------------------------------------
+            #  HOST TO DEVICE TRANSFER TEST
+            # ----------------------------------------------------------------------------
+            
+            if framework == "pytorch":
+                if cfg.memory == "host" and cfg.device_type == "gpu":
+                    x_test = torch.ones(num_elems, dtype=torch_dtype, device="cpu")
+                    with timer("Host to Device Transfer Time"):
+                        x_test = x_test.to(device, non_blocking=True)
+                else:
+                    x_test = torch.ones(num_elems, dtype=torch_dtype).to(device, non_blocking=True)
+
+            elif framework== "jax":
+                pass
+            # ----------------------------------------------------------------------------
             #  WARMUP ITERATIONS
             # ----------------------------------------------------------------------------
             
@@ -428,8 +442,8 @@ def main(cfg: DictConfig):
                     log.info("")
             
 
-            
  
+    
             # ----------------------------------------------------------------------------
             #  COLLECTIVE OP EXECUTION (TIMED)
             # ----------------------------------------------------------------------------

@@ -49,7 +49,7 @@ def register_collective(name: str, needs_op: bool = False):
     return decorator
 
 @register_collective("allreduce", needs_op=True)
-def _allreduce(tensor, op, group=None, dist=None, log=None, framework):
+def _allreduce(tensor, op, group=None, dist=None, log=None, framework="pytorch"):
     if framework == 'pytorch':
         dist.all_reduce(tensor, op=op, group=group)
     elif framework == 'jax':
@@ -57,7 +57,7 @@ def _allreduce(tensor, op, group=None, dist=None, log=None, framework):
 
 
 @register_collective("reduce", needs_op=True)
-def _reduce(tensor, op, group=None, dist=None,log=None, framework):
+def _reduce(tensor, op, group=None, dist=None,log=None, framework="pytorch"):
     if framework == 'pytorch':
         if group is None:
             smallest_rank = 0
@@ -70,7 +70,7 @@ def _reduce(tensor, op, group=None, dist=None,log=None, framework):
 
 
 @register_collective("broadcast", needs_op=False)      
-def _broadcast(tensor, op, group=None, dist=None, log=None, framework):
+def _broadcast(tensor, op, group=None, dist=None, log=None, framework="pytorch"):
     if framework == 'pytorch':
         if group is None:
             smallest_rank = 0
@@ -84,7 +84,7 @@ def _broadcast(tensor, op, group=None, dist=None, log=None, framework):
  
 
 @register_collective("allgather", needs_op=False)
-def _allgather(tensor, op=None, group=None, dist=None, log=None, framework):
+def _allgather(tensor, op=None, group=None, dist=None, log=None, framework="pytorch"):
     if framework == 'pytorch':
         world_size = dist.get_world_size(group)
         tensor_list = [torch.empty_like(tensor) for _ in range(world_size)]
@@ -94,7 +94,7 @@ def _allgather(tensor, op=None, group=None, dist=None, log=None, framework):
         pass
 
 @register_collective("gather", needs_op=False)
-def _gather(tensor, op=None, group=None, dist=None, log=None, framework):
+def _gather(tensor, op=None, group=None, dist=None, log=None, framework="pytorch"):
     if framework == 'pytorch':
         if group is None:
             smallest_rank = 0
@@ -116,7 +116,7 @@ def _gather(tensor, op=None, group=None, dist=None, log=None, framework):
         
 
 @register_collective("scatter", needs_op=False)
-def _scatter(tensor, op=None, group=None, dist=None,log=None, framework):
+def _scatter(tensor, op=None, group=None, dist=None,log=None, framework="pytorch"):
     if framework == 'pytorch':
         if group is None:
             smallest_rank = 0
@@ -137,7 +137,7 @@ def _scatter(tensor, op=None, group=None, dist=None,log=None, framework):
 
 
 @register_collective("reducescatter", needs_op=True)
-def _reduce_scatter(tensor, op, group=None, dist=None,log=None, framework):
+def _reduce_scatter(tensor, op, group=None, dist=None,log=None, framework="pytorch"):
     if framework == 'pytorch':
         world_size = dist.get_world_size(group)
       
@@ -160,7 +160,7 @@ def _reduce_scatter(tensor, op, group=None, dist=None,log=None, framework):
   
 
 @register_collective("alltoall", needs_op=False)
-def _all_to_all(tensor, op=None, group=None, dist=None,log=None, framework):
+def _all_to_all(tensor, op=None, group=None, dist=None,log=None, framework="pytorch"):
     if framework == 'pytorch':
         world_size = dist.get_world_size(group)
         
@@ -175,7 +175,7 @@ def _all_to_all(tensor, op=None, group=None, dist=None,log=None, framework):
 
 
 @register_collective("alltoallsingle", needs_op=False)
-def _all_to_all_single(tensor, op=None, group=None, dist=None, log=None, framework):
+def _all_to_all_single(tensor, op=None, group=None, dist=None, log=None, framework="pytorch"):
     if framework == 'pytorch':
         output_tensor = torch.empty_like(tensor)
         dist.all_to_all_single(output_tensor, tensor, group=group)
@@ -185,10 +185,11 @@ def _all_to_all_single(tensor, op=None, group=None, dist=None, log=None, framewo
      
 
 @register_collective("barrier", needs_op=False)
-def _barrier(tensor, op=None, group=None, dist=None,log=None, framework):
+def _barrier(tensor, op=None, group=None, dist=None,log=None, framework="pytorch"):
     if framework == 'pytorch':
         dist.barrier(group=group)
     elif framework == 'jax':
         pass
 
+ 
  

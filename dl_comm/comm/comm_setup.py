@@ -29,9 +29,11 @@ def allocate_device(device_type, assigned_device_id, log, mpi_rank, framework):
                 cpu_cores = [int(x) for x in cpu_binding[5:].split(":")]
                 cpu_core = cpu_cores[assigned_device_id]
                 os.sched_setaffinity(0, {cpu_core})
+
                 log.info(f"[CPU] Rank {mpi_rank} bound to CPU core {cpu_core}")
+                
             return torch.device('cpu')
-            
+
     # FRAMEWORK-JAX
     elif framework == 'jax':
         pass

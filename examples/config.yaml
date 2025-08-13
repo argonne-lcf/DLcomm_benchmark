@@ -3,6 +3,7 @@ ccl_backend      : ccl
 extended_logging : off
 barrier          : on
 device_type      : gpu
+memory           : host
 
 order_of_run: [fsdp, sp]
 
