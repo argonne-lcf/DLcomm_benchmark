@@ -65,7 +65,9 @@ def setup_communication_groups(mode_cfg, mpi_rank, log, dist=None, force_mode=No
     # Calculate available devices once at the beginning
     if framework == 'pytorch':
         import torch
-        if torch.cuda.is_available():
+        if device_type == 'cpu':
+            available_devices = mode_cfg.num_devices_per_node
+        elif torch.cuda.is_available():
             available_devices = torch.cuda.device_count()
         elif torch.xpu.is_available():
             available_devices = torch.xpu.device_count()
@@ -231,17 +233,6 @@ def setup_communication_groups(mode_cfg, mpi_rank, log, dist=None, force_mode=No
             log.info("[COMM][GROUP CREATION] Flatview groups:")
 
         with timer("Group Creation (Flatview)"):
-            if framework == 'pytorch':
-                import torch
-                if torch.cuda.is_available():
-                    available_devices = torch.cuda.device_count()
-                elif torch.xpu.is_available():
-                    available_devices = torch.xpu.device_count()
-                else:
-                    available_devices = 1
-            elif framework == 'jax':
-                available_devices = 1
-            
             group_ranks = []
             # Use actual ranks per physical node from MPI configuration  
             ranks_per_physical_node = mpi_size // num_compute_nodes

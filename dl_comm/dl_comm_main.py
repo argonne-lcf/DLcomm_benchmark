@@ -64,6 +64,8 @@ def main(cfg: DictConfig):
 
     framework       = cfg.framework.lower()
     ccl_backend     = cfg.ccl_backend
+    device_type     = cfg.device_type.lower()
+    memory_source   = cfg.memory_source.lower()
     
     # Initialize framework-specific constants
     init_framework_constants(framework)
@@ -128,8 +130,12 @@ def main(cfg: DictConfig):
     def time_barrier(group=None, device=None):
         if barrier_enabled:
             if framework == "pytorch":
-                if group is not None and device is not None:
-                    dist.barrier(group=group,device_ids=[device.index])
+                if device_type == 'cpu':
+                    if group is not None:
+                        dist.barrier(group=group)
+                elif device_type == 'gpu':
+                    if group is not None and device is not None:
+                        dist.barrier(group=group, device_ids=[device.index])
             elif framework == "jax":
                 pass
           
@@ -391,7 +397,7 @@ def main(cfg: DictConfig):
             # ----------------------------------------------------------------------------
             
             if framework == "pytorch":
-                if cfg.memory_source.lower() == "host" and cfg.device_type.lower() == "gpu":
+                if memory_source == "host" and device_type == "gpu":
                     x_test = torch.ones(num_elems, dtype=torch_dtype, device="cpu")
                     with timer("Host to Device Transfer Time"):
                         x_test = x_test.to(device, non_blocking=True)
