@@ -58,7 +58,6 @@ def setup_communication_groups(mode_cfg, mpi_rank, log, dist=None, force_mode=No
     within_group_id = None
     across_group_id = None
     ranks_responsible_for_logging = set([0])  # Rank 0 always responsible for world/flatview
-    participating = False  # Flag to indicate if this rank participates in collectives
 
     mpi_size=MPI.COMM_WORLD.Get_size()
     
@@ -123,7 +122,6 @@ def setup_communication_groups(mode_cfg, mpi_rank, log, dist=None, force_mode=No
                 if mpi_rank in group_ranks:
                     my_within_group = group
                     within_group_id = node
-                    participating = True  # This rank participates in within_node collectives
                     
                     # Assign device based on position in gpu_ids list
                     gpu_idx_in_group = group_ranks.index(mpi_rank)
@@ -280,5 +278,4 @@ def setup_communication_groups(mode_cfg, mpi_rank, log, dist=None, force_mode=No
         'across_group_id': across_group_id,
         'ranks_responsible_for_logging': ranks_responsible_for_logging,
         'device': device,
-        'participating': participating,
     }

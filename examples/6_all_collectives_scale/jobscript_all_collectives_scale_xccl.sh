@@ -1,9 +1,9 @@
 #!/bin/bash -x
 #PBS -A datascience_collab
 #PBS -k doe
-#PBS -l select=2:ncpus=208
-#PBS -q debug
-#PBS -l walltime=00:05:00
+#PBS -l select=128:ncpus=208
+#PBS -q prod
+#PBS -l walltime=00:15:00
 #PBS -l filesystems=flare
 #PBS -j oe
 #PBS -o /dev/null

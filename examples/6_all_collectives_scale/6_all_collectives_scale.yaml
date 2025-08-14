@@ -9,7 +9,7 @@ order_of_run: [allreduce-scale, allgather-scale, reducescatter-scale, broadcast-
 
 allreduce-scale:
   comm_group: across_node
-  num_compute_nodes: 2
+  num_compute_nodes: 128
   num_devices_per_node: 12
   device_ids_per_node: [0,1,2,3,4,5,6,7,8,9,10,11]
   verify_correctness: on
@@ -28,7 +28,7 @@ allreduce-scale:
 
 allgather-scale:
   comm_group: across_node
-  num_compute_nodes: 2
+  num_compute_nodes: 128
   num_devices_per_node: 12
   device_ids_per_node: [0,1,2,3,4,5,6,7,8,9,10,11]
   verify_correctness: on
@@ -47,7 +47,7 @@ allgather-scale:
 
 reducescatter-scale:
   comm_group: across_node
-  num_compute_nodes: 2
+  num_compute_nodes: 128
   num_devices_per_node: 12
   device_ids_per_node: [0,1,2,3,4,5,6,7,8,9,10,11]
   verify_correctness: on
@@ -66,7 +66,7 @@ reducescatter-scale:
 
 broadcast-scale:
   comm_group: across_node
-  num_compute_nodes: 2
+  num_compute_nodes: 128
   num_devices_per_node: 12
   device_ids_per_node: [0,1,2,3,4,5,6,7,8,9,10,11]
   verify_correctness: on
@@ -85,7 +85,7 @@ broadcast-scale:
 
 reduce-scale:
   comm_group: across_node
-  num_compute_nodes: 2
+  num_compute_nodes: 128
   num_devices_per_node: 12
   device_ids_per_node: [0,1,2,3,4,5,6,7,8,9,10,11]
   verify_correctness: on
@@ -104,7 +104,7 @@ reduce-scale:
 
 alltoall-scale:
   comm_group: across_node
-  num_compute_nodes: 2
+  num_compute_nodes: 128
   num_devices_per_node: 12
   device_ids_per_node: [0,1,2,3,4,5,6,7,8,9,10,11]
   verify_correctness: on
@@ -123,7 +123,7 @@ alltoall-scale:
 
 alltoallsingle-scale:
   comm_group: across_node
-  num_compute_nodes: 2
+  num_compute_nodes: 128
   num_devices_per_node: 12
   device_ids_per_node: [0,1,2,3,4,5,6,7,8,9,10,11]
   verify_correctness: on
@@ -142,7 +142,7 @@ alltoallsingle-scale:
 
 gather-scale:
   comm_group: across_node
-  num_compute_nodes: 2
+  num_compute_nodes: 128
   num_devices_per_node: 12
   device_ids_per_node: [0,1,2,3,4,5,6,7,8,9,10,11]
   verify_correctness: on
@@ -161,7 +161,7 @@ gather-scale:
 
 scatter-scale:
   comm_group: across_node
-  num_compute_nodes: 2
+  num_compute_nodes: 128
   num_devices_per_node: 12
   device_ids_per_node: [0,1,2,3,4,5,6,7,8,9,10,11]
   verify_correctness: on
@@ -180,7 +180,7 @@ scatter-scale:
 
 barrier-scale:
   comm_group: across_node
-  num_compute_nodes: 2
+  num_compute_nodes: 128
   num_devices_per_node: 12
   device_ids_per_node: [0,1,2,3,4,5,6,7,8,9,10,11]
   verify_correctness: on

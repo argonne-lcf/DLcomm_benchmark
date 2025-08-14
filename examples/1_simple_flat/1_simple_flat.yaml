@@ -3,12 +3,12 @@ ccl_backend      : ccl
 extended_logging : off
 barrier          : on
 device_type      : gpu
-memory           : host
+memory_source    : gpu
 
 order_of_run: [simple-allreduce]
 
 simple-allreduce:
-  comm_group: within_node
+  comm_group: flatview
   num_compute_nodes: 2
   num_devices_per_node: 4
   device_ids_per_node: [0,1,2,3]

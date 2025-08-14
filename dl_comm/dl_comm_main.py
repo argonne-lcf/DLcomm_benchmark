@@ -389,7 +389,6 @@ def main(cfg: DictConfig):
             within_group_id = comm_info['within_group_id']
             across_group_id = comm_info['across_group_id']
             ranks_responsible_for_logging = comm_info['ranks_responsible_for_logging']
-            participating = comm_info['participating']
             
             
             # ----------------------------------------------------------------------------
@@ -449,15 +448,15 @@ def main(cfg: DictConfig):
                         pass
                     
                     if comm_mode == "flatview":
-                        if flat_group is not None and participating:
+                        if flat_group is not None:
                             result = run_collective(x, op_obj, group=flat_group, dist=dist, framework=framework)
                     
                     elif comm_mode == "within_node":
-                        if my_within_group is not None and participating:
+                        if my_within_group is not None:
                             result = run_collective(x, op_obj, group=my_within_group, dist=dist, log=log, framework=framework)
                     
                     elif comm_mode == "across_node":
-                        if my_across_group is not None and participating:
+                        if my_across_group is not None:
                             result = run_collective(x, op_obj, group=my_across_group, dist=dist, log=log, framework=framework)
                 
                 MPI.COMM_WORLD.Barrier()
@@ -493,7 +492,7 @@ def main(cfg: DictConfig):
                             check_collective_correctness(context, x, coll_name, op=op_obj, group=flat_group, result_data=result, group_type="Flatview", group_id="All")
 
                 elif comm_mode == "within_node":
-                    if my_within_group is not None and participating:
+                    if my_within_group is not None:
                         time_barrier(group=my_within_group, device=device)
                         with timer(f"(Within-Group-{within_group_id})"):
                             result = run_collective(x, op_obj, group=my_within_group, dist=dist, log=log, framework=framework)
