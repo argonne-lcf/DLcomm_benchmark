@@ -27,11 +27,11 @@ def allocate_device(device_type, assigned_device_id, log, mpi_rank, framework):
              
             cpu_binding = os.environ.get("CPU_BINDING")
             if cpu_binding and cpu_binding.startswith("list:"):
-                cpu_cores = [int(x) for x in cpu_binding[5:].split(":")]
-                cpu_core = cpu_cores[assigned_device_id]
+                
+                cpu_core = assigned_device_id
                 os.sched_setaffinity(0, {cpu_core})
 
-                log.info(f"[CPU] Rank {mpi_rank} bound to CPU core {cpu_core}")
+                #log.info(f"[CPU] Rank {mpi_rank} bound to CPU core {cpu_core}")
                 
             return torch.device('cpu')
 
@@ -131,13 +131,13 @@ def setup_communication_groups(mode_cfg, mpi_rank, log, dist=None, force_mode=No
                     
                     # Set device based on device_type configuration
                     device = allocate_device(device_type, assigned_device_id, log, mpi_rank, framework)
-                        
+            
  
                         
                 if mpi_rank == 0:
                     log.info(f"[COMM][GROUP CREATION][Within Group-{node}] Ranks: {group_ranks}, Required Devices: {device_ids_per_node}, Logging: rank {responsible_rank}")
                     
- 
+           
                     
 
  

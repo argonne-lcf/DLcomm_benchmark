@@ -37,7 +37,7 @@ RANKS_PER_NODE=4
 NRANKS=$(( NNODES * RANKS_PER_NODE ))
 
  
-export CPU_BINDING="list:4:9:14:19:20:25:56:61:66:71:74:79"
+export CPU_BINDING="list:4:9:14:19"
  
 # Critical CCL environment variables 
  
