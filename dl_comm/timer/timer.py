@@ -33,7 +33,7 @@ def gather_and_print_all_times(logger, ranks_responsible_for_logging, barrier_en
     all_data = MPI.COMM_WORLD.gather(my_data, root=0)
     if mpi_rank == 0:
         logger.output("")
-        logger.output(f"{title} -------------------------------------------")
+        logger.output(f"{title} ---------------------------------------------------------")
         
         # ========================================================================
         # CATEGORIZE TIMER DATA BY GROUP TYPE
@@ -50,6 +50,10 @@ def gather_and_print_all_times(logger, ranks_responsible_for_logging, barrier_en
                         group_key = "import"
                     elif "init time" == label:
                         group_key = "init"
+                    elif "Host to Device Transfer Time" == label:
+                        group_key = "host_to_device"
+                    elif "MxM Compute Time" in label:
+                        group_key = "mxm_compute"
                     elif "Group Creation (Within)" == label:
                         group_key = "group_creation_within"
                     elif "Group Creation (Across)" == label:
@@ -117,7 +121,7 @@ def gather_and_print_all_times(logger, ranks_responsible_for_logging, barrier_en
         
         if phase_filter == "setup":
             available_group_creation = [k for k in group_timers.keys() if k.startswith("group_creation_")]
-            setup_order = ["import", "init"] + available_group_creation
+            setup_order = ["import", "init"] + available_group_creation + ["host_to_device", "mxm_compute"]
         elif phase_filter == "within":
             setup_order = []
         elif phase_filter == "across":
@@ -131,10 +135,10 @@ def gather_and_print_all_times(logger, ranks_responsible_for_logging, barrier_en
                     vals = timer_data['vals']
                     rank = timer_data['rank']
                     if len(vals) == 1:
-                        logger.output(f"[TIMERS][LOGGING RANK - {rank}] {label:<25}= {vals[0]:.6f} s")
+                        logger.output(f"[TIMERS][LOGGING RANK - {rank}] {label:<35} = {vals[0]:.6f} s")
                     else:
                         joined = ", ".join(f"{v:.6f}" for v in vals)
-                        logger.output(f"[TIMERS][LOGGING RANK - {rank}] {label:<25}= [{joined}] s")
+                        logger.output(f"[TIMERS][LOGGING RANK - {rank}] {label:<35} = [{joined}] s")
         
         # ========================================================================
         # PRINT COMMUNICATION TIMERS
@@ -150,7 +154,7 @@ def gather_and_print_all_times(logger, ranks_responsible_for_logging, barrier_en
                     if len(vals) > 1:
                         iteration_data[label] = {'vals': vals, 'rank': rank}
                     else:
-                        logger.output(f"[TIMERS][LOGGING RANK - {rank}] {label:<25}= {vals[0]:.6f} s")
+                        logger.output(f"[TIMERS][LOGGING RANK - {rank}] {label:<35} = {vals[0]:.6f} s")
         
         # ========================================================================
         # PRINT BARRIER STATUS
@@ -207,12 +211,12 @@ def gather_and_print_all_times(logger, ranks_responsible_for_logging, barrier_en
         # ========================================================================
         # END TIMER REPORT
         # ========================================================================
-        logger.output(f"{title} -------------------------------------------")
+        logger.output(f"{title} ---------------------------------------------------------")
 
 
 def print_all_times(logger, title="[TIMERS]"):
     logger.output("")
-    logger.output(f"{title} -------------------------------------------")
+    logger.output(f"{title} ---------------------------------------------------------")
     
     for label, vals in TIMES.items():
         if len(vals) == 1:
@@ -221,4 +225,4 @@ def print_all_times(logger, title="[TIMERS]"):
             joined = ", ".join(f"{v:.6f}" for v in vals)
             logger.output(f"{title} {label:<25}= [{joined}] s")
 
-    logger.output(f"{title} -------------------------------------------\n")
+    logger.output(f"{title} ---------------------------------------------------------\n")

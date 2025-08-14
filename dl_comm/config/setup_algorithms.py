@@ -5,7 +5,7 @@ from typing import Dict, List, Tuple, Optional
 
 def setup_collective_algorithms_ccl(cfg: DictConfig, coll_cfg, comm_mode: str, log=None):
     """Setup CCL algorithm overrides for a specific collective and mode"""
-    if cfg.get('extended_logging', 'off') == 'on':
+    if cfg.extended_logging:
         os.environ["CCL_LOG_LEVEL"] = "debug"
     
     scale_up_algorithm = getattr(coll_cfg, 'scale_up_algorithm', '') or ''
@@ -26,7 +26,7 @@ def setup_nccl_algorithms_all(cfg: DictConfig, log=None):
     if ccl_backend not in ["nccl", "rccl"]:
         return
         
-    if cfg.get('extended_logging', 'off') == 'on':
+    if cfg.extended_logging:
         if ccl_backend == "nccl":
             os.environ["NCCL_DEBUG"] = "INFO"
             os.environ["NCCL_DEBUG_SUBSYS"] = "COLL,TUNING"
@@ -81,7 +81,7 @@ def setup_ccl_algorithms_all(cfg: DictConfig, log=None):
     if ccl_backend not in ["ccl", "xccl"]:
         return
         
-    if cfg.get('extended_logging', 'off') == 'on':
+    if cfg.extended_logging:
         os.environ["CCL_LOG_LEVEL"] = "debug"
     
     # Collect all unique collective + algorithm combinations

@@ -326,7 +326,7 @@ def main(cfg: DictConfig):
                 log.info(f"[CONFIG] Task Name            : {task_name}")
                 log.info(f"[CONFIG] Framework            : {framework}")
                 log.info(f"[CONFIG] Backend              : {cfg.ccl_backend}")
-                log.info(f"[CONFIG] Extended Logging     : {cfg.get('extended_logging', 'off')}")
+                log.info(f"[CONFIG] Extended Logging     : {cfg.extended_logging}")
                 log.info(f"[CONFIG] Barrier Enabled      : {cfg.barrier}")
                 log.info(f"[CONFIG] World Size           : {mpi_size}")
                 log.info("[CONFIG] ------------------------------------------------------")
@@ -386,21 +386,12 @@ def main(cfg: DictConfig):
             participating = comm_info['participating']
             
             
-            MPI.COMM_WORLD.Barrier()
-            
-            # Print setup times (import, init) before launching profiling job
-            gather_and_print_all_times(log, ranks_responsible_for_logging, barrier_enabled, "[TIMERS - SETUP]", "setup")
-            
-            if mpi_rank == 0:
-                log.output("")
-                log.output("[MPI] Launching profiling job")
-
             # ----------------------------------------------------------------------------
             #  HOST TO DEVICE TRANSFER TEST
             # ----------------------------------------------------------------------------
             
             if framework == "pytorch":
-                if cfg.memory == "host" and cfg.device_type == "gpu":
+                if cfg.memory_source.lower() == "host" and cfg.device_type.lower() == "gpu":
                     x_test = torch.ones(num_elems, dtype=torch_dtype, device="cpu")
                     with timer("Host to Device Transfer Time"):
                         x_test = x_test.to(device, non_blocking=True)
@@ -409,6 +400,33 @@ def main(cfg: DictConfig):
 
             elif framework== "jax":
                 pass
+            
+            
+
+
+
+            MPI.COMM_WORLD.Barrier()
+            # ----------------------------------------------------------------------------
+            #  MxM COMPUTE SECTION 
+            # ----------------------------------------------------------------------------
+            if add_mxm_compute:
+                mxm_size=1024
+                with timer(f"MxM Compute Time, m={mxm_size}"):
+                    dummy_mxm_compute(device, torch_dtype, size=mxm_size, framework=framework) # defined in ./utils/utility.py)
+                if mpi_rank == 0:
+                    log.output("")
+                    log.output(f"[MxM COMPUTE] Matrix multiplication compute completed.")
+                    log.output("")
+            MPI.COMM_WORLD.Barrier()
+
+
+
+            # Print setup times (import, init, host to device) before launching profiling job
+            gather_and_print_all_times(log, ranks_responsible_for_logging, barrier_enabled, "[TIMERS - SETUP]", "setup")
+            
+            if mpi_rank == 0:
+                log.output("")
+                log.output("[MPI] Launching profiling job")
             # ----------------------------------------------------------------------------
             #  WARMUP ITERATIONS
             # ----------------------------------------------------------------------------
@@ -456,18 +474,7 @@ def main(cfg: DictConfig):
                 elif framework == "jax":
                     pass
                 context = {'mpi_rank': mpi_rank, 'cfg': cfg,'log': log, 'iteration': i}
-                # ----------------------------------------------------------------------------
-                #  MxM COMPUTE SECTION 
-                # ----------------------------------------------------------------------------
-                if add_mxm_compute:
-                    dummy_mxm_compute(device, torch_dtype, size=21600, framework=framework) # defined in ./utils/utility.py)
-                    if mpi_rank == 0 and i==0:
-                        log.output("")
-                        log.output(f"[MxM COMPUTE] Matrix multiplication compute completed.")
-                        log.output("")
-                
-                if i==0:
-                    MPI.COMM_WORLD.Barrier()
+ 
 
                     
                 if comm_mode == "flatview":
@@ -523,7 +530,7 @@ def main(cfg: DictConfig):
                 log.info("[MPI] Job complete")
                 log.info("-------------------------------------------------------------------------")
                 
-                if cfg.get('extended_logging', 'off') == 'on':
+                if cfg.extended_logging:
                     log.info("Querying Default Table selection")
 
                     terminal_log_path = os.path.join(log_dir, "terminal_output.log")
