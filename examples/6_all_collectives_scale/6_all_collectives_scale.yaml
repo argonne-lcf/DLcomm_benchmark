@@ -3,13 +3,13 @@ ccl_backend      : ccl
 extended_logging : off
 barrier          : on
 device_type      : gpu
-memory           : host
+memory_source    : gpu
 
 order_of_run: [allreduce-scale, allgather-scale, reducescatter-scale, broadcast-scale, reduce-scale, alltoall-scale, alltoallsingle-scale, gather-scale, scatter-scale, barrier-scale]
 
 allreduce-scale:
   comm_group: across_node
-  num_compute_nodes: 4096
+  num_compute_nodes: 2
   num_devices_per_node: 12
   device_ids_per_node: [0,1,2,3,4,5,6,7,8,9,10,11]
   verify_correctness: on
@@ -24,11 +24,11 @@ allreduce-scale:
     payload:
       dtype: float32
       count: 
-      buffer_size: 100KB
+      buffer_size: 1GB
 
 allgather-scale:
   comm_group: across_node
-  num_compute_nodes: 4096
+  num_compute_nodes: 2
   num_devices_per_node: 12
   device_ids_per_node: [0,1,2,3,4,5,6,7,8,9,10,11]
   verify_correctness: on
@@ -47,7 +47,7 @@ allgather-scale:
 
 reducescatter-scale:
   comm_group: across_node
-  num_compute_nodes: 4096
+  num_compute_nodes: 2
   num_devices_per_node: 12
   device_ids_per_node: [0,1,2,3,4,5,6,7,8,9,10,11]
   verify_correctness: on
@@ -62,11 +62,11 @@ reducescatter-scale:
     payload:
       dtype: float32
       count: 
-      buffer_size: 100KB
+      buffer_size: 1GB
 
 broadcast-scale:
   comm_group: across_node
-  num_compute_nodes: 4096
+  num_compute_nodes: 2
   num_devices_per_node: 12
   device_ids_per_node: [0,1,2,3,4,5,6,7,8,9,10,11]
   verify_correctness: on
@@ -81,11 +81,11 @@ broadcast-scale:
     payload:
       dtype: float32
       count: 
-      buffer_size: 100KB
+      buffer_size: 1GB
 
 reduce-scale:
   comm_group: across_node
-  num_compute_nodes: 4096
+  num_compute_nodes: 2
   num_devices_per_node: 12
   device_ids_per_node: [0,1,2,3,4,5,6,7,8,9,10,11]
   verify_correctness: on
@@ -100,11 +100,11 @@ reduce-scale:
     payload:
       dtype: float32
       count: 
-      buffer_size: 100KB
+      buffer_size: 1GB
 
 alltoall-scale:
   comm_group: across_node
-  num_compute_nodes: 4096
+  num_compute_nodes: 2
   num_devices_per_node: 12
   device_ids_per_node: [0,1,2,3,4,5,6,7,8,9,10,11]
   verify_correctness: on
@@ -123,7 +123,7 @@ alltoall-scale:
 
 alltoallsingle-scale:
   comm_group: across_node
-  num_compute_nodes: 4096
+  num_compute_nodes: 2
   num_devices_per_node: 12
   device_ids_per_node: [0,1,2,3,4,5,6,7,8,9,10,11]
   verify_correctness: on
@@ -142,7 +142,7 @@ alltoallsingle-scale:
 
 gather-scale:
   comm_group: across_node
-  num_compute_nodes: 4096
+  num_compute_nodes: 2
   num_devices_per_node: 12
   device_ids_per_node: [0,1,2,3,4,5,6,7,8,9,10,11]
   verify_correctness: on
@@ -161,7 +161,7 @@ gather-scale:
 
 scatter-scale:
   comm_group: across_node
-  num_compute_nodes: 4096
+  num_compute_nodes: 2
   num_devices_per_node: 12
   device_ids_per_node: [0,1,2,3,4,5,6,7,8,9,10,11]
   verify_correctness: on
@@ -176,11 +176,11 @@ scatter-scale:
     payload:
       dtype: float32
       count: 
-      buffer_size: 100KB
+      buffer_size: 1GB
 
 barrier-scale:
   comm_group: across_node
-  num_compute_nodes: 4096
+  num_compute_nodes: 2
   num_devices_per_node: 12
   device_ids_per_node: [0,1,2,3,4,5,6,7,8,9,10,11]
   verify_correctness: on

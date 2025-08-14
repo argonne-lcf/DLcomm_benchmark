@@ -17,7 +17,7 @@ def check_collective_correctness(context, tensor_after, collective_name, op=None
         elif collective_name == "scatter":
             _check_scatter(context, tensor_after, op, group, group_type, group_id, dist, torch)
         elif collective_name == "reducescatter":
-            _check_reducescatter(context, tensor_after, op, group, group_type, group_id, dist, torch)
+            _check_reducescatter(context, tensor_after, op, group, group_type, group_id, dist, torch, result_data)
         elif collective_name == "alltoall":
             _check_alltoall(context, tensor_after, op, group, group_type, group_id, result_data, dist, torch)
         elif collective_name == "alltoallsingle":
@@ -188,7 +188,7 @@ def _check_scatter(context, tensor_after, op, group, group_type, group_id, dist,
         dist.gather(correct_tensor, None, dst=src_rank, group=group)
 
 
-def _check_reducescatter(context, tensor_after, op, group, group_type, group_id, dist, torch):
+def _check_reducescatter(context, tensor_after, op, group, group_type, group_id, dist, torch, result_data=None):
     log = context['log']
     world_size = dist.get_world_size(group)
     
@@ -197,6 +197,12 @@ def _check_reducescatter(context, tensor_after, op, group, group_type, group_id,
     else:
         group_ranks = dist.get_process_group_ranks(group)
         dst_rank = min(group_ranks)
+    
+ 
+    if result_data is None:
+        if dist.get_rank() == dst_rank:
+            log.output(f"[CORRECTNESS][{group_type}-Group-{group_id}] ReduceScatter iteration {context['iteration']} [FAILED] - No result data available")
+        return
     
     if op == dist.ReduceOp.SUM:
         expected_value = world_size
@@ -207,8 +213,9 @@ def _check_reducescatter(context, tensor_after, op, group, group_type, group_id,
     elif op == dist.ReduceOp.PRODUCT:
         expected_value = 1
     
-    expected_tensor = torch.full_like(tensor_after, expected_value)
-    is_correct = torch.allclose(tensor_after, expected_tensor, rtol=1e-6)
+    # Check the actual ReduceScatter result (chunk), not the original input tensor
+    expected_tensor = torch.full_like(result_data, expected_value)
+    is_correct = torch.allclose(result_data, expected_tensor, rtol=1e-6)
     
     correct_tensor = torch.tensor([1 if is_correct else 0], dtype=torch.int32).to(tensor_after.device)
     
