@@ -9,31 +9,35 @@ dist = None
 
 def init_framework_constants(framework):
     global OP_MAP, DTYPES, torch, dist
-    
+
     if framework == 'pytorch':
         import torch as torch_module
         import torch.distributed as dist_module
         torch = torch_module
         dist = dist_module
+
         
-        OP_MAP = {
+        OP_MAP.clear()
+        OP_MAP.update({
             "sum":  dist.ReduceOp.SUM,
             "max":  dist.ReduceOp.MAX,
             "min":  dist.ReduceOp.MIN,
             "prod": dist.ReduceOp.PRODUCT,
-        }
-        
-        DTYPES = {
-            "float16": (torch.float16, 2),
+        })
+
+        DTYPES.clear()
+        DTYPES.update({
+            "float16":  (torch.float16, 2),
             "bfloat16": (torch.bfloat16, 2),
-            "float32": (torch.float32, 4),
-            "float64": (torch.float64, 8),
-            "int32":   (torch.int32,   4),
-            "int64":   (torch.int64,   8)
-        }
+            "float32":  (torch.float32, 4),
+            "float64":  (torch.float64, 8),
+            "int32":    (torch.int32,   4),
+            "int64":    (torch.int64,   8),
+        })
+
     elif framework == 'jax':
-        OP_MAP = {}
-        DTYPES = {}
+        OP_MAP.clear()
+        DTYPES.clear()
 
 
 def register_collective(name: str, needs_op: bool = False):

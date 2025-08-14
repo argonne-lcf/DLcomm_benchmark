@@ -7,28 +7,28 @@ def check_collective_correctness(context, tensor_after, collective_name, op=None
         import torch.distributed as dist
         
         if collective_name == "allreduce":
-            _check_allreduce(context, tensor_after, op, group, group_type, group_id)
+            _check_allreduce(context, tensor_after, op, group, group_type, group_id, dist, torch)
         elif collective_name == "reduce":
-            _check_reduce(context, tensor_after, op, group, group_type, group_id)
+            _check_reduce(context, tensor_after, op, group, group_type, group_id, dist, torch)
         elif collective_name == "broadcast":
-            _check_broadcast(context, tensor_after, op, group, group_type, group_id)
+            _check_broadcast(context, tensor_after, op, group, group_type, group_id, dist, torch)
         elif collective_name == "gather":
-            _check_gather(context, tensor_after, op, group, group_type, group_id, result_data)
+            _check_gather(context, tensor_after, op, group, group_type, group_id, result_data, dist, torch)
         elif collective_name == "scatter":
-            _check_scatter(context, tensor_after, op, group, group_type, group_id)
+            _check_scatter(context, tensor_after, op, group, group_type, group_id, dist, torch)
         elif collective_name == "reducescatter":
-            _check_reducescatter(context, tensor_after, op, group, group_type, group_id)
+            _check_reducescatter(context, tensor_after, op, group, group_type, group_id, dist, torch)
         elif collective_name == "alltoall":
-            _check_alltoall(context, tensor_after, op, group, group_type, group_id, result_data)
+            _check_alltoall(context, tensor_after, op, group, group_type, group_id, result_data, dist, torch)
         elif collective_name == "alltoallsingle":
-            _check_alltoallsingle(context, tensor_after, op, group, group_type, group_id, result_data)
+            _check_alltoallsingle(context, tensor_after, op, group, group_type, group_id, result_data, dist, torch)
         elif collective_name == "allgather":
-            _check_allgather(context, tensor_after, op, group, group_type, group_id, result_data)
+            _check_allgather(context, tensor_after, op, group, group_type, group_id, result_data, dist, torch)
     elif framework == 'jax':
         pass
 
 
-def _check_allreduce(context, tensor_after, op, group, group_type, group_id):
+def _check_allreduce(context, tensor_after, op, group, group_type, group_id, dist, torch):
     log = context['log']
     world_size = dist.get_world_size(group)
     
@@ -67,7 +67,7 @@ def _check_allreduce(context, tensor_after, op, group, group_type, group_id):
         dist.gather(correct_tensor, None, dst=dst_rank, group=group)
 
 
-def _check_reduce(context, tensor_after, op, group, group_type, group_id):
+def _check_reduce(context, tensor_after, op, group, group_type, group_id, dist, torch):
     log = context['log']
     world_size = dist.get_world_size(group)
     
@@ -97,7 +97,7 @@ def _check_reduce(context, tensor_after, op, group, group_type, group_id):
             log.output(f"[CORRECTNESS][{group_type}-Group-{group_id}] Reduce iteration {context['iteration']} [FAILED] - Root rank received incorrect value")
 
 
-def _check_broadcast(context, tensor_after, op, group, group_type, group_id):
+def _check_broadcast(context, tensor_after, op, group, group_type, group_id, dist, torch):
     log = context['log']
     world_size = dist.get_world_size(group)
     
@@ -127,7 +127,7 @@ def _check_broadcast(context, tensor_after, op, group, group_type, group_id):
         dist.gather(correct_tensor, None, dst=src_rank, group=group)
 
 
-def _check_gather(context, tensor_after, op, group, group_type, group_id, result_data):
+def _check_gather(context, tensor_after, op, group, group_type, group_id, result_data, dist, torch):
     log = context['log']
     world_size = dist.get_world_size(group)
     
@@ -159,7 +159,7 @@ def _check_gather(context, tensor_after, op, group, group_type, group_id, result
             log.output(f"[CORRECTNESS][{group_type}-Group-{group_id}] Gather iteration {context['iteration']} [FAILED] - Incorrect values received from ranks {failed_ranks}")
 
 
-def _check_scatter(context, tensor_after, op, group, group_type, group_id):
+def _check_scatter(context, tensor_after, op, group, group_type, group_id, dist, torch):
     log = context['log']
     world_size = dist.get_world_size(group)
     
@@ -188,7 +188,7 @@ def _check_scatter(context, tensor_after, op, group, group_type, group_id):
         dist.gather(correct_tensor, None, dst=src_rank, group=group)
 
 
-def _check_reducescatter(context, tensor_after, op, group, group_type, group_id):
+def _check_reducescatter(context, tensor_after, op, group, group_type, group_id, dist, torch):
     log = context['log']
     world_size = dist.get_world_size(group)
     
@@ -226,7 +226,7 @@ def _check_reducescatter(context, tensor_after, op, group, group_type, group_id)
         dist.gather(correct_tensor, None, dst=dst_rank, group=group)
 
 
-def _check_alltoall(context, tensor_after, op, group, group_type, group_id, result_data):
+def _check_alltoall(context, tensor_after, op, group, group_type, group_id, result_data, dist, torch):
     log = context['log']
     world_size = dist.get_world_size(group)
     
@@ -266,7 +266,7 @@ def _check_alltoall(context, tensor_after, op, group, group_type, group_id, resu
         dist.gather(correct_tensor, None, dst=dst_rank, group=group)
 
 
-def _check_alltoallsingle(context, tensor_after, op, group, group_type, group_id, result_data):
+def _check_alltoallsingle(context, tensor_after, op, group, group_type, group_id, result_data, dist, torch):
     log = context['log']
     world_size = dist.get_world_size(group)
     
@@ -301,7 +301,7 @@ def _check_alltoallsingle(context, tensor_after, op, group, group_type, group_id
         dist.gather(correct_tensor, None, dst=dst_rank, group=group)
 
 
-def _check_allgather(context, tensor_after, op, group, group_type, group_id, result_data):
+def _check_allgather(context, tensor_after, op, group, group_type, group_id, result_data, dist, torch):
     log = context['log']
     world_size = dist.get_world_size(group)
     

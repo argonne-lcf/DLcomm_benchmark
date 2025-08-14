@@ -178,7 +178,7 @@ class ConfigValidator:
         buffer_bytes = None
 
         # comm_group validation using new implementation structure
-        comm_groups = implementation_config.comm_groups
+        comm_groups = implementation_config.comm_group
         valid_modes = ["within_node", "across_node", "flatview"]
         
         # Validate the specific mode passed to this function
@@ -189,22 +189,18 @@ class ConfigValidator:
         
         # Mode-specific validation
         if comm_mode == "within_node":
-            if not hasattr(comm_groups, 'within_node'):
+            # In old structure, the implementation_config itself is the within_node config
+            within_config = implementation_config
+            if not hasattr(within_config, 'num_devices_per_node') or not hasattr(within_config, 'device_ids_per_node'):
                 if mpi_rank == 0:
-                    log.error("[VALIDATION] comm_mode 'within_node' requires 'within_node' configuration")
+                    log.error("[VALIDATION] within_node config requires 'num_devices_per_node' and 'device_ids_per_node'")
                 has_errors = True
             else:
-                within_config = comm_groups.within_node
-                if not hasattr(within_config, 'num_devices_per_node') or not hasattr(within_config, 'device_ids_per_node'):
+                # Validate that num_devices_per_node matches length of device_ids_per_node
+                if within_config.num_devices_per_node != len(within_config.device_ids_per_node):
                     if mpi_rank == 0:
-                        log.error("[VALIDATION] within_node config requires 'num_devices_per_node' and 'device_ids_per_node'")
+                        log.error(f"[VALIDATION] within_node: num_devices_per_node ({within_config.num_devices_per_node}) must equal length of device_ids_per_node ({len(within_config.device_ids_per_node)})")
                     has_errors = True
-                else:
-                    # Validate that num_devices_per_node matches length of device_ids_per_node
-                    if within_config.num_devices_per_node != len(within_config.device_ids_per_node):
-                        if mpi_rank == 0:
-                            log.error(f"[VALIDATION] within_node: num_devices_per_node ({within_config.num_devices_per_node}) must equal length of device_ids_per_node ({len(within_config.device_ids_per_node)})")
-                        has_errors = True
                 
                 # Validate payload configuration
                 if hasattr(within_config, 'collective') and hasattr(within_config.collective, 'payload'):
@@ -213,22 +209,18 @@ class ConfigValidator:
                         has_errors = True
         
         elif comm_mode == "across_node":
-            if not hasattr(comm_groups, 'across_node'):
+            # In old structure, the implementation_config itself is the across_node config
+            across_config = implementation_config
+            if not hasattr(across_config, 'num_compute_nodes') or not hasattr(across_config, 'num_devices_per_node') or not hasattr(across_config, 'device_ids_per_node'):
                 if mpi_rank == 0:
-                    log.error("[VALIDATION] comm_mode 'across_node' requires 'across_node' configuration")
+                    log.error("[VALIDATION] across_node config requires 'num_compute_nodes', 'num_devices_per_node' and 'device_ids_per_node'")
                 has_errors = True
             else:
-                across_config = comm_groups.across_node
-                if not hasattr(across_config, 'num_compute_nodes') or not hasattr(across_config, 'num_devices_per_node') or not hasattr(across_config, 'device_ids_per_node'):
+                # Validate that num_devices_per_node matches length of device_ids_per_node
+                if across_config.num_devices_per_node != len(across_config.device_ids_per_node):
                     if mpi_rank == 0:
-                        log.error("[VALIDATION] across_node config requires 'num_compute_nodes', 'num_devices_per_node' and 'device_ids_per_node'")
+                        log.error(f"[VALIDATION] across_node: num_devices_per_node ({across_config.num_devices_per_node}) must equal length of device_ids_per_node ({len(across_config.device_ids_per_node)})")
                     has_errors = True
-                else:
-                    # Validate that num_devices_per_node matches length of device_ids_per_node
-                    if across_config.num_devices_per_node != len(across_config.device_ids_per_node):
-                        if mpi_rank == 0:
-                            log.error(f"[VALIDATION] across_node: num_devices_per_node ({across_config.num_devices_per_node}) must equal length of device_ids_per_node ({len(across_config.device_ids_per_node)})")
-                        has_errors = True
                 
                 # Validate payload configuration
                 if hasattr(across_config, 'collective') and hasattr(across_config.collective, 'payload'):
@@ -237,22 +229,18 @@ class ConfigValidator:
                         has_errors = True
         
         elif comm_mode == "flatview":
-            if not hasattr(comm_groups, 'flatview'):
+            # In old structure, the implementation_config itself is the flatview config
+            flatview_config = implementation_config
+            if not hasattr(flatview_config, 'num_compute_nodes') or not hasattr(flatview_config, 'num_devices_per_node') or not hasattr(flatview_config, 'device_ids_per_node'):
                 if mpi_rank == 0:
-                    log.error("[VALIDATION] comm_mode 'flatview' requires 'flatview' configuration")
+                    log.error("[VALIDATION] flatview config requires 'num_compute_nodes', 'num_devices_per_node' and 'device_ids_per_node'")
                 has_errors = True
             else:
-                flatview_config = comm_groups.flatview
-                if not hasattr(flatview_config, 'num_compute_nodes') or not hasattr(flatview_config, 'num_devices_per_node') or not hasattr(flatview_config, 'device_ids_per_node'):
+                # Validate that num_devices_per_node matches length of device_ids_per_node
+                if flatview_config.num_devices_per_node != len(flatview_config.device_ids_per_node):
                     if mpi_rank == 0:
-                        log.error("[VALIDATION] flatview config requires 'num_compute_nodes', 'num_devices_per_node' and 'device_ids_per_node'")
+                        log.error(f"[VALIDATION] flatview: num_devices_per_node ({flatview_config.num_devices_per_node}) must equal length of device_ids_per_node ({len(flatview_config.device_ids_per_node)})")
                     has_errors = True
-                else:
-                    # Validate that num_devices_per_node matches length of device_ids_per_node
-                    if flatview_config.num_devices_per_node != len(flatview_config.device_ids_per_node):
-                        if mpi_rank == 0:
-                            log.error(f"[VALIDATION] flatview: num_devices_per_node ({flatview_config.num_devices_per_node}) must equal length of device_ids_per_node ({len(flatview_config.device_ids_per_node)})")
-                        has_errors = True
                 
                 # Validate payload configuration
                 if hasattr(flatview_config, 'collective') and hasattr(flatview_config.collective, 'payload'):
@@ -264,16 +252,11 @@ class ConfigValidator:
         if not has_errors:
             from dl_comm.comm import OPS_NEED_REDUCE, OP_MAP
             
-            # Get the collective config for this mode
-            if comm_mode == "within_node":
-                coll_cfg = comm_groups.within_node.collective
-            elif comm_mode == "across_node":
-                coll_cfg = comm_groups.across_node.collective
-            elif comm_mode == "flatview":
-                coll_cfg = comm_groups.flatview.collective
+            # Get the collective config for this mode - in old structure it's directly in implementation_config
+            coll_cfg = implementation_config.collective
             
             collective_name = coll_cfg.collective_name.lower()
-            op_name = getattr(coll_cfg, 'op', None)
+            op_name = getattr(coll_cfg, 'collective_op', None)
             
             if collective_name in OPS_NEED_REDUCE:
                 if not op_name or op_name.strip() == '':
@@ -306,6 +289,7 @@ class ConfigValidator:
         backend = cfg.ccl_backend.lower()
         
         if cfg.framework == "pytorch":
+            import torch
             import torch.distributed as dist
             
             if backend == "nccl":

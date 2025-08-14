@@ -2,6 +2,142 @@ import re
 from dl_comm.config import parse_buffer_size
 from dl_comm.timer.timer import TIMES
 
+def gather_and_print_all_bandwidths(logger, cfg, mpi_size, ranks_responsible_for_logging, title="[BANDWIDTH]", adjusted_buffer_sizes=None, current_comm_mode=None, current_mode_cfg=None, collective_name=None):
+    from mpi4py import MPI
+    
+    mpi_rank = MPI.COMM_WORLD.Get_rank()
+    
+    my_data = None
+    if mpi_rank in ranks_responsible_for_logging:
+        my_data = {
+            'rank': mpi_rank,
+            'timers': dict(TIMES)
+        }
+    
+    all_data = MPI.COMM_WORLD.gather(my_data, root=0)
+    
+    if mpi_rank == 0:
+        logger.output("")
+        logger.output(f"{title} -------------------------------------------")
+        
+        buffer_configs = {}
+        if adjusted_buffer_sizes:
+            buffer_configs = adjusted_buffer_sizes
+            comm_mode = current_comm_mode
+        else:
+            logger.warning("[BANDWIDTH] Cannot calculate bandwidth - no buffer size information provided")
+            return
+        
+        group_bandwidths = {}
+        
+        for data in all_data:
+            if data is not None:
+                rank = data['rank']
+                timers = data['timers']
+                
+                for label, times_list in timers.items():
+                    # Skip non-collective timers
+                    if any(keyword in label for keyword in ["import", "setup", "mxm", "Group Creation"]):
+                        continue
+                        
+                    # Extract group info from label
+                    group_type = None
+                    if "Flatview" in label:
+                        group_type = "flatview"
+                        buffer_size = buffer_configs.get('flatview', 0)
+                    elif "Within-Group" in label:
+                        group_type = "within"
+                        buffer_size = buffer_configs.get('within', 0)
+                    elif "Across-Group" in label:
+                        group_type = "across"
+                        buffer_size = buffer_configs.get('across', 0)
+                    else:
+                        continue
+                    
+                    if group_type not in group_bandwidths:
+                        group_bandwidths[group_type] = {}
+                    
+                    if label not in group_bandwidths[group_type]:
+                        group_bandwidths[group_type][label] = []
+                    
+                    # Calculate bandwidth for each iteration
+                    for time_seconds in times_list:
+                        if time_seconds > 0:
+                            # Get group size from label or use mpi_size
+                            if "Group" in label:
+                                # Extract group size from current_mode_cfg if available
+                                if current_mode_cfg and hasattr(current_mode_cfg, 'num_devices_per_node'):
+                                    group_size = current_mode_cfg.num_devices_per_node
+                                else:
+                                    group_size = mpi_size
+                            else:
+                                group_size = mpi_size
+                            
+                            bandwidth_gbps = calculate_group_bandwidth(group_size, buffer_size, time_seconds)
+                            group_bandwidths[group_type][label].append(bandwidth_gbps)
+        
+        # Print bandwidth table in iteration table format (like timer table)
+        if group_bandwidths:
+            logger.output("")
+            if collective_name:
+                logger.output(f"[BANDWIDTH] BANDWIDTH TABLE FOR {collective_name.upper()} (bytes/seconds):")
+            else:
+                logger.output("[BANDWIDTH] BANDWIDTH TABLE (bytes/seconds):")
+            
+            # Collect all labels and their bandwidth data
+            iteration_data = {}
+            for group_type, group_data in group_bandwidths.items():
+                for label, bandwidths in group_data.items():
+                    if bandwidths:
+                        # Find the actual rank that has data for this label
+                        actual_rank = None
+                        for data in all_data:
+                            if data is not None and label in data['timers']:
+                                actual_rank = data['rank']
+                                break
+                        if actual_rank is None:
+                            actual_rank = mpi_rank
+                        iteration_data[label] = {'vals': bandwidths, 'rank': actual_rank}
+            
+            if iteration_data:
+                headers = list(iteration_data.keys())
+                max_iterations = max(len(data['vals']) for data in iteration_data.values())
+                col_width = 20
+                
+                # Header line 1 - Labels
+                header_line1 = f"{'Iteration':<12}"
+                for label in headers:
+                    header_line1 += f"{label:^{col_width}}"
+                logger.output(header_line1)
+                
+                # Header line 2 - Ranks
+                header_line2 = f"{'':12}"
+                for label in headers:
+                    rank = iteration_data[label]['rank']
+                    rank_str = f"LOGGING RANK - {rank}"
+                    header_line2 += f"{rank_str:^{col_width}}"
+                logger.output(header_line2)
+                
+                # Separator
+                separator = "-" * len(header_line1)
+                logger.output(separator)
+                
+                # Data rows
+                for i in range(max_iterations):
+                    row = f"{i:<12}"
+                    for label in headers:
+                        vals = iteration_data[label]['vals']
+                        if i < len(vals):
+                            row += f"{vals[i]:.0f}".center(col_width)
+                        else:
+                            row += f"{'-':^{col_width}}"
+                    logger.output(row)
+                
+                logger.output(separator)
+                logger.output("")
+        
+        logger.output(f"{title} -------------------------------------------")
+
 
 def calculate_group_bandwidth(group_size, buffer_size, time_seconds):
     total_bytes = group_size * buffer_size

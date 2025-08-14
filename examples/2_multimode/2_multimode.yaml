@@ -5,28 +5,9 @@ barrier          : on
 device_type      : gpu
 memory           : host
 
-order_of_run: [fsdp, sp]
+order_of_run: [within-node-allgather, across-node-allreduce]
 
-fsdp: # Task Name
-  comm_group: within_node
-  num_compute_nodes: 2
-  num_devices_per_node: 4
-  device_ids_per_node: [0,1,2,3]
-  verify_correctness: on
-  collective:
-    collective_name: allreduce
-    collective_op: sum
-    scale_up_algorithm: default
-    scale_out_algorithm: default
-    iterations: 10
-    warmup_iterations: 0
-    add_mxm_compute: on
-    payload:
-      dtype: float32
-      count: 
-      buffer_size: 1GB
-
-sp: # Task Name 
+within-node-allgather:
   comm_group: within_node
   num_compute_nodes: 2
   num_devices_per_node: 4
@@ -37,11 +18,29 @@ sp: # Task Name
     collective_op: sum
     scale_up_algorithm: default
     scale_out_algorithm: default
-    iterations: 10
-    warmup_iterations: 0
+    iterations: 5
+    warmup_iterations: 2
     add_mxm_compute: on
     payload:
       dtype: float32
       count: 
-      buffer_size: 1GB
-    
+      buffer_size: 512KB
+
+across-node-allreduce:
+  comm_group: across_node
+  num_compute_nodes: 2
+  num_devices_per_node: 4
+  device_ids_per_node: [0,1,2,3]
+  verify_correctness: on
+  collective:
+    collective_name: allreduce
+    collective_op: sum
+    scale_up_algorithm: default
+    scale_out_algorithm: default
+    iterations: 5
+    warmup_iterations: 2
+    add_mxm_compute: on
+    payload:
+      dtype: float32
+      count: 
+      buffer_size: 512KB

@@ -168,9 +168,9 @@ def gather_and_print_all_times(logger, ranks_responsible_for_logging, barrier_en
         if iteration_data:
             logger.output("")
             if collective_name:
-                logger.output(f"[TIMERS] ITERATION TABLE FOR {collective_name.upper()}:")
+                logger.output(f"[TIMERS] ITERATION TABLE FOR {collective_name.upper()} (seconds):")
             else:
-                logger.output("[TIMERS] ITERATION TABLE:")
+                logger.output("[TIMERS] ITERATION TABLE (seconds):")
             
             headers = list(iteration_data.keys())
             max_iterations = max(len(data['vals']) for data in iteration_data.values())

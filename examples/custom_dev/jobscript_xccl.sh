@@ -7,7 +7,6 @@
 #PBS -l filesystems=flare
 #PBS -j oe
 #PBS -o /dev/null
-#PBS -o /dev/null
 
 
 # Activate PyTorch 2.8 environment
@@ -17,19 +16,16 @@ conda activate /lus/flare/projects/datascience_collab/mcim/for-musa/sam_build/co
 # Load frameworks after conda to ensure missing modules are available
 module load frameworks
 
-# Use PBS_O_WORKDIR if available (when using qsub), otherwise use script directory
-if [ -n "$PBS_O_WORKDIR" ]; then
-    cd "$PBS_O_WORKDIR"
-    SCRIPT_DIR="$PBS_O_WORKDIR"
-else
-    SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-fi
-EXAMPLES_DIR="$SCRIPT_DIR/../.."
+# Always use the actual script directory for examples
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+EXAMPLES_DIR="$SCRIPT_DIR/.."
 WORKDIR="$EXAMPLES_DIR"
 cd "$WORKDIR"
 
-# 
-export PYTHONPATH="$WORKDIR/..:$PYTHONPATH"
+# Clear any pre-existing PYTHONPATH that might conflict
+unset PYTHONPATH
+# Set PYTHONPATH to use the current directory's parent (where dl_comm module is)
+export PYTHONPATH="$WORKDIR/.."
 
 
 
@@ -77,13 +73,11 @@ mkdir -p "$RUN_LOG_DIR"
 export TERMINAL_LOG_FILE="$RUN_LOG_DIR/terminal_output.log"
 export DL_COMM_LOG_DIR="$RUN_LOG_DIR"
 
-CONFIG_FILE=$(find "$SCRIPT_DIR" -name "*.yaml" -type f | head -1)
-CONFIG_NAME=$(basename "$CONFIG_FILE" .yaml)
-
+ 
 mpiexec --np ${NRANKS} \
         -ppn ${RANKS_PER_NODE} \
         --cpu-bind ${CPU_BINDING} \
-        python3 -m dl_comm.dl_comm_main --config-path="$SCRIPT_DIR" --config-name="$CONFIG_NAME" 2>&1 | tee "$TERMINAL_LOG_FILE"
+        python3 -m dl_comm.dl_comm_main --config-path="$SCRIPT_DIR" --config-name=config 2>&1 | tee "$TERMINAL_LOG_FILE"
 
 EXIT_STATUS=${PIPESTATUS[0]}
 

@@ -7,6 +7,7 @@
 #PBS -l filesystems=flare
 #PBS -j oe
 #PBS -o /dev/null
+#PBS -o /dev/null
 
 
 # Activate PyTorch 2.8 environment
@@ -18,12 +19,14 @@ module load frameworks
 
 # Always use the actual script directory for examples
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-EXAMPLES_DIR="$SCRIPT_DIR"
+EXAMPLES_DIR="$SCRIPT_DIR/.."
 WORKDIR="$EXAMPLES_DIR"
 cd "$WORKDIR"
 
-# 
-export PYTHONPATH="$WORKDIR/..:$PYTHONPATH"
+# Clear any pre-existing PYTHONPATH that might conflict
+unset PYTHONPATH
+# Set PYTHONPATH to use the current directory's parent (where dl_comm module is)
+export PYTHONPATH="$WORKDIR/.."
 
 
 
@@ -64,19 +67,17 @@ export FI_CXI_CQ_FILL_PERCENT=30
 
 # Create timestamped directory for this run
 RUN_TIMESTAMP=$(date '+%Y%m%d_%H%M%S')
-RUN_LOG_DIR="$EXAMPLES_DIR/logs/run_${RUN_TIMESTAMP}"
+RUN_LOG_DIR="$SCRIPT_DIR/logs/run_${RUN_TIMESTAMP}"
 mkdir -p "$RUN_LOG_DIR"
 
  
 export TERMINAL_LOG_FILE="$RUN_LOG_DIR/terminal_output.log"
 export DL_COMM_LOG_DIR="$RUN_LOG_DIR"
 
- 
-
 mpiexec --np ${NRANKS} \
         -ppn ${RANKS_PER_NODE} \
         --cpu-bind ${CPU_BINDING} \
-        python3 -m dl_comm.dl_comm_main --config-path="$EXAMPLES_DIR" --config-name=config 2>&1 | tee "$TERMINAL_LOG_FILE"
+        python3 -m dl_comm.dl_comm_main --config-path="$SCRIPT_DIR" --config-name="1_simple_flat" 2>&1 | tee "$TERMINAL_LOG_FILE"
 
 EXIT_STATUS=${PIPESTATUS[0]}
 

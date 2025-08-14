@@ -9,6 +9,7 @@ def allocate_device(device_type, assigned_device_id, log, mpi_rank, framework):
     
     # FRAMEWORK-PYTORCH
     if framework == 'pytorch':
+        import torch
 
         # GPU ALLOCATION
         if device_type == 'gpu':
