@@ -124,7 +124,10 @@ def main(cfg: DictConfig):
                 import intel_extension_for_pytorch
                 import oneccl_bindings_for_pytorch
     elif framework == "jax":
-        pass
+        with timer("import time"):
+            import jax
+            import jax.numpy as jnp
+            import jax.distributed as jdist
 
     # Define barrier function for timing synchronization
     def time_barrier(group=None, device=None):
@@ -137,7 +140,12 @@ def main(cfg: DictConfig):
                     if group is not None and device is not None:
                         dist.barrier(group=group, device_ids=[device.index])
             elif framework == "jax":
-                pass
+                if device_type == 'cpu':
+                    if group is not None:
+                        jdist.barrier(group=group)
+                elif device_type == 'gpu':
+                    if group is not None:
+                        jdist.barrier(group=group)
           
     # ----------------------------------------------------------------------------
     # SYSTEM INFORMATION LOGGING (once per execution)
@@ -188,7 +196,8 @@ def main(cfg: DictConfig):
                 timeout=datetime.timedelta(seconds=3600)
             )
         elif framework == "jax":
-            pass
+            jdist.initialize(coordinator_address="env://", num_processes=mpi_size, process_id=mpi_rank)
+
 
     # ----------------------------------------------------------------------------
     # DEVICE ALLOCATION - Moved inside implementation loop for sequential assignment
@@ -283,11 +292,9 @@ def main(cfg: DictConfig):
             buffer_in_bytes, num_elems, buffer_errors = validate_and_calculate_buffer_size(coll_cfg.payload, f"{task_name}_{comm_mode}", log, mpi_rank)
             if buffer_errors:
                 continue  # Skip this task due to validation errors
-            if framework == "pytorch":
-                torch_dtype, elem_size = DTYPES[dtype_str]
-            elif framework == "jax":
-                pass
-            
+             
+            _dtype, elem_size = DTYPES[dtype_str]
+ 
             # Calculate group size for buffer adjustment
             if comm_mode == "flatview":
                 group_size = mode_cfg.num_devices_per_node*mode_cfg.num_compute_nodes
@@ -397,18 +404,21 @@ def main(cfg: DictConfig):
             
             if framework == "pytorch":
                 if memory_source == "host" and device_type == "gpu":
-                    x_test = torch.ones(num_elems, dtype=torch_dtype, device="cpu")
+                    x_test = torch.ones(num_elems, dtype=_dtype, device="cpu")
                     with timer("Host to Device Transfer Time"):
                         x_test = x_test.to(device, non_blocking=True)
                 else:
-                    x_test = torch.ones(num_elems, dtype=torch_dtype).to(device, non_blocking=True)
+                    x_test = torch.ones(num_elems, dtype=_dtype).to(device, non_blocking=True)
+
 
             elif framework== "jax":
-                pass
-            
-            
-
-
+                import numpy as np
+                if memory_source == "host" and device_type == "gpu":
+                    x_host = np.ones(num_elems, dtype=_dtype)   
+                    with timer("Host to Device Transfer Time"):
+                        x_test = jax.device_put(x_host, device)
+                else:
+                    x_test = jax.device_put(jnp.ones(num_elems, dtype=_dtype), device)
 
             MPI.COMM_WORLD.Barrier()
             # ----------------------------------------------------------------------------
@@ -417,7 +427,7 @@ def main(cfg: DictConfig):
             if add_mxm_compute:
                 mxm_size=1024
                 with timer(f"MxM Compute Time, m={mxm_size}"):
-                    dummy_mxm_compute(device, torch_dtype, size=mxm_size, framework=framework) # defined in ./utils/utility.py)
+                    dummy_mxm_compute(device, _dtype, size=mxm_size, framework=framework) # defined in ./utils/utility.py)
                 if mpi_rank == 0:
                     log.output("")
                     log.output(f"[MxM COMPUTE] Matrix multiplication compute completed.")
@@ -443,9 +453,11 @@ def main(cfg: DictConfig):
                 
                 for i in range(warmup_iters):
                     if framework == "pytorch":
-                        x = torch.ones(num_elems, dtype=torch_dtype).to(device, non_blocking=True)
+                        x = torch.ones(num_elems, dtype=_dtype).to(device, non_blocking=True)
                     elif framework == "jax":
-                        pass
+                        x = jax.device_put(jnp.ones(num_elems, dtype=_dtype), device)
+                    
+
                     
                     if comm_mode == "flatview":
                         if flat_group is not None:
@@ -475,9 +487,9 @@ def main(cfg: DictConfig):
             # Collective execution for all modes
             for i in range(iters):
                 if framework == "pytorch":
-                    x = torch.ones(num_elems, dtype=torch_dtype).to(device, non_blocking=True)
+                    x = torch.ones(num_elems, dtype=_dtype).to(device, non_blocking=True)
                 elif framework == "jax":
-                    pass
+                    x = jax.device_put(jnp.ones(num_elems, dtype=_dtype), device)
                 context = {'mpi_rank': mpi_rank, 'cfg': cfg,'log': log, 'iteration': i}
  
 
@@ -576,7 +588,7 @@ def main(cfg: DictConfig):
     if framework == "pytorch":
         dist.destroy_process_group()
     elif framework == "jax":
-        pass
+        jdist.shutdown()
     reset_times()
     
 if __name__ == "__main__":

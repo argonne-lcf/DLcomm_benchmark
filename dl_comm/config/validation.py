@@ -337,7 +337,8 @@ class ConfigValidator:
             else:
                 available_devices = 1
         elif cfg.framework == "jax":
-            available_devices = 1   
+            import jax
+            available_devices = jax.device_count()   
         
         def validate_basic_config(config_section, mode_name): 
             nonlocal has_errors

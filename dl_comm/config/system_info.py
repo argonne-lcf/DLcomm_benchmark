@@ -22,7 +22,15 @@ def print_system_info(log, mpi_rank, framework):
             else:
                 log.info("[SYSTEM] CUDA used to build PyTorch: N/A")
         elif framework == 'jax':
-            log.info(f"[SYSTEM] JAX framework: Not yet implemented")
+            import jax
+            log.info(f"[SYSTEM] JAX version: {jax.__version__}")
+            
+            # CUDA/ROCm Information
+            if hasattr(jax.lib, 'xla_bridge'):
+                backend = jax.lib.xla_bridge.get_backend().platform
+                log.info(f"[SYSTEM] JAX backend platform: {backend}")
+            else:
+                log.info("[SYSTEM] JAX backend platform: Unknown")
         
         # System Information
         log.info("")
@@ -63,7 +71,20 @@ def print_system_info(log, mpi_rank, framework):
                 log.info(f"[SYSTEM] Is XPU available: {torch.xpu.is_available()}")
                 log.info(f"[SYSTEM] XPU device count: {torch.xpu.device_count()}")
         elif framework == 'jax':
-            log.info("[SYSTEM] GPU Information: JAX framework support not yet implemented")
+            import jax
+            gpu_devices = jax.devices('gpu')
+            cpu_devices = jax.devices('cpu')
+            
+            log.info(f"[SYSTEM] JAX GPU devices available: {len(gpu_devices) > 0}")
+            if len(gpu_devices) > 0:
+                log.info("[SYSTEM] GPU models and configuration:")
+                for i, device in enumerate(gpu_devices):
+                    log.info(f"[SYSTEM] GPU {i}: {device}")
+            else:
+                log.info("[SYSTEM] GPU models and configuration: N/A")
+            
+            log.info(f"[SYSTEM] JAX CPU devices: {len(cpu_devices)}")
+            log.info(f"[SYSTEM] JAX total device count: {jax.device_count()}")
         
         # Distributed Backend Availability
         log.info("")
@@ -99,7 +120,22 @@ def print_system_info(log, mpi_rank, framework):
             except Exception:
                 log.info("[SYSTEM] XCCL backend available: Error checking")
         elif framework == 'jax':
-            log.info("[SYSTEM] JAX distributed backend information not yet implemented")
+            # JAX Distributed
+            try:
+                import jax.distributed as jd
+                log.info("[SYSTEM] JAX distributed module available: True")
+                
+                # Check if JAX can use NCCL
+                try:
+                    if len(jax.devices('gpu')) > 0:
+                        log.info("[SYSTEM] JAX NCCL support: Available (GPU backend)")
+                    else:
+                        log.info("[SYSTEM] JAX NCCL support: N/A (No GPU devices)")
+                except Exception:
+                    log.info("[SYSTEM] JAX NCCL support: Unknown")
+                    
+            except ImportError:
+                log.info("[SYSTEM] JAX distributed module available: False")
         
         # Library Versions
         log.info("")
@@ -162,7 +198,14 @@ def print_system_info(log, mpi_rank, framework):
             except:
                 log.info("[SYSTEM] NCCL version: Not available")
         elif framework == 'jax':
-            log.info("[SYSTEM] NCCL version: Not applicable for JAX")
+            # JAX uses NCCL internally for GPU communication
+            try:
+                if len(jax.devices('gpu')) > 0:
+                    log.info("[SYSTEM] NCCL version: Used internally by JAX (version not exposed)")
+                else:
+                    log.info("[SYSTEM] NCCL version: N/A (No GPU devices)")
+            except:
+                log.info("[SYSTEM] NCCL version: Unknown")
         
         # Environment Variables
         log.info("")

@@ -37,7 +37,21 @@ def allocate_device(device_type, assigned_device_id, log, mpi_rank, framework):
 
     # FRAMEWORK-JAX
     elif framework == 'jax':
-        pass
+        import jax
+
+        # GPU ALLOCATION
+        if device_type == 'gpu':
+            device = jax.devices('gpu')[assigned_device_id]
+            return device
+
+        # CPU ALLOCATION
+        elif device_type == 'cpu':
+            cpu_binding = os.environ.get("CPU_BINDING")
+            if cpu_binding and cpu_binding.startswith("list:"):
+                cpu_core = assigned_device_id
+                os.sched_setaffinity(0, {cpu_core})
+            
+            return jax.devices('cpu')[0]
 
 
 
@@ -58,7 +72,7 @@ def setup_communication_groups(mode_cfg, mpi_rank, log, dist=None, force_mode=No
     within_group_id = None
     across_group_id = None
     ranks_responsible_for_logging = set([0])  # Rank 0 always responsible for world/flatview
-
+noj
     mpi_size=MPI.COMM_WORLD.Get_size()
     
     # Calculate available devices once at the beginning
@@ -73,7 +87,11 @@ def setup_communication_groups(mode_cfg, mpi_rank, log, dist=None, force_mode=No
         else:
             available_devices = 1
     elif framework == 'jax':
-        available_devices = 1
+        import jax
+        if device_type == 'cpu':
+            available_devices = mode_cfg.num_devices_per_node
+        else:
+            available_devices = jax.device_count()
 
     
     # ----------------------------------------------------------------------------
