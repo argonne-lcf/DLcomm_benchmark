@@ -76,10 +76,14 @@ def parse_nccl_selection(log_path: str, collective_name: str):
     
     impl_pattern = re.compile(r'.*\[CONFIG\]\s+Implementation\s+:\s+(.+)')
     job_complete_pattern = re.compile(r'.*\[MPI\]\s+Job\s+complete')
+    # Pattern for RCCL algorithm table headers
+    algo_table_pattern = re.compile(r'.*NCCL INFO\s+Algorithm\s+\|.*', re.IGNORECASE)
     # Pattern for same-line format: "NCCL INFO AllReduce: 1024 Bytes -> Algo 1 proto 0 time 13.570666"
     selection_pattern_sameline = re.compile(r'.*NCCL INFO\s+(AllReduce|Reduce|AllGather|ReduceScatter|Broadcast|Scatter|Gather|AllToAll):\s+(\d+)\s+Bytes\s+->\s+Algo\s+(\d+)\s+proto\s+(\d+)', re.IGNORECASE)
     # Pattern for two-line format: collective on previous line, algo info on current line
     collective_pattern = re.compile(r'.*NCCL INFO\s+(AllReduce|Reduce|AllGather|ReduceScatter|Broadcast|Scatter|Gather|AllToAll):\s+opCount', re.IGNORECASE)
+    # Pattern for RCCL format: collective with detailed parameters
+    collective_pattern_rccl = re.compile(r'.*NCCL INFO\s+(AllReduce|Reduce|AllGather|ReduceScatter|Broadcast|Scatter|Gather|AllToAll):\s+opCount\s+\d+\s+sendbuff.*', re.IGNORECASE)
     algo_pattern = re.compile(r'.*NCCL INFO\s+(\d+)\s+Bytes\s+->\s+Algo\s+(\d+)\s+proto\s+(\d+)', re.IGNORECASE)
     # Patterns to extract version info from NCCL debug output
     nccl_version_pattern = re.compile(r'.*NCCL INFO NCCL version (.+)', re.IGNORECASE)
@@ -113,6 +117,15 @@ def parse_nccl_selection(log_path: str, collective_name: str):
                 i += 1
                 continue
             
+            # Handle RCCL format - look for algorithm table headers
+            if algo_table_pattern.search(line):
+                if not current_impl:  # Only set if we haven't found a CONFIG implementation
+                    current_impl = f"{collective_name}_implementation"
+                    if current_impl not in implementations:
+                        implementations[current_impl] = {}
+                i += 1
+                continue
+            
             if job_complete_pattern.search(line) and current_impl:
                 last_impl = current_impl
             
@@ -137,6 +150,9 @@ def parse_nccl_selection(log_path: str, collective_name: str):
                         # Look at previous line for collective name
                         prev_line = lines[i-1]
                         collective_match = collective_pattern.search(prev_line)
+                        if not collective_match:
+                            # Try RCCL format pattern
+                            collective_match = collective_pattern_rccl.search(prev_line)
                         if collective_match:
                             collective_op = collective_match.group(1)
                             buffer_size = int(algo_match.group(1))
