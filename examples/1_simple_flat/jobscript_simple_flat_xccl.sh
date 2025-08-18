@@ -17,16 +17,22 @@ conda activate /lus/flare/projects/datascience_collab/mcim/for-musa/sam_build/co
 # Load frameworks after conda to ensure missing modules are available
 module load frameworks
 
-# Always use the actual script directory for examples
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+if [[ -n "${PBS_O_WORKDIR:-}" && "${PBS_ENVIRONMENT:-}" == "PBS_BATCH" ]]; then
+    SCRIPT_DIR="$PBS_O_WORKDIR"
+else
+    SRC="${BASH_SOURCE[0]:-$0}"
+    SCRIPT_DIR="$(cd "$(dirname "$SRC")" && pwd -P)"
+fi
+
+
+
+
 EXAMPLES_DIR="$SCRIPT_DIR/.."
 WORKDIR="$EXAMPLES_DIR"
 cd "$WORKDIR"
 
-# Clear any pre-existing PYTHONPATH that might conflict
-unset PYTHONPATH
-# Set PYTHONPATH to use the current directory's parent (where dl_comm module is)
-export PYTHONPATH="$WORKDIR/.."
+# 
+export PYTHONPATH="$WORKDIR/..:$PYTHONPATH"
 
 
 
@@ -34,11 +40,9 @@ NNODES=`wc -l < $PBS_NODEFILE`
 
 
  
-RANKS_PER_NODE=4
+RANKS_PER_NODE=12
 NRANKS=$(( NNODES * RANKS_PER_NODE ))
 
- 
-CPU_BINDING="list:4:9:14:19:20:25:56:61:66:71:74:79"
  
 # Critical CCL environment variables 
  
@@ -74,10 +78,13 @@ mkdir -p "$RUN_LOG_DIR"
 export TERMINAL_LOG_FILE="$RUN_LOG_DIR/terminal_output.log"
 export DL_COMM_LOG_DIR="$RUN_LOG_DIR"
 
+CONFIG_NAME="1_simple_flat"
+
 mpiexec --np ${NRANKS} \
         -ppn ${RANKS_PER_NODE} \
-        --cpu-bind ${CPU_BINDING} \
-        python3 -m dl_comm.dl_comm_main --config-path="$SCRIPT_DIR" --config-name="1_simple_flat" 2>&1 | tee "$TERMINAL_LOG_FILE"
+        --depth 16 \
+        --cpu-bind depth \
+        python3 -m dl_comm.dl_comm_main --config-path="$SCRIPT_DIR" --config-name="$CONFIG_NAME" 2>&1 | tee "$TERMINAL_LOG_FILE"
 
 EXIT_STATUS=${PIPESTATUS[0]}
 

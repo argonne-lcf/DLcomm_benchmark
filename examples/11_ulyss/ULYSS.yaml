@@ -3,7 +3,7 @@ ccl_backend      : ccl
 extended_logging : off
 barrier          : on
 device_type      : gpu
-memory           : host
+memory_source    : host
 
 order_of_run: [ULYSS, grad-sync]
 

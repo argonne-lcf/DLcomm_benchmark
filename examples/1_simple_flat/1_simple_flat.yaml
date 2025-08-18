@@ -8,10 +8,11 @@ memory_source    : gpu
 order_of_run: [simple-allreduce]
 
 simple-allreduce:
+
   comm_group: flatview
   num_compute_nodes: 2
-  num_devices_per_node: 4
-  device_ids_per_node: [0,1,2,3]
+  num_devices_per_node: 12
+  device_ids_per_node: [0,1,2,3,4,5,6,7,8,9,10,11]
   verify_correctness: on
   collective:
     collective_name: allreduce
@@ -24,4 +25,4 @@ simple-allreduce:
     payload:
       dtype: float32
       count: 
-      buffer_size: 1MB
+      buffer_size: 1GB

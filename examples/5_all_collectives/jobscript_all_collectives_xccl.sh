@@ -17,17 +17,21 @@ conda activate /lus/flare/projects/datascience_collab/mcim/for-musa/sam_build/co
 module load frameworks
 
 
-echo $PYTHONUSERBASE
 
 
 
-if [ -n "$PBS_O_WORKDIR" ]; then
-    cd "$PBS_O_WORKDIR"
+
+if [[ -n "${PBS_O_WORKDIR:-}" && "${PBS_ENVIRONMENT:-}" == "PBS_BATCH" ]]; then
     SCRIPT_DIR="$PBS_O_WORKDIR"
 else
-    SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+    SRC="${BASH_SOURCE[0]:-$0}"
+    SCRIPT_DIR="$(cd "$(dirname "$SRC")" && pwd -P)"
 fi
-EXAMPLES_DIR="$SCRIPT_DIR/../.."
+
+
+
+
+EXAMPLES_DIR="$SCRIPT_DIR/.."
 WORKDIR="$EXAMPLES_DIR"
 cd "$WORKDIR"
 
@@ -43,8 +47,6 @@ NNODES=`wc -l < $PBS_NODEFILE`
 RANKS_PER_NODE=12
 NRANKS=$(( NNODES * RANKS_PER_NODE ))
 
- 
-CPU_BINDING="list:4:9:14:19:20:25:56:61:66:71:74:79"
  
 # Critical CCL environment variables 
  
@@ -80,12 +82,12 @@ mkdir -p "$RUN_LOG_DIR"
 export TERMINAL_LOG_FILE="$RUN_LOG_DIR/terminal_output.log"
 export DL_COMM_LOG_DIR="$RUN_LOG_DIR"
 
-CONFIG_FILE=$(find "$SCRIPT_DIR" -name "*.yaml" -type f | head -1)
-CONFIG_NAME=$(basename "$CONFIG_FILE" .yaml)
+CONFIG_NAME="5_all_collectives"
 
 mpiexec --np ${NRANKS} \
         -ppn ${RANKS_PER_NODE} \
-        --cpu-bind ${CPU_BINDING} \
+        --depth 16 \
+        --cpu-bind depth \
         python3 -m dl_comm.dl_comm_main --config-path="$SCRIPT_DIR" --config-name="$CONFIG_NAME" 2>&1 | tee "$TERMINAL_LOG_FILE"
 
 EXIT_STATUS=${PIPESTATUS[0]}

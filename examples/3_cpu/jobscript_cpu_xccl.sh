@@ -7,7 +7,6 @@
 #PBS -l filesystems=flare
 #PBS -j oe
 #PBS -o /dev/null
-#PBS -o /dev/null
 
 
 # Activate PyTorch 2.8 environment
@@ -44,7 +43,7 @@ RANKS_PER_NODE=12
 NRANKS=$(( NNODES * RANKS_PER_NODE ))
 
  
-# Critical CCL environment variables 
+# Critical CCL environment variables for CPU
  
 export CCL_ATL_TRANSPORT=mpi
 export CCL_ATL_SHM=0
@@ -62,11 +61,11 @@ export PALS_PMI=pmix # Required by Aurora mpich
 export CCL_OP_SYNC=1
 export CCL_ENABLE_AUTO_CACHE=0
 
-export FI_CXI_DEFAULT_CQ_SIZE=1048576
-export FI_CXI_RX_MATCH_MODE=hybrid
- 
-export FI_CXI_OFLOW_BUF_SIZE=8388608
-export FI_CXI_CQ_FILL_PERCENT=30
+# CPU-specific: Disable GPU-related fabric settings
+# export FI_CXI_DEFAULT_CQ_SIZE=1048576
+# export FI_CXI_RX_MATCH_MODE=hybrid
+# export FI_CXI_OFLOW_BUF_SIZE=8388608
+# export FI_CXI_CQ_FILL_PERCENT=30
 
 
 # Create timestamped directory for this run
@@ -78,7 +77,7 @@ mkdir -p "$RUN_LOG_DIR"
 export TERMINAL_LOG_FILE="$RUN_LOG_DIR/terminal_output.log"
 export DL_COMM_LOG_DIR="$RUN_LOG_DIR"
 
-CONFIG_NAME="2_multimode"
+CONFIG_NAME="3_cpu"
 
 mpiexec --np ${NRANKS} \
         -ppn ${RANKS_PER_NODE} \

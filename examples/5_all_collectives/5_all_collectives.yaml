@@ -3,7 +3,7 @@ ccl_backend      : ccl
 extended_logging : off
 barrier          : on
 device_type      : gpu
-memory           : host
+memory_source    : host
 
 order_of_run: [allreduce-scale, allgather-scale, reducescatter-scale, broadcast-scale, reduce-scale, alltoall-scale, alltoallsingle-scale, gather-scale, scatter-scale, barrier-scale]
 
