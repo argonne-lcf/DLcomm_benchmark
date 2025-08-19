@@ -72,7 +72,7 @@ def setup_communication_groups(mode_cfg, mpi_rank, log, dist=None, force_mode=No
     within_group_id = None
     across_group_id = None
     ranks_responsible_for_logging = set([0])  # Rank 0 always responsible for world/flatview
-noj
+
     mpi_size=MPI.COMM_WORLD.Get_size()
     
     # Calculate available devices once at the beginning
