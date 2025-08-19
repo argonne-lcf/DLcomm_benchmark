@@ -56,7 +56,11 @@ def main(cfg: DictConfig):
 
     mpi_rank = MPI.COMM_WORLD.Get_rank()
     mpi_size = MPI.COMM_WORLD.Get_size()
-    
+
+
+
+
+
 
     # ----------------------------------------------------------------------------
     # EXTRACT CONFIG VALUES (before logging)
@@ -67,8 +71,7 @@ def main(cfg: DictConfig):
     device_type     = cfg.device_type.lower()
     memory_source   = cfg.memory_source.lower()
     
-    # Initialize framework-specific constants
-    init_framework_constants(framework)
+
     
     # Extract task names from order_of_run
     raw_tasks = cfg.order_of_run
@@ -84,14 +87,9 @@ def main(cfg: DictConfig):
     # ----------------------------------------------------------------------------
 
     if mpi_rank == 0:      
-        if "DL_COMM_LOG_DIR" in os.environ:
-            log_dir = os.environ["DL_COMM_LOG_DIR"]
-        else:
-            chicago_tz = pytz.timezone('America/Chicago')
-            timestamp = datetime.datetime.now(chicago_tz).strftime("%Y%m%d_%H%M%S_%f")
-            log_dir = f"logs/run_{timestamp}"
-
-        os.makedirs(log_dir, exist_ok=True)
+         
+        log_dir = os.environ["RUN_LOG_DIR"]
+ 
     else:
         log_dir = None
     
@@ -108,10 +106,29 @@ def main(cfg: DictConfig):
         log.info(f"[DEBUG] Script location: {os.path.dirname(os.path.abspath(__file__))}")
         log.info(f"[DEBUG] Tasks to run: {tasks_to_run}")
         log.info(f"[DEBUG] Config loaded successfully")
-
+    # ----------------------------------------------------------------------------
+    # MPI RANK COORDINATION (once per execution) 
+    # ----------------------------------------------------------------------------
+ 
+    if mpi_rank == 0:
+       
+        MASTER_ADDR = socket.gethostname()
+        MASTER_PORT = 2268
+    else:
+        MASTER_ADDR = None
+        MASTER_PORT = None
+    
+    MASTER_ADDR = MPI.COMM_WORLD.bcast(MASTER_ADDR, root=0)
+    
+    MASTER_PORT = MPI.COMM_WORLD.bcast(MASTER_PORT, root=0)
+    
+    os.environ["MASTER_ADDR"] = MASTER_ADDR
+    os.environ["MASTER_PORT"] = str(MASTER_PORT)
+    
     # ----------------------------------------------------------------------------
     # FRAMEWORK-SPECIFIC IMPORTS (once per execution)
     # ----------------------------------------------------------------------------
+    dist=None
     if framework == "pytorch":
         # timer func defined in ./timer/timer.py
         with timer("import time"):
@@ -123,11 +140,28 @@ def main(cfg: DictConfig):
             if ccl_backend in ["xccl", "ccl"]:
                 import intel_extension_for_pytorch
                 import oneccl_bindings_for_pytorch
+
+
     elif framework == "jax":
         with timer("import time"):
             import jax
             import jax.numpy as jnp
             import jax.distributed as jdist
+ 
+
+
+        coordinator = os.environ.get("MASTER_ADDR", "127.0.0.1") + ":" + os.environ.get("MASTER_PORT", "1234")
+        print(f"[DEBUG] Calling jax.distributed.initialize() on Rank {mpi_rank}, Coordinator: {coordinator}", flush=True)
+
+        
+        jdist.initialize(
+                coordinator_address=coordinator,
+                num_processes=mpi_size,
+                process_id=mpi_rank
+            )
+ 
+
+
 
     # Define barrier function for timing synchronization
     def time_barrier(group=None, device=None):
@@ -154,25 +188,7 @@ def main(cfg: DictConfig):
     # print_system_info defined in ./config/system_info.py
     print_system_info(log, mpi_rank, framework)
     
-    # ----------------------------------------------------------------------------
-    # MPI RANK COORDINATION (once per execution) 
-    # ----------------------------------------------------------------------------
- 
-    if mpi_rank == 0:
-       
-        MASTER_ADDR = socket.gethostname()
-        MASTER_PORT = 2268
-    else:
-        MASTER_ADDR = None
-        MASTER_PORT = None
-    
-    MASTER_ADDR = MPI.COMM_WORLD.bcast(MASTER_ADDR, root=0)
-    
-    MASTER_PORT = MPI.COMM_WORLD.bcast(MASTER_PORT, root=0)
-    
-    os.environ["MASTER_ADDR"] = MASTER_ADDR
-    os.environ["MASTER_PORT"] = str(MASTER_PORT)
-    
+
     # ----------------------------------------------------------------------------
     # TORCH DISTRIBUTED INIT (once per execution)
     # ----------------------------------------------------------------------------
@@ -196,9 +212,12 @@ def main(cfg: DictConfig):
                 timeout=datetime.timedelta(seconds=3600)
             )
         elif framework == "jax":
-            jdist.initialize(coordinator_address="env://", num_processes=mpi_size, process_id=mpi_rank)
+            #jdist.initialize(coordinator_address="env://", num_processes=mpi_size, process_id=mpi_rank)
+            pass
 
 
+    # Initialize framework-specific constants
+    init_framework_constants(framework)
     # ----------------------------------------------------------------------------
     # DEVICE ALLOCATION - Moved inside implementation loop for sequential assignment
     # ----------------------------------------------------------------------------
@@ -387,17 +406,23 @@ def main(cfg: DictConfig):
 
             # setup_communication_groups defined in ./comm/comm_setup.py
             # Pass the current mode as force_mode for multi-mode support and pre-allocated device
-            comm_info = setup_communication_groups(mode_cfg, mpi_rank, log, dist, force_mode=comm_mode, full_cfg=cfg)
-            my_within_group = comm_info['my_within_group']
-            my_across_group = comm_info['my_across_group'] 
-            flat_group = comm_info['flat_group']
-            device = comm_info['device']  # Device assigned based on group membership
-    
-            within_group_id = comm_info['within_group_id']
-            across_group_id = comm_info['across_group_id']
-            ranks_responsible_for_logging = comm_info['ranks_responsible_for_logging']
+            if framework=="pytorch":
+                comm_info = setup_communication_groups(mode_cfg, mpi_rank, log, dist, force_mode=comm_mode, full_cfg=cfg)
+                my_within_group = comm_info['my_within_group']
+                my_across_group = comm_info['my_across_group'] 
+                flat_group = comm_info['flat_group']
+                device = comm_info['device']  # Device assigned based on group membership
+        
+                within_group_id = comm_info['within_group_id']
+                across_group_id = comm_info['across_group_id']
+                ranks_responsible_for_logging = comm_info['ranks_responsible_for_logging']
+
+            elif framework=="jax":
+                ranks_responsible_for_logging=[0]
+                pass    
             
-            
+
+
             # ----------------------------------------------------------------------------
             #  HOST TO DEVICE TRANSFER TEST
             # ----------------------------------------------------------------------------
@@ -408,32 +433,28 @@ def main(cfg: DictConfig):
                     with timer("Host to Device Transfer Time"):
                         x_test = x_test.to(device, non_blocking=True)
                 else:
-                    x_test = torch.ones(num_elems, dtype=_dtype).to(device, non_blocking=True)
+                    pass
 
 
             elif framework== "jax":
-                import numpy as np
-                if memory_source == "host" and device_type == "gpu":
-                    x_host = np.ones(num_elems, dtype=_dtype)   
-                    with timer("Host to Device Transfer Time"):
-                        x_test = jax.device_put(x_host, device)
-                else:
-                    x_test = jax.device_put(jnp.ones(num_elems, dtype=_dtype), device)
+                pass
 
             MPI.COMM_WORLD.Barrier()
             # ----------------------------------------------------------------------------
             #  MxM COMPUTE SECTION 
             # ----------------------------------------------------------------------------
-            if add_mxm_compute:
-                mxm_size=1024
-                with timer(f"MxM Compute Time, m={mxm_size}"):
-                    dummy_mxm_compute(device, _dtype, size=mxm_size, framework=framework) # defined in ./utils/utility.py)
-                if mpi_rank == 0:
-                    log.output("")
-                    log.output(f"[MxM COMPUTE] Matrix multiplication compute completed.")
-                    log.output("")
-            MPI.COMM_WORLD.Barrier()
-
+            if framework=="pytorch":
+                if add_mxm_compute:
+                    mxm_size=1024
+                    with timer(f"MxM Compute Time, m={mxm_size}"):
+                        dummy_mxm_compute(device, _dtype, size=mxm_size, framework=framework) # defined in ./utils/utility.py)
+                    if mpi_rank == 0:
+                        log.output("")
+                        log.output(f"[MxM COMPUTE] Matrix multiplication compute completed.")
+                        log.output("")
+                MPI.COMM_WORLD.Barrier()
+            elif framework=="jax":
+                pass
 
 
             # Print setup times (import, init, host to device) before launching profiling job
@@ -455,7 +476,7 @@ def main(cfg: DictConfig):
                     if framework == "pytorch":
                         x = torch.ones(num_elems, dtype=_dtype).to(device, non_blocking=True)
                     elif framework == "jax":
-                        x = jax.device_put(jnp.ones(num_elems, dtype=_dtype), device)
+                        pass
                     
 
                     
@@ -482,45 +503,71 @@ def main(cfg: DictConfig):
             # ----------------------------------------------------------------------------
             #  COLLECTIVE OP EXECUTION (TIMED)
             # ----------------------------------------------------------------------------
-            
+            if framework == "jax":
+                import jax
+                import jax.numpy as jnp
+
+                world_devs = jax.device_count()         # global device count (e.g., 16)
+                local_devs = jax.local_device_count()   # devices visible to this process (often 1)
+
+                for i in range(iters):
+                    # Make buffer divisible by world_devs for equal splits
+                    num_elems = (num_elems // world_devs) * world_devs
+                    split_size = num_elems // world_devs
+
+                    # Shape: [local_devs, world_devs, split_size]
+                    #   - leading axis == local_devs (required by pmap input)
+                    #   - split_axis (1) == world_devs (required by lax.all_to_all)
+                    x = jnp.ones((local_devs, world_devs, split_size), dtype=_dtype)
+
+                    if mpi_rank == 0:
+                        print("device count", world_devs)
+                        print("DEBUG x before", x.sum())
+
+                    with timer("(Flatview)"):
+                        result = run_collective(x, op_name, group=None, dist=None, framework=framework)
+
+                    if mpi_rank == 0:
+                        print("DEBUG x after", result.sum())
+
 
             # Collective execution for all modes
-            for i in range(iters):
-                if framework == "pytorch":
-                    x = torch.ones(num_elems, dtype=_dtype).to(device, non_blocking=True)
-                elif framework == "jax":
-                    x = jax.device_put(jnp.ones(num_elems, dtype=_dtype), device)
-                context = {'mpi_rank': mpi_rank, 'cfg': cfg,'log': log, 'iteration': i}
- 
-
-                    
-                if comm_mode == "flatview":
-                    if flat_group is not None:
-                        time_barrier(group=flat_group, device=device)
-                        with timer("(Flatview)"):
-                            result = run_collective(x, op_obj, group=flat_group, dist=dist, framework=framework)
-                            time_barrier(group=flat_group, device=device)
-                        if enable_correctness:
-                            check_collective_correctness(context, x, coll_name, op=op_obj, group=flat_group, result_data=result, group_type="Flatview", group_id="All")
-
-                elif comm_mode == "within_node":
-                    if my_within_group is not None:
-                        time_barrier(group=my_within_group, device=device)
-                        with timer(f"(Within-Group-{within_group_id})"):
-                            result = run_collective(x, op_obj, group=my_within_group, dist=dist, log=log, framework=framework)
-                            time_barrier(group=my_within_group, device=device)
-                        if enable_correctness:
-                            check_collective_correctness(context, x, coll_name, op=op_obj, group=my_within_group, result_data=result, group_type="Within", group_id=within_group_id)
-             
-                elif comm_mode == "across_node":
-                    if my_across_group is not None:
-                        time_barrier(group=my_across_group , device=device)
-                        with timer(f"(Across-Group-{across_group_id})"):
-                            result = run_collective(x, op_obj, group=my_across_group, dist=dist, log=log, framework=framework)
-                            time_barrier(group=my_across_group,  device=device)
-                        if enable_correctness:
-                            check_collective_correctness(context, x, coll_name, op=op_obj, group=my_across_group, result_data=result, group_type="Across", group_id=across_group_id)
+            elif framework=="pytorch":
+                for i in range(iters):
             
+                    x = torch.ones(num_elems, dtype=_dtype).to(device, non_blocking=True)
+
+                    context = {'mpi_rank': mpi_rank, 'cfg': cfg,'log': log, 'iteration': i}
+    
+
+                        
+                    if comm_mode == "flatview":
+                        if flat_group is not None:
+                            time_barrier(group=flat_group, device=device)
+                            with timer("(Flatview)"):
+                                result = run_collective(x, op_obj, group=flat_group, dist=dist, framework=framework)
+                                time_barrier(group=flat_group, device=device)
+                            if enable_correctness:
+                                check_collective_correctness(context, x, coll_name, op=op_obj, group=flat_group, result_data=result, group_type="Flatview", group_id="All")
+
+                    elif comm_mode == "within_node":
+                        if my_within_group is not None:
+                            time_barrier(group=my_within_group, device=device)
+                            with timer(f"(Within-Group-{within_group_id})"):
+                                result = run_collective(x, op_obj, group=my_within_group, dist=dist, log=log, framework=framework)
+                                time_barrier(group=my_within_group, device=device)
+                            if enable_correctness:
+                                check_collective_correctness(context, x, coll_name, op=op_obj, group=my_within_group, result_data=result, group_type="Within", group_id=within_group_id)
+                
+                    elif comm_mode == "across_node":
+                        if my_across_group is not None:
+                            time_barrier(group=my_across_group , device=device)
+                            with timer(f"(Across-Group-{across_group_id})"):
+                                result = run_collective(x, op_obj, group=my_across_group, dist=dist, log=log, framework=framework)
+                                time_barrier(group=my_across_group,  device=device)
+                            if enable_correctness:
+                                check_collective_correctness(context, x, coll_name, op=op_obj, group=my_across_group, result_data=result, group_type="Across", group_id=across_group_id)
+                
 
             # ----------------------------------------------------------------------------
             #  REPORTING (FOR SINGLE-PHASE MODES ONLY)
@@ -587,7 +634,7 @@ def main(cfg: DictConfig):
     MPI.COMM_WORLD.Barrier()
     if framework == "pytorch":
         dist.destroy_process_group()
-    elif framework == "jax":
+    if framework == "jax":
         jdist.shutdown()
     reset_times()
     
