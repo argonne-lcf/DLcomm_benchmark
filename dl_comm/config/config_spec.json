@@ -3,8 +3,8 @@
     "ccl_debug": ["on", "off"],
   
     "backend": {
-      "pytorch": ["xccl", "ccl", "mpi","nccl"],
-      "jax": ["xla"],
+      "pytorch": ["xccl", "ccl", "mpi","nccl","gloo"],
+      "jax": ["xccl", "ccl", "mpi","nccl","gloo"],
       "tensorflow": ["xccl"]
     },
     "collective": ["allreduce", "broadcast", "gather", "scatter", "allgather", "reduce", "barrier", "alltoall", "alltoallsingle"],
