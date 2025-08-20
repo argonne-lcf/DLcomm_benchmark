@@ -1,0 +1,298 @@
+[2025-08-20 11:16:53,938][DL_COMM][INFO] - -------------------------------------------------------------------------
+[2025-08-20 11:16:53,939][DL_COMM][INFO] - [CONFIG] Loading schema and validating user YAML
+[2025-08-20 11:16:53,940][DL_COMM][INFO] - [DEBUG] Current working directory: /lustre/orion/gen008/proj-shared/kaushik/dlcomm-test/DLcomm_benchmark/examples/10_rccl_jax
+[2025-08-20 11:16:53,940][DL_COMM][INFO] - [DEBUG] Script location: /lustre/orion/gen008/proj-shared/kaushik/dlcomm-test/DLcomm_benchmark/dl_comm
+[2025-08-20 11:16:53,940][DL_COMM][INFO] - [DEBUG] Tasks to run: ['allreduce-jax', 'allgather-jax']
+[2025-08-20 11:16:53,940][DL_COMM][INFO] - [DEBUG] Config loaded successfully
+[DEBUG] Calling jax.distributed.initialize() on Rank 5, Coordinator: frontier08516:2268
+[DEBUG] Calling jax.distributed.initialize() on Rank 7, Coordinator: frontier08516:2268
+[2025-08-20 11:16:54,873][jax._src.distributed][INFO] - JAX distributed initialized with visible devices: 5
+[2025-08-20 11:16:54,873][jax._src.distributed][INFO] - JAX distributed initialized with visible devices: 7
+[2025-08-20 11:16:54,874][jax._src.distributed][INFO] - Connecting to JAX distributed service on frontier08516:2268
+[2025-08-20 11:16:54,874][jax._src.distributed][INFO] - Connecting to JAX distributed service on frontier08516:2268
+[DEBUG] Calling jax.distributed.initialize() on Rank 9, Coordinator: frontier08516:2268
+[2025-08-20 11:16:54,915][jax._src.distributed][INFO] - JAX distributed initialized with visible devices: 1
+[2025-08-20 11:16:54,917][jax._src.distributed][INFO] - Connecting to JAX distributed service on frontier08516:2268
+[DEBUG] Calling jax.distributed.initialize() on Rank 11, Coordinator: frontier08516:2268
+[2025-08-20 11:16:54,918][jax._src.distributed][INFO] - JAX distributed initialized with visible devices: 3
+[2025-08-20 11:16:54,919][jax._src.distributed][INFO] - Connecting to JAX distributed service on frontier08516:2268
+[DEBUG] Calling jax.distributed.initialize() on Rank 12, Coordinator: frontier08516:2268
+[DEBUG] Calling jax.distributed.initialize() on Rank 13, Coordinator: frontier08516:2268
+[DEBUG] Calling jax.distributed.initialize() on Rank 14, Coordinator: frontier08516:2268
+[DEBUG] Calling jax.distributed.initialize() on Rank 15, Coordinator: frontier08516:2268
+[DEBUG] Calling jax.distributed.initialize() on Rank 10, Coordinator: frontier08516:2268
+[DEBUG] Calling jax.distributed.initialize() on Rank 8, Coordinator: frontier08516:2268
+[2025-08-20 11:16:54,922][jax._src.distributed][INFO] - JAX distributed initialized with visible devices: 5
+[2025-08-20 11:16:54,922][jax._src.distributed][INFO] - JAX distributed initialized with visible devices: 6
+[2025-08-20 11:16:54,922][jax._src.distributed][INFO] - JAX distributed initialized with visible devices: 2
+[2025-08-20 11:16:54,922][jax._src.distributed][INFO] - JAX distributed initialized with visible devices: 7
+[2025-08-20 11:16:54,922][jax._src.distributed][INFO] - JAX distributed initialized with visible devices: 4
+[2025-08-20 11:16:54,922][jax._src.distributed][INFO] - JAX distributed initialized with visible devices: 0
+[2025-08-20 11:16:54,923][jax._src.distributed][INFO] - Connecting to JAX distributed service on frontier08516:2268
+[2025-08-20 11:16:54,923][jax._src.distributed][INFO] - Connecting to JAX distributed service on frontier08516:2268
+[2025-08-20 11:16:54,923][jax._src.distributed][INFO] - Connecting to JAX distributed service on frontier08516:2268
+[2025-08-20 11:16:54,923][jax._src.distributed][INFO] - Connecting to JAX distributed service on frontier08516:2268
+[2025-08-20 11:16:54,923][jax._src.distributed][INFO] - Connecting to JAX distributed service on frontier08516:2268
+[2025-08-20 11:16:54,923][jax._src.distributed][INFO] - Connecting to JAX distributed service on frontier08516:2268
+[DEBUG] Calling jax.distributed.initialize() on Rank 6, Coordinator: frontier08516:2268
+[2025-08-20 11:16:54,934][jax._src.distributed][INFO] - JAX distributed initialized with visible devices: 6
+[2025-08-20 11:16:54,936][jax._src.distributed][INFO] - Connecting to JAX distributed service on frontier08516:2268
+[DEBUG] Calling jax.distributed.initialize() on Rank 3, Coordinator: frontier08516:2268
+[2025-08-20 11:16:54,937][jax._src.distributed][INFO] - JAX distributed initialized with visible devices: 3
+[2025-08-20 11:16:54,938][jax._src.distributed][INFO] - Connecting to JAX distributed service on frontier08516:2268
+[DEBUG] Calling jax.distributed.initialize() on Rank 0, Coordinator: frontier08516:2268
+[2025-08-20 11:16:54,940][jax._src.distributed][INFO] - JAX distributed initialized with visible devices: 0
+[2025-08-20 11:16:54,940][jax._src.distributed][INFO] - Starting JAX distributed service on [::]:2268
+[2025-08-20 11:16:54,943][jax._src.distributed][INFO] - Connecting to JAX distributed service on frontier08516:2268
+[DEBUG] Calling jax.distributed.initialize() on Rank 1, Coordinator: frontier08516:2268
+[DEBUG] Calling jax.distributed.initialize() on Rank 4, Coordinator: frontier08516:2268
+[DEBUG] Calling jax.distributed.initialize() on Rank 2, Coordinator: frontier08516:2268
+[2025-08-20 11:16:54,978][jax._src.distributed][INFO] - JAX distributed initialized with visible devices: 1
+[2025-08-20 11:16:54,978][jax._src.distributed][INFO] - JAX distributed initialized with visible devices: 4
+[2025-08-20 11:16:54,978][jax._src.distributed][INFO] - JAX distributed initialized with visible devices: 2
+[2025-08-20 11:16:54,979][jax._src.distributed][INFO] - Connecting to JAX distributed service on frontier08516:2268
+[2025-08-20 11:16:54,979][jax._src.distributed][INFO] - Connecting to JAX distributed service on frontier08516:2268
+[2025-08-20 11:16:54,979][jax._src.distributed][INFO] - Connecting to JAX distributed service on frontier08516:2268
+[2025-08-20 11:16:55,939][DL_COMM][INFO] - 
+[2025-08-20 11:16:55,939][DL_COMM][INFO] - [SYSTEM] Collecting environment information...
+[2025-08-20 11:16:55,939][DL_COMM][INFO] - [SYSTEM] ======================================================
+[2025-08-20 11:16:55,939][DL_COMM][INFO] - [SYSTEM] JAX version: 0.4.35
+[2025-08-20 11:16:55,939][DL_COMM][INFO] - [SYSTEM] JAX backend platform (hint): rocm
+[2025-08-20 11:16:55,939][DL_COMM][INFO] - [SYSTEM] XLA_FLAGS: unset
+[2025-08-20 11:16:55,939][DL_COMM][INFO] - [SYSTEM] ROCm path hint: /opt/rocm-6.2.4
+[2025-08-20 11:16:55,939][DL_COMM][INFO] - 
+[2025-08-20 11:16:55,945][DL_COMM][INFO] - [SYSTEM] OS: Linux-6.4.0-150600.23.47_15.0.10-cray_shasta_c-x86_64-with-glibc2.38
+[2025-08-20 11:16:55,952][DL_COMM][INFO] - [SYSTEM] GCC version: gcc (SUSE Linux) 7.5.0
+[2025-08-20 11:16:55,952][DL_COMM][INFO] - 
+[2025-08-20 11:16:55,952][DL_COMM][INFO] - [SYSTEM] Python version: 3.11.13 | packaged by conda-forge | (main, Jun  4 2025, 14:48:23) [GCC 13.3.0]
+[2025-08-20 11:16:55,952][DL_COMM][INFO] - [SYSTEM] Python platform: Linux-6.4.0-150600.23.47_15.0.10-cray_shasta_c-x86_64-with-glibc2.38
+[2025-08-20 11:16:55,952][DL_COMM][INFO] - 
+[2025-08-20 11:16:55,952][DL_COMM][INFO] - [SYSTEM] Distributed Backend Availability:
+[2025-08-20 11:16:55,952][DL_COMM][INFO] - [SYSTEM] JAX distributed module import: OK
+[2025-08-20 11:16:55,952][DL_COMM][INFO] - [SYSTEM] JAX collective comms: Skipping device checks (deferred)
+[2025-08-20 11:16:55,952][DL_COMM][INFO] - 
+[2025-08-20 11:16:55,952][DL_COMM][INFO] - [SYSTEM] Versions of relevant libraries:
+[2025-08-20 11:16:55,952][DL_COMM][INFO] - [SYSTEM] numpy: 2.1.2
+[2025-08-20 11:16:55,952][DL_COMM][INFO] - [SYSTEM] mpi4py: 4.1.0
+[2025-08-20 11:16:55,953][DL_COMM][INFO] - [SYSTEM] hydra-core: 1.3.2
+[2025-08-20 11:16:55,953][DL_COMM][INFO] - [SYSTEM] omegaconf: 2.3.0
+[2025-08-20 11:16:55,953][DL_COMM][INFO] - [SYSTEM] NCCL/RCCL: Used internally by JAX on GPU backends (version not exposed)
+[2025-08-20 11:16:55,953][DL_COMM][INFO] - 
+[2025-08-20 11:16:55,953][DL_COMM][INFO] - [SYSTEM] Relevant Environment Variables:
+[2025-08-20 11:16:55,953][DL_COMM][INFO] - [SYSTEM] COORDINATOR_ADDR               = frontier08516
+[2025-08-20 11:16:55,953][DL_COMM][INFO] - [SYSTEM] COORDINATOR_PORT               = 1234
+[2025-08-20 11:16:55,954][DL_COMM][INFO] - [SYSTEM] CRAY_ROCM_DIR                  = /opt/rocm-6.2.4
+[2025-08-20 11:16:55,954][DL_COMM][INFO] - [SYSTEM] CRAY_ROCM_INCLUDE_OPTS         = -I/opt/rocm-6.2.4/include -I/opt/rocm-6.2.4/include/rocprofiler -I/opt/rocm-6.2.4/include/roctracer -I/opt/rocm-6.2.4/include/hip -D__HIP_PLATFORM_AMD__
+[2025-08-20 11:16:55,954][DL_COMM][INFO] - [SYSTEM] CRAY_ROCM_POST_LINK_OPTS       =  -L/opt/rocm-6.2.4/lib -L/opt/rocm-6.2.4/lib/rocprofiler -L/opt/rocm-6.2.4/lib/roctracer -lamdhip64
+[2025-08-20 11:16:55,954][DL_COMM][INFO] - [SYSTEM] CRAY_ROCM_PREFIX               = /opt/rocm-6.2.4
+[2025-08-20 11:16:55,954][DL_COMM][INFO] - [SYSTEM] CRAY_ROCM_VERSION              = 6.2.4
+[2025-08-20 11:16:55,954][DL_COMM][INFO] - [SYSTEM] FI_CXI_ATS                     = 0
+[2025-08-20 11:16:55,954][DL_COMM][INFO] - [SYSTEM] FI_HMEM_ROCR_USE_DMABUF        = 0
+[2025-08-20 11:16:55,954][DL_COMM][INFO] - [SYSTEM] FI_MR_CACHE_MONITOR            = kdreg2
+[2025-08-20 11:16:55,954][DL_COMM][INFO] - [SYSTEM] HIP_LIB_PATH                   = /opt/rocm-6.2.4/lib
+[2025-08-20 11:16:55,954][DL_COMM][INFO] - [SYSTEM] JAX_PLATFORMS                  = rocm
+[2025-08-20 11:16:55,954][DL_COMM][INFO] - [SYSTEM] MASTER_ADDR                    = frontier08516
+[2025-08-20 11:16:55,954][DL_COMM][INFO] - [SYSTEM] MASTER_PORT                    = 2268
+[2025-08-20 11:16:55,954][DL_COMM][INFO] - [SYSTEM] MPICH_OFI_NIC_POLICY           = NUMA
+[2025-08-20 11:16:55,954][DL_COMM][INFO] - [SYSTEM] NCCL_SOCKET_IFNAME             = hsn0
+[2025-08-20 11:16:55,954][DL_COMM][INFO] - [SYSTEM] PALS_LOCAL_RANKID              = 0
+[2025-08-20 11:16:55,954][DL_COMM][INFO] - [SYSTEM] PALS_RANKID                    = 0
+[2025-08-20 11:16:55,954][DL_COMM][INFO] - [SYSTEM] PMI_LOCAL_RANK                 = 0
+[2025-08-20 11:16:55,954][DL_COMM][INFO] - [SYSTEM] PMI_RANK                       = 0
+[2025-08-20 11:16:55,954][DL_COMM][INFO] - [SYSTEM] ROCM_PATH                      = /opt/rocm-6.2.4
+[2025-08-20 11:16:55,954][DL_COMM][INFO] - [SYSTEM] ROCR_VISIBLE_DEVICES           = 4
+[2025-08-20 11:16:55,955][DL_COMM][INFO] - [SYSTEM] WORLDWORK                      = /lustre/orion/world-shared
+[2025-08-20 11:16:55,955][DL_COMM][INFO] - [SYSTEM] ======================================================
+[2025-08-20 11:16:55,955][DL_COMM][INFO] - 
+[2025-08-20 11:16:55,955][DL_COMM][INFO] - 
+[2025-08-20 11:16:55,956][DL_COMM][INFO] - ================================================================================
+[2025-08-20 11:16:55,956][DL_COMM][INFO] - [TASK 1/2] ==================== ALLREDUCE-JAX ====================
+[2025-08-20 11:16:55,956][DL_COMM][INFO] - ================================================================================
+[2025-08-20 11:16:55,956][DL_COMM][INFO] - 
+[2025-08-20 11:16:56,403][DL_COMM][INFO] - 
+[2025-08-20 11:16:56,404][DL_COMM][INFO] - [CONFIG] Setup
+[2025-08-20 11:16:56,404][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-08-20 11:16:56,404][DL_COMM][INFO] - [CONFIG] Task Name            : allreduce-jax
+[2025-08-20 11:16:56,404][DL_COMM][INFO] - [CONFIG] Framework            : jax
+[2025-08-20 11:16:56,404][DL_COMM][INFO] - [CONFIG] Backend              : nccl
+[2025-08-20 11:16:56,404][DL_COMM][INFO] - [CONFIG] Extended Logging     : False
+[2025-08-20 11:16:56,404][DL_COMM][INFO] - [CONFIG] Barrier Enabled      : False
+[2025-08-20 11:16:56,404][DL_COMM][INFO] - [CONFIG] World Size           : 16
+[2025-08-20 11:16:56,404][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-08-20 11:16:56,404][DL_COMM][INFO] - 
+[2025-08-20 11:16:56,404][DL_COMM][INFO] - [CONFIG] Communication Group
+[2025-08-20 11:16:56,404][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-08-20 11:16:56,404][DL_COMM][INFO] - [CONFIG] Mode                 : flatview
+[2025-08-20 11:16:56,405][DL_COMM][INFO] - [CONFIG] Topology             : 2 nodes x 8 devices
+[2025-08-20 11:16:56,405][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-08-20 11:16:56,405][DL_COMM][INFO] - 
+[2025-08-20 11:16:56,405][DL_COMM][INFO] - [CONFIG] Communication Group Details
+[2025-08-20 11:16:56,405][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-08-20 11:16:56,405][DL_COMM][INFO] - [CONFIG] Collective Name      : allreduce
+[2025-08-20 11:16:56,405][DL_COMM][INFO] - [CONFIG] Operation            : sum
+[2025-08-20 11:16:56,405][DL_COMM][INFO] - [CONFIG] Scale Up Algorithm   : default
+[2025-08-20 11:16:56,405][DL_COMM][INFO] - [CONFIG] Scale Out Algorithm  : default
+[2025-08-20 11:16:56,405][DL_COMM][INFO] - [CONFIG] Data Type            : float32
+[2025-08-20 11:16:56,405][DL_COMM][INFO] - [CONFIG] Element Count        : 25600
+[2025-08-20 11:16:56,405][DL_COMM][INFO] - [CONFIG] Buffer Size          : 100KB (102400 bytes)
+[2025-08-20 11:16:56,405][DL_COMM][INFO] - [CONFIG] Iterations           : 5
+[2025-08-20 11:16:56,405][DL_COMM][INFO] - [CONFIG] Verify Correctness   : False
+[2025-08-20 11:16:56,405][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-08-20 11:16:56,406][DL_COMM][INFO] - 
+[2025-08-20 11:16:56,406][DL_COMM][OUTPUT] - 
+[2025-08-20 11:16:56,406][DL_COMM][OUTPUT] - [TIMERS - SETUP] ---------------------------------------------------------
+[2025-08-20 11:16:56,406][DL_COMM][OUTPUT] - [TIMERS][LOGGING RANK - 0] import time                         = 0.999989 s
+[2025-08-20 11:16:56,406][DL_COMM][OUTPUT] - [TIMERS][LOGGING RANK - 0] init time                           = 0.000002 s
+[2025-08-20 11:16:56,406][DL_COMM][OUTPUT] - [TIMERS - SETUP] ---------------------------------------------------------
+[2025-08-20 11:16:56,406][DL_COMM][OUTPUT] - 
+[2025-08-20 11:16:56,406][DL_COMM][OUTPUT] - [MPI] Launching profiling job
+device count 16
+DEBUG x before 25600.0
+DEBUG x after 409600.0
+device count 16
+DEBUG x before 25600.0
+DEBUG x after 409600.0
+device count 16
+DEBUG x before 25600.0
+DEBUG x after 409600.0
+device count 16
+DEBUG x before 25600.0
+DEBUG x after 409600.0
+device count 16
+DEBUG x before 25600.0
+DEBUG x after 409600.0
+[2025-08-20 11:16:58,261][DL_COMM][OUTPUT] - 
+[2025-08-20 11:16:58,262][DL_COMM][OUTPUT] - [TIMERS] ---------------------------------------------------------
+[2025-08-20 11:16:58,262][DL_COMM][OUTPUT] - 
+[2025-08-20 11:16:58,262][DL_COMM][INFO] -   [TIMERS] [BARRIER DISABLED] Warning: Timing without barriers - other collectives may still be in process
+[2025-08-20 11:16:58,262][DL_COMM][OUTPUT] - 
+[2025-08-20 11:16:58,262][DL_COMM][OUTPUT] - [TIMERS] ITERATION TABLE FOR ALLREDUCE (seconds):
+[2025-08-20 11:16:58,262][DL_COMM][OUTPUT] - Iteration        (Flatview)     
+[2025-08-20 11:16:58,262][DL_COMM][OUTPUT] -               LOGGING RANK - 0  
+[2025-08-20 11:16:58,262][DL_COMM][OUTPUT] - --------------------------------
+[2025-08-20 11:16:58,262][DL_COMM][OUTPUT] - 0                 1.071329      
+[2025-08-20 11:16:58,262][DL_COMM][OUTPUT] - 1                 0.013492      
+[2025-08-20 11:16:58,262][DL_COMM][OUTPUT] - 2                 0.012394      
+[2025-08-20 11:16:58,262][DL_COMM][OUTPUT] - 3                 0.011656      
+[2025-08-20 11:16:58,262][DL_COMM][OUTPUT] - 4                 0.011409      
+[2025-08-20 11:16:58,262][DL_COMM][OUTPUT] - --------------------------------
+[2025-08-20 11:16:58,262][DL_COMM][OUTPUT] - 
+[2025-08-20 11:16:58,262][DL_COMM][OUTPUT] - [TIMERS] ---------------------------------------------------------
+[2025-08-20 11:16:58,263][DL_COMM][OUTPUT] - 
+[2025-08-20 11:16:58,263][DL_COMM][OUTPUT] - [BANDWIDTH] -------------------------------------------
+[2025-08-20 11:16:58,263][DL_COMM][OUTPUT] - 
+[2025-08-20 11:16:58,263][DL_COMM][OUTPUT] - [BANDWIDTH] BANDWIDTH TABLE FOR ALLREDUCE (bytes/seconds):
+[2025-08-20 11:16:58,263][DL_COMM][OUTPUT] - Iteration        (Flatview)     
+[2025-08-20 11:16:58,263][DL_COMM][OUTPUT] -               LOGGING RANK - 0  
+[2025-08-20 11:16:58,263][DL_COMM][OUTPUT] - --------------------------------
+[2025-08-20 11:16:58,263][DL_COMM][OUTPUT] - 0                 1529315       
+[2025-08-20 11:16:58,263][DL_COMM][OUTPUT] - 1                121433017      
+[2025-08-20 11:16:58,263][DL_COMM][OUTPUT] - 2                132191610      
+[2025-08-20 11:16:58,263][DL_COMM][OUTPUT] - 3                140568373      
+[2025-08-20 11:16:58,263][DL_COMM][OUTPUT] - 4                143609198      
+[2025-08-20 11:16:58,263][DL_COMM][OUTPUT] - --------------------------------
+[2025-08-20 11:16:58,263][DL_COMM][OUTPUT] - 
+[2025-08-20 11:16:58,263][DL_COMM][OUTPUT] - [BANDWIDTH] -------------------------------------------
+[2025-08-20 11:16:58,263][DL_COMM][INFO] - -------------------------------------------------------------------------
+[2025-08-20 11:16:58,264][DL_COMM][INFO] - [MPI] Job complete
+[2025-08-20 11:16:58,264][DL_COMM][INFO] - -------------------------------------------------------------------------
+[2025-08-20 11:16:58,264][DL_COMM][INFO] - -------------------------------------------------------------------------
+[2025-08-20 11:16:58,264][DL_COMM][INFO] - [EXIT] All Done.
+[2025-08-20 11:16:58,264][DL_COMM][INFO] - -------------------------------------------------------------------------
+[2025-08-20 11:16:58,264][DL_COMM][INFO] - 
+[2025-08-20 11:16:58,264][DL_COMM][INFO] - ================================================================================
+[2025-08-20 11:16:58,264][DL_COMM][INFO] - [TASK 2/2] ==================== ALLGATHER-JAX ====================
+[2025-08-20 11:16:58,264][DL_COMM][INFO] - ================================================================================
+[2025-08-20 11:16:58,264][DL_COMM][INFO] - 
+[2025-08-20 11:16:58,265][DL_COMM][INFO] - 
+[2025-08-20 11:16:58,265][DL_COMM][INFO] - [CONFIG] Setup
+[2025-08-20 11:16:58,265][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-08-20 11:16:58,265][DL_COMM][INFO] - [CONFIG] Task Name            : allgather-jax
+[2025-08-20 11:16:58,265][DL_COMM][INFO] - [CONFIG] Framework            : jax
+[2025-08-20 11:16:58,265][DL_COMM][INFO] - [CONFIG] Backend              : nccl
+[2025-08-20 11:16:58,265][DL_COMM][INFO] - [CONFIG] Extended Logging     : False
+[2025-08-20 11:16:58,265][DL_COMM][INFO] - [CONFIG] Barrier Enabled      : False
+[2025-08-20 11:16:58,265][DL_COMM][INFO] - [CONFIG] World Size           : 16
+[2025-08-20 11:16:58,265][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-08-20 11:16:58,265][DL_COMM][INFO] - 
+[2025-08-20 11:16:58,266][DL_COMM][INFO] - [CONFIG] Communication Group
+[2025-08-20 11:16:58,266][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-08-20 11:16:58,266][DL_COMM][INFO] - [CONFIG] Mode                 : flatview
+[2025-08-20 11:16:58,266][DL_COMM][INFO] - [CONFIG] Topology             : 2 nodes x 8 devices
+[2025-08-20 11:16:58,266][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-08-20 11:16:58,266][DL_COMM][INFO] - 
+[2025-08-20 11:16:58,266][DL_COMM][INFO] - [CONFIG] Communication Group Details
+[2025-08-20 11:16:58,266][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-08-20 11:16:58,266][DL_COMM][INFO] - [CONFIG] Collective Name      : allgather
+[2025-08-20 11:16:58,266][DL_COMM][INFO] - [CONFIG] Operation            : N/A
+[2025-08-20 11:16:58,266][DL_COMM][INFO] - [CONFIG] Scale Up Algorithm   : default
+[2025-08-20 11:16:58,266][DL_COMM][INFO] - [CONFIG] Scale Out Algorithm  : default
+[2025-08-20 11:16:58,266][DL_COMM][INFO] - [CONFIG] Data Type            : float32
+[2025-08-20 11:16:58,266][DL_COMM][INFO] - [CONFIG] Element Count        : 25600
+[2025-08-20 11:16:58,266][DL_COMM][INFO] - [CONFIG] Buffer Size          : 100KB (102400 bytes)
+[2025-08-20 11:16:58,266][DL_COMM][INFO] - [CONFIG] Iterations           : 5
+[2025-08-20 11:16:58,267][DL_COMM][INFO] - [CONFIG] Verify Correctness   : False
+[2025-08-20 11:16:58,267][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-08-20 11:16:58,267][DL_COMM][INFO] - 
+[2025-08-20 11:16:58,267][DL_COMM][OUTPUT] - 
+[2025-08-20 11:16:58,267][DL_COMM][OUTPUT] - [TIMERS - SETUP] ---------------------------------------------------------
+[2025-08-20 11:16:58,267][DL_COMM][OUTPUT] - [TIMERS - SETUP] ---------------------------------------------------------
+[2025-08-20 11:16:58,267][DL_COMM][OUTPUT] - 
+[2025-08-20 11:16:58,267][DL_COMM][OUTPUT] - [MPI] Launching profiling job
+device count 16
+DEBUG x before 25600.0
+DEBUG x after 409600.0
+device count 16
+DEBUG x before 25600.0
+DEBUG x after 409600.0
+device count 16
+DEBUG x before 25600.0
+DEBUG x after 409600.0
+device count 16
+DEBUG x before 25600.0
+DEBUG x after 409600.0
+device count 16
+DEBUG x before 25600.0
+DEBUG x after 409600.0
+[2025-08-20 11:16:58,585][DL_COMM][OUTPUT] - 
+[2025-08-20 11:16:58,585][DL_COMM][OUTPUT] - [TIMERS] ---------------------------------------------------------
+[2025-08-20 11:16:58,585][DL_COMM][OUTPUT] - 
+[2025-08-20 11:16:58,585][DL_COMM][INFO] -   [TIMERS] [BARRIER DISABLED] Warning: Timing without barriers - other collectives may still be in process
+[2025-08-20 11:16:58,585][DL_COMM][OUTPUT] - 
+[2025-08-20 11:16:58,585][DL_COMM][OUTPUT] - [TIMERS] ITERATION TABLE FOR ALLGATHER (seconds):
+[2025-08-20 11:16:58,585][DL_COMM][OUTPUT] - Iteration        (Flatview)     
+[2025-08-20 11:16:58,585][DL_COMM][OUTPUT] -               LOGGING RANK - 0  
+[2025-08-20 11:16:58,585][DL_COMM][OUTPUT] - --------------------------------
+[2025-08-20 11:16:58,585][DL_COMM][OUTPUT] - 0                 0.112745      
+[2025-08-20 11:16:58,585][DL_COMM][OUTPUT] - 1                 0.011935      
+[2025-08-20 11:16:58,585][DL_COMM][OUTPUT] - 2                 0.011094      
+[2025-08-20 11:16:58,585][DL_COMM][OUTPUT] - 3                 0.010957      
+[2025-08-20 11:16:58,586][DL_COMM][OUTPUT] - 4                 0.010780      
+[2025-08-20 11:16:58,586][DL_COMM][OUTPUT] - --------------------------------
+[2025-08-20 11:16:58,586][DL_COMM][OUTPUT] - 
+[2025-08-20 11:16:58,586][DL_COMM][OUTPUT] - [TIMERS] ---------------------------------------------------------
+[2025-08-20 11:16:58,586][DL_COMM][OUTPUT] - 
+[2025-08-20 11:16:58,586][DL_COMM][OUTPUT] - [BANDWIDTH] -------------------------------------------
+[2025-08-20 11:16:58,586][DL_COMM][OUTPUT] - 
+[2025-08-20 11:16:58,586][DL_COMM][OUTPUT] - [BANDWIDTH] BANDWIDTH TABLE FOR ALLGATHER (bytes/seconds):
+[2025-08-20 11:16:58,586][DL_COMM][OUTPUT] - Iteration        (Flatview)     
+[2025-08-20 11:16:58,586][DL_COMM][OUTPUT] -               LOGGING RANK - 0  
+[2025-08-20 11:16:58,586][DL_COMM][OUTPUT] - --------------------------------
+[2025-08-20 11:16:58,586][DL_COMM][OUTPUT] - 0                 14531949      
+[2025-08-20 11:16:58,586][DL_COMM][OUTPUT] - 1                137274524      
+[2025-08-20 11:16:58,586][DL_COMM][OUTPUT] - 2                147681781      
+[2025-08-20 11:16:58,586][DL_COMM][OUTPUT] - 3                149532531      
+[2025-08-20 11:16:58,586][DL_COMM][OUTPUT] - 4                151990133      
+[2025-08-20 11:16:58,586][DL_COMM][OUTPUT] - --------------------------------
+[2025-08-20 11:16:58,587][DL_COMM][OUTPUT] - 
+[2025-08-20 11:16:58,587][DL_COMM][OUTPUT] - [BANDWIDTH] -------------------------------------------
+[2025-08-20 11:16:58,587][DL_COMM][INFO] - -------------------------------------------------------------------------
+[2025-08-20 11:16:58,587][DL_COMM][INFO] - [MPI] Job complete
+[2025-08-20 11:16:58,587][DL_COMM][INFO] - -------------------------------------------------------------------------
+[2025-08-20 11:16:58,587][DL_COMM][INFO] - -------------------------------------------------------------------------
+[2025-08-20 11:16:58,587][DL_COMM][INFO] - [EXIT] All Done.
+[2025-08-20 11:16:58,587][DL_COMM][INFO] - -------------------------------------------------------------------------
+[2025-08-20 11:16:58,587][DL_COMM][INFO] - 
+[2025-08-20 11:16:58,587][DL_COMM][INFO] - ================================================================================
+[2025-08-20 11:16:58,587][DL_COMM][INFO] - [FINAL] All 2 tasks completed successfully!
+[2025-08-20 11:16:58,587][DL_COMM][INFO] - ================================================================================

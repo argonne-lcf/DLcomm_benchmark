@@ -1,0 +1,46 @@
+[2025-08-18 11:19:56,587][DL_COMM][INFO] - -------------------------------------------------------------------------
+[2025-08-18 11:19:56,588][DL_COMM][INFO] - [CONFIG] Loading schema and validating user YAML
+[2025-08-18 11:19:56,588][DL_COMM][INFO] - [DEBUG] Current working directory: /lustre/orion/gen008/proj-shared/kaushik/dlcomm-test/DLcomm_benchmark/examples/8_rccl_simple
+[2025-08-18 11:19:56,588][DL_COMM][INFO] - [DEBUG] Script location: /lustre/orion/gen008/proj-shared/kaushik/dlcomm-test/dlcomm-pip/dl_comm
+[2025-08-18 11:19:56,588][DL_COMM][INFO] - [DEBUG] Tasks to run: ['simple-allreduce']
+[2025-08-18 11:19:56,589][DL_COMM][INFO] - [DEBUG] Config loaded successfully
+[2025-08-18 11:19:56,589][DL_COMM][INFO] - 
+[2025-08-18 11:19:56,589][DL_COMM][INFO] - [SYSTEM] Collecting environment information...
+[2025-08-18 11:19:56,589][DL_COMM][INFO] - [SYSTEM] ======================================================
+[2025-08-18 11:19:56,589][DL_COMM][INFO] - [SYSTEM] PyTorch version: 2.5.1+rocm6.2
+[2025-08-18 11:19:56,746][DL_COMM][INFO] - [SYSTEM] CUDA used to build PyTorch: None
+[2025-08-18 11:19:56,746][DL_COMM][INFO] - 
+[2025-08-18 11:19:56,749][DL_COMM][INFO] - [SYSTEM] OS: Linux-6.4.0-150600.23.47_15.0.10-cray_shasta_c-x86_64-with-glibc2.38
+[2025-08-18 11:19:56,752][DL_COMM][INFO] - [SYSTEM] GCC version: gcc (SUSE Linux) 14.2.0
+[2025-08-18 11:19:56,752][DL_COMM][INFO] - 
+[2025-08-18 11:19:56,752][DL_COMM][INFO] - [SYSTEM] Python version: 3.11.7 (main, Jun 17 2024, 15:36:19) [GCC 12.3.0]
+[2025-08-18 11:19:56,752][DL_COMM][INFO] - [SYSTEM] Python platform: Linux-6.4.0-150600.23.47_15.0.10-cray_shasta_c-x86_64-with-glibc2.38
+[2025-08-18 11:19:56,752][DL_COMM][INFO] - [SYSTEM] Is CUDA available: True
+[2025-08-18 11:19:56,753][DL_COMM][INFO] - [SYSTEM] CUDA runtime version: None
+[2025-08-18 11:19:56,753][DL_COMM][INFO] - [SYSTEM] GPU models and configuration:
+[2025-08-18 11:19:56,756][DL_COMM][INFO] - [SYSTEM] GPU 0: AMD Instinct MI250X (64.0 GB)
+[2025-08-18 11:19:56,756][DL_COMM][INFO] - 
+[2025-08-18 11:19:56,756][DL_COMM][INFO] - [SYSTEM] Distributed Backend Availability:
+[2025-08-18 11:19:56,756][DL_COMM][INFO] - [SYSTEM] NCCL backend available: True
+[2025-08-18 11:19:56,756][DL_COMM][INFO] - [SYSTEM] MPI backend available: False
+[2025-08-18 11:19:56,756][DL_COMM][INFO] - [SYSTEM] XCCL backend available: Unknown (API not available)
+[2025-08-18 11:19:56,756][DL_COMM][INFO] - 
+[2025-08-18 11:19:56,756][DL_COMM][INFO] - [SYSTEM] Versions of relevant libraries:
+[2025-08-18 11:19:56,756][DL_COMM][INFO] - [SYSTEM] numpy: 2.1.2
+[2025-08-18 11:19:56,756][DL_COMM][INFO] - [SYSTEM] mpi4py: 3.1.4
+[2025-08-18 11:19:56,757][DL_COMM][INFO] - [SYSTEM] hydra-core: 1.3.2
+[2025-08-18 11:19:56,757][DL_COMM][INFO] - [SYSTEM] omegaconf: 2.3.0
+[2025-08-18 11:19:56,757][DL_COMM][INFO] - [SYSTEM] oneccl_bindings_for_pytorch: Not available
+[2025-08-18 11:19:56,757][DL_COMM][INFO] - [SYSTEM] intel_extension_for_pytorch: Not available
+[2025-08-18 11:19:56,757][DL_COMM][INFO] - [SYSTEM] NCCL version: 2.20.5
+[2025-08-18 11:19:56,757][DL_COMM][INFO] - 
+[2025-08-18 11:19:56,757][DL_COMM][INFO] - [SYSTEM] Relevant Environment Variables:
+[2025-08-18 11:19:56,757][DL_COMM][INFO] - [SYSTEM] CUDA_MODULE_LOADING            = LAZY
+[2025-08-18 11:19:56,757][DL_COMM][INFO] - [SYSTEM] FI_CXI_ATS                     = 0
+[2025-08-18 11:19:56,757][DL_COMM][INFO] - [SYSTEM] FI_HMEM_ROCR_USE_DMABUF        = 0
+[2025-08-18 11:19:56,758][DL_COMM][INFO] - [SYSTEM] FI_MR_CACHE_MONITOR            = kdreg2
+[2025-08-18 11:19:56,758][DL_COMM][INFO] - [SYSTEM] MPICH_OFI_NIC_POLICY           = NUMA
+[2025-08-18 11:19:56,758][DL_COMM][INFO] - [SYSTEM] NCCL_SOCKET_IFNAME             = hsn0
+[2025-08-18 11:19:56,758][DL_COMM][INFO] - [SYSTEM] ======================================================
+[2025-08-18 11:19:56,758][DL_COMM][INFO] - 
+[2025-08-18 11:19:57,495][DL_COMM][ERROR] - [VALIDATION] simple-allreduce_flatview: Invalid operation 'sum' for collective 'allreduce'. Valid operations: []

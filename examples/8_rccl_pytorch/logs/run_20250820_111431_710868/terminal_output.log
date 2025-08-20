@@ -1,0 +1,1102 @@
+777
+777
+777
+777
+777
+777
+777
+777
+777
+777
+777
+777
+777
+777
+777
+777
+[2025-08-20 11:14:35,358][DL_COMM][INFO] - -------------------------------------------------------------------------
+[2025-08-20 11:14:35,360][DL_COMM][INFO] - [CONFIG] Loading schema and validating user YAML
+[2025-08-20 11:14:35,360][DL_COMM][INFO] - [DEBUG] Current working directory: /lustre/orion/gen008/proj-shared/kaushik/dlcomm-test/DLcomm_benchmark/examples/8_rccl_pytorch
+[2025-08-20 11:14:35,360][DL_COMM][INFO] - [DEBUG] Script location: /lustre/orion/gen008/proj-shared/kaushik/dlcomm-test/DLcomm_benchmark/dl_comm
+[2025-08-20 11:14:35,360][DL_COMM][INFO] - [DEBUG] Tasks to run: ['allreduce-scale', 'allgather-scale', 'reducescatter-scale', 'broadcast-scale', 'reduce-scale', 'alltoall-scale', 'alltoallsingle-scale', 'gather-scale', 'scatter-scale', 'barrier-scale']
+[2025-08-20 11:14:35,360][DL_COMM][INFO] - [DEBUG] Config loaded successfully
+[2025-08-20 11:14:37,871][DL_COMM][INFO] - 
+[2025-08-20 11:14:37,871][DL_COMM][INFO] - [SYSTEM] Collecting environment information...
+[2025-08-20 11:14:37,871][DL_COMM][INFO] - [SYSTEM] ======================================================
+[2025-08-20 11:14:37,871][DL_COMM][INFO] - [SYSTEM] PyTorch version: 2.5.1+rocm6.2
+[2025-08-20 11:14:38,034][DL_COMM][INFO] - [SYSTEM] Is CUDA available: True
+[2025-08-20 11:14:38,034][DL_COMM][INFO] - [SYSTEM] CUDA used to build PyTorch: None
+[2025-08-20 11:14:38,034][DL_COMM][INFO] - [SYSTEM] GPU models and configuration:
+[2025-08-20 11:14:38,038][DL_COMM][INFO] - [SYSTEM] GPU 0: AMD Instinct MI250X (64.0 GB)
+[2025-08-20 11:14:38,038][DL_COMM][INFO] - [SYSTEM] GPU 1: AMD Instinct MI250X (64.0 GB)
+[2025-08-20 11:14:38,038][DL_COMM][INFO] - [SYSTEM] GPU 2: AMD Instinct MI250X (64.0 GB)
+[2025-08-20 11:14:38,038][DL_COMM][INFO] - [SYSTEM] GPU 3: AMD Instinct MI250X (64.0 GB)
+[2025-08-20 11:14:38,039][DL_COMM][INFO] - [SYSTEM] GPU 4: AMD Instinct MI250X (64.0 GB)
+[2025-08-20 11:14:38,039][DL_COMM][INFO] - [SYSTEM] GPU 5: AMD Instinct MI250X (64.0 GB)
+[2025-08-20 11:14:38,039][DL_COMM][INFO] - [SYSTEM] GPU 6: AMD Instinct MI250X (64.0 GB)
+[2025-08-20 11:14:38,039][DL_COMM][INFO] - [SYSTEM] GPU 7: AMD Instinct MI250X (64.0 GB)
+[2025-08-20 11:14:38,039][DL_COMM][INFO] - 
+[2025-08-20 11:14:38,044][DL_COMM][INFO] - [SYSTEM] OS: Linux-6.4.0-150600.23.47_15.0.10-cray_shasta_c-x86_64-with-glibc2.38
+[2025-08-20 11:14:38,050][DL_COMM][INFO] - [SYSTEM] GCC version: gcc (SUSE Linux) 7.5.0
+[2025-08-20 11:14:38,050][DL_COMM][INFO] - 
+[2025-08-20 11:14:38,050][DL_COMM][INFO] - [SYSTEM] Python version: 3.11.7 (main, Jun 17 2024, 15:36:19) [GCC 12.3.0]
+[2025-08-20 11:14:38,050][DL_COMM][INFO] - [SYSTEM] Python platform: Linux-6.4.0-150600.23.47_15.0.10-cray_shasta_c-x86_64-with-glibc2.38
+[2025-08-20 11:14:38,050][DL_COMM][INFO] - 
+[2025-08-20 11:14:38,051][DL_COMM][INFO] - [SYSTEM] Distributed Backend Availability:
+[2025-08-20 11:14:38,051][DL_COMM][INFO] - [SYSTEM] NCCL backend available: True
+[2025-08-20 11:14:38,051][DL_COMM][INFO] - [SYSTEM] MPI backend available: False
+[2025-08-20 11:14:38,051][DL_COMM][INFO] - [SYSTEM] XCCL backend available: Unknown/Error
+[2025-08-20 11:14:38,051][DL_COMM][INFO] - 
+[2025-08-20 11:14:38,051][DL_COMM][INFO] - [SYSTEM] Versions of relevant libraries:
+[2025-08-20 11:14:38,051][DL_COMM][INFO] - [SYSTEM] numpy: 2.1.2
+[2025-08-20 11:14:38,051][DL_COMM][INFO] - [SYSTEM] mpi4py: 3.1.4
+[2025-08-20 11:14:38,051][DL_COMM][INFO] - [SYSTEM] hydra-core: 1.3.2
+[2025-08-20 11:14:38,051][DL_COMM][INFO] - [SYSTEM] omegaconf: 2.3.0
+[2025-08-20 11:14:38,051][DL_COMM][INFO] - [SYSTEM] oneccl_bindings_for_pytorch: Not available
+[2025-08-20 11:14:38,052][DL_COMM][INFO] - [SYSTEM] intel_extension_for_pytorch: Not available
+[2025-08-20 11:14:38,052][DL_COMM][INFO] - [SYSTEM] NCCL version: 2.20.5
+[2025-08-20 11:14:38,052][DL_COMM][INFO] - 
+[2025-08-20 11:14:38,052][DL_COMM][INFO] - [SYSTEM] Relevant Environment Variables:
+[2025-08-20 11:14:38,052][DL_COMM][INFO] - [SYSTEM] CRAY_ROCM_DIR                  = /opt/rocm-6.2.4
+[2025-08-20 11:14:38,053][DL_COMM][INFO] - [SYSTEM] CRAY_ROCM_INCLUDE_OPTS         = -I/opt/rocm-6.2.4/include -I/opt/rocm-6.2.4/include/rocprofiler -I/opt/rocm-6.2.4/include/roctracer -I/opt/rocm-6.2.4/include/hip -D__HIP_PLATFORM_AMD__
+[2025-08-20 11:14:38,053][DL_COMM][INFO] - [SYSTEM] CRAY_ROCM_POST_LINK_OPTS       =  -L/opt/rocm-6.2.4/lib -L/opt/rocm-6.2.4/lib/rocprofiler -L/opt/rocm-6.2.4/lib/roctracer -lamdhip64
+[2025-08-20 11:14:38,053][DL_COMM][INFO] - [SYSTEM] CRAY_ROCM_PREFIX               = /opt/rocm-6.2.4
+[2025-08-20 11:14:38,053][DL_COMM][INFO] - [SYSTEM] CRAY_ROCM_VERSION              = 6.2.4
+[2025-08-20 11:14:38,053][DL_COMM][INFO] - [SYSTEM] CUDA_MODULE_LOADING            = LAZY
+[2025-08-20 11:14:38,053][DL_COMM][INFO] - [SYSTEM] FI_CXI_ATS                     = 0
+[2025-08-20 11:14:38,053][DL_COMM][INFO] - [SYSTEM] FI_HMEM_ROCR_USE_DMABUF        = 0
+[2025-08-20 11:14:38,053][DL_COMM][INFO] - [SYSTEM] FI_MR_CACHE_MONITOR            = kdreg2
+[2025-08-20 11:14:38,053][DL_COMM][INFO] - [SYSTEM] HIP_LIB_PATH                   = /opt/rocm-6.2.4/lib
+[2025-08-20 11:14:38,053][DL_COMM][INFO] - [SYSTEM] MASTER_ADDR                    = frontier08516
+[2025-08-20 11:14:38,053][DL_COMM][INFO] - [SYSTEM] MASTER_PORT                    = 2268
+[2025-08-20 11:14:38,053][DL_COMM][INFO] - [SYSTEM] MPICH_OFI_NIC_POLICY           = NUMA
+[2025-08-20 11:14:38,053][DL_COMM][INFO] - [SYSTEM] NCCL_SOCKET_IFNAME             = hsn0
+[2025-08-20 11:14:38,053][DL_COMM][INFO] - [SYSTEM] PALS_LOCAL_RANKID              = 0
+[2025-08-20 11:14:38,053][DL_COMM][INFO] - [SYSTEM] PALS_RANKID                    = 0
+[2025-08-20 11:14:38,054][DL_COMM][INFO] - [SYSTEM] PMI_LOCAL_RANK                 = 0
+[2025-08-20 11:14:38,054][DL_COMM][INFO] - [SYSTEM] PMI_RANK                       = 0
+[2025-08-20 11:14:38,054][DL_COMM][INFO] - [SYSTEM] ROCM_PATH                      = /opt/rocm-6.2.4
+[2025-08-20 11:14:38,054][DL_COMM][INFO] - [SYSTEM] ROCR_VISIBLE_DEVICES           = 0,1,2,3,4,5,6,7
+[2025-08-20 11:14:38,054][DL_COMM][INFO] - [SYSTEM] WORLDWORK                      = /lustre/orion/world-shared
+[2025-08-20 11:14:38,054][DL_COMM][INFO] - [SYSTEM] ======================================================
+[2025-08-20 11:14:38,054][DL_COMM][INFO] - 
+[2025-08-20 11:14:38,804][DL_COMM][INFO] - 
+[2025-08-20 11:14:38,804][DL_COMM][INFO] - ================================================================================
+[2025-08-20 11:14:38,804][DL_COMM][INFO] - [TASK 1/10] ==================== ALLREDUCE-SCALE ====================
+[2025-08-20 11:14:38,804][DL_COMM][INFO] - ================================================================================
+[2025-08-20 11:14:38,804][DL_COMM][INFO] - 
+[2025-08-20 11:14:38,804][DL_COMM][INFO] - 
+[2025-08-20 11:14:38,805][DL_COMM][INFO] - [CONFIG] Setup
+[2025-08-20 11:14:38,805][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-08-20 11:14:38,805][DL_COMM][INFO] - [CONFIG] Task Name            : allreduce-scale
+[2025-08-20 11:14:38,805][DL_COMM][INFO] - [CONFIG] Framework            : pytorch
+[2025-08-20 11:14:38,805][DL_COMM][INFO] - [CONFIG] Backend              : nccl
+[2025-08-20 11:14:38,805][DL_COMM][INFO] - [CONFIG] Extended Logging     : False
+[2025-08-20 11:14:38,805][DL_COMM][INFO] - [CONFIG] Barrier Enabled      : True
+[2025-08-20 11:14:38,805][DL_COMM][INFO] - [CONFIG] World Size           : 16
+[2025-08-20 11:14:38,805][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-08-20 11:14:38,805][DL_COMM][INFO] - 
+[2025-08-20 11:14:38,805][DL_COMM][INFO] - [CONFIG] Communication Group
+[2025-08-20 11:14:38,805][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-08-20 11:14:38,805][DL_COMM][INFO] - [CONFIG] Mode                 : across_node
+[2025-08-20 11:14:38,805][DL_COMM][INFO] - [CONFIG] Topology             : 2 nodes x 8 devices
+[2025-08-20 11:14:38,805][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-08-20 11:14:38,805][DL_COMM][INFO] - 
+[2025-08-20 11:14:38,806][DL_COMM][INFO] - [CONFIG] Communication Group Details
+[2025-08-20 11:14:38,806][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-08-20 11:14:38,806][DL_COMM][INFO] - [CONFIG] Collective Name      : allreduce
+[2025-08-20 11:14:38,806][DL_COMM][INFO] - [CONFIG] Operation            : sum
+[2025-08-20 11:14:38,806][DL_COMM][INFO] - [CONFIG] Scale Up Algorithm   : default
+[2025-08-20 11:14:38,806][DL_COMM][INFO] - [CONFIG] Scale Out Algorithm  : default
+[2025-08-20 11:14:38,806][DL_COMM][INFO] - [CONFIG] Data Type            : float32
+[2025-08-20 11:14:38,806][DL_COMM][INFO] - [CONFIG] Element Count        : 25600
+[2025-08-20 11:14:38,806][DL_COMM][INFO] - [CONFIG] Buffer Size          : 100KB (102400 bytes)
+[2025-08-20 11:14:38,806][DL_COMM][INFO] - [CONFIG] Iterations           : 10
+[2025-08-20 11:14:38,806][DL_COMM][INFO] - [CONFIG] Verify Correctness   : True
+[2025-08-20 11:14:38,806][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-08-20 11:14:38,806][DL_COMM][INFO] - 
+[2025-08-20 11:14:38,806][DL_COMM][INFO] - 
+[2025-08-20 11:14:38,807][DL_COMM][INFO] - [COMM][CONFIG] Setting up communication groups for mode: Across
+[2025-08-20 11:14:38,807][DL_COMM][INFO] - [COMM][CONFIG] Across-node: 2 nodes, 8 devices per node, Device IDs: [0, 1, 2, 3, 4, 5, 6, 7]
+[2025-08-20 11:14:38,807][DL_COMM][INFO] - [COMM][GROUP CREATION] Across-node groups:
+[2025-08-20 11:14:38,807][DL_COMM][INFO] - [COMM][GROUP CREATION][Across Group-0] Ranks: [0, 8], Device ID: 0, Logging: rank 0
+[2025-08-20 11:14:38,807][DL_COMM][INFO] - [COMM][GROUP CREATION][Across Group-1] Ranks: [1, 9], Device ID: 1, Logging: rank 1
+[2025-08-20 11:14:38,807][DL_COMM][INFO] - [COMM][GROUP CREATION][Across Group-2] Ranks: [2, 10], Device ID: 2, Logging: rank 2
+[2025-08-20 11:14:38,807][DL_COMM][INFO] - [COMM][GROUP CREATION][Across Group-3] Ranks: [3, 11], Device ID: 3, Logging: rank 3
+[2025-08-20 11:14:38,808][DL_COMM][INFO] - [COMM][GROUP CREATION][Across Group-4] Ranks: [4, 12], Device ID: 4, Logging: rank 4
+[2025-08-20 11:14:38,808][DL_COMM][INFO] - [COMM][GROUP CREATION][Across Group-5] Ranks: [5, 13], Device ID: 5, Logging: rank 5
+[2025-08-20 11:14:38,808][DL_COMM][INFO] - [COMM][GROUP CREATION][Across Group-6] Ranks: [6, 14], Device ID: 6, Logging: rank 6
+[2025-08-20 11:14:38,808][DL_COMM][INFO] - [COMM][GROUP CREATION][Across Group-7] Ranks: [7, 15], Device ID: 7, Logging: rank 7
+[2025-08-20 11:14:38,808][DL_COMM][INFO] - [COMM][GROUP CREATION] Created 8 across-node groups
+[2025-08-20 11:14:38,808][DL_COMM][INFO] - 
+[2025-08-20 11:14:38,951][DL_COMM][OUTPUT] - 
+[2025-08-20 11:14:38,951][DL_COMM][OUTPUT] - [TIMERS - SETUP] ---------------------------------------------------------
+[2025-08-20 11:14:38,951][DL_COMM][OUTPUT] - [TIMERS][LOGGING RANK - 0] import time                         = 2.510412 s
+[2025-08-20 11:14:38,951][DL_COMM][OUTPUT] - [TIMERS][LOGGING RANK - 0] init time                           = 0.747668 s
+[2025-08-20 11:14:38,951][DL_COMM][OUTPUT] - [TIMERS][LOGGING RANK - 0] Group Creation (Across)             = 0.001271 s
+[2025-08-20 11:14:38,951][DL_COMM][OUTPUT] - [TIMERS - SETUP] ---------------------------------------------------------
+[2025-08-20 11:14:38,951][DL_COMM][OUTPUT] - 
+[2025-08-20 11:14:38,951][DL_COMM][OUTPUT] - [MPI] Launching profiling job
+[2025-08-20 11:14:39,940][DL_COMM][OUTPUT] - 
+[2025-08-20 11:14:39,940][DL_COMM][OUTPUT] - [TIMERS] ---------------------------------------------------------
+[2025-08-20 11:14:39,940][DL_COMM][OUTPUT] - 
+[2025-08-20 11:14:39,940][DL_COMM][INFO] -   [TIMERS] [BARRIER ENABLED] Timing measurements used MPI barriers for synchronization
+[2025-08-20 11:14:39,940][DL_COMM][OUTPUT] - 
+[2025-08-20 11:14:39,940][DL_COMM][OUTPUT] - [TIMERS] ITERATION TABLE FOR ALLREDUCE (seconds):
+[2025-08-20 11:14:39,941][DL_COMM][OUTPUT] - Iteration     (Across-Group-0)    (Across-Group-1)    (Across-Group-2)    (Across-Group-3)    (Across-Group-4)    (Across-Group-5)    (Across-Group-6)    (Across-Group-7)  
+[2025-08-20 11:14:39,941][DL_COMM][OUTPUT] -               LOGGING RANK - 0    LOGGING RANK - 1    LOGGING RANK - 2    LOGGING RANK - 3    LOGGING RANK - 4    LOGGING RANK - 5    LOGGING RANK - 6    LOGGING RANK - 7  
+[2025-08-20 11:14:39,941][DL_COMM][OUTPUT] - ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+[2025-08-20 11:14:39,941][DL_COMM][OUTPUT] - 0                 0.015552            0.000801            0.014340            0.014701            0.000669            0.000641            0.020713            0.014162      
+[2025-08-20 11:14:39,941][DL_COMM][OUTPUT] - 1                 0.017513            0.000537            0.000490            0.000461            0.000524            0.000707            0.000527            0.000488      
+[2025-08-20 11:14:39,941][DL_COMM][OUTPUT] - 2                 0.000483            0.000487            0.000502            0.000432            0.000485            0.000465            0.000579            0.000431      
+[2025-08-20 11:14:39,941][DL_COMM][OUTPUT] - 3                 0.000474            0.000453            0.000506            0.000428            0.000486            0.000431            0.000485            0.000441      
+[2025-08-20 11:14:39,941][DL_COMM][OUTPUT] - 4                 0.000484            0.000464            0.000499            0.000425            0.000459            0.000452            0.000522            0.000451      
+[2025-08-20 11:14:39,941][DL_COMM][OUTPUT] - 5                 0.000468            0.000469            0.000501            0.000420            0.000469            0.000432            0.000462            0.000445      
+[2025-08-20 11:14:39,941][DL_COMM][OUTPUT] - 6                 0.000485            0.000496            0.000540            0.000417            0.000493            0.000469            0.000474            0.000445      
+[2025-08-20 11:14:39,941][DL_COMM][OUTPUT] - 7                 0.000498            0.000495            0.000536            0.000428            0.000520            0.000463            0.000490            0.000429      
+[2025-08-20 11:14:39,941][DL_COMM][OUTPUT] - 8                 0.000489            0.000511            0.000531            0.000435            0.000490            0.000434            0.000465            0.000429      
+[2025-08-20 11:14:39,941][DL_COMM][OUTPUT] - 9                 0.000461            0.000500            0.000495            0.000586            0.000503            0.000480            0.000472            0.000459      
+[2025-08-20 11:14:39,941][DL_COMM][OUTPUT] - ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+[2025-08-20 11:14:39,941][DL_COMM][OUTPUT] - 
+[2025-08-20 11:14:39,942][DL_COMM][OUTPUT] - [TIMERS] ---------------------------------------------------------
+[2025-08-20 11:14:39,942][DL_COMM][OUTPUT] - 
+[2025-08-20 11:14:39,942][DL_COMM][OUTPUT] - [BANDWIDTH] -------------------------------------------
+[2025-08-20 11:14:39,944][DL_COMM][OUTPUT] - 
+[2025-08-20 11:14:39,944][DL_COMM][OUTPUT] - [BANDWIDTH] BANDWIDTH TABLE FOR ALLREDUCE (bytes/seconds):
+[2025-08-20 11:14:39,944][DL_COMM][OUTPUT] - Iteration     (Across-Group-0)    (Across-Group-1)    (Across-Group-2)    (Across-Group-3)    (Across-Group-4)    (Across-Group-5)    (Across-Group-6)    (Across-Group-7)  
+[2025-08-20 11:14:39,944][DL_COMM][OUTPUT] -               LOGGING RANK - 0    LOGGING RANK - 1    LOGGING RANK - 2    LOGGING RANK - 3    LOGGING RANK - 4    LOGGING RANK - 5    LOGGING RANK - 6    LOGGING RANK - 7  
+[2025-08-20 11:14:39,944][DL_COMM][OUTPUT] - ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+[2025-08-20 11:14:39,944][DL_COMM][OUTPUT] - 0                 52674250           1022198298           57126272            55725704           1224131675          1278771401           39550744            57845452      
+[2025-08-20 11:14:39,944][DL_COMM][OUTPUT] - 1                 46777185           1524121360          1670507157          1778650360          1561913061          1158402265          1555584091          1680013527     
+[2025-08-20 11:14:39,944][DL_COMM][OUTPUT] - 2                1695445278          1682850834          1632682449          1896476059          1687954839          1762129643          1415249331          1899691276     
+[2025-08-20 11:14:39,944][DL_COMM][OUTPUT] - 3                1727103970          1806833176          1618202009          1913204806          1687329104          1898809592          1688932821          1857482199     
+[2025-08-20 11:14:39,944][DL_COMM][OUTPUT] - 4                1691866255          1766088689          1643313256          1927910799          1782955085          1811355763          1569044874          1817194374     
+[2025-08-20 11:14:39,944][DL_COMM][OUTPUT] - 5                1750588205          1745095546          1635129448          1948913142          1745652268          1897574561          1772983159          1840175276     
+[2025-08-20 11:14:39,944][DL_COMM][OUTPUT] - 6                1689629523          1651912825          1517843536          1964080005          1663299452          1746434702          1726485306          1839014357     
+[2025-08-20 11:14:39,944][DL_COMM][OUTPUT] - 7                1645330474          1656327538          1528654677          1913383761          1574909328          1770833501          1671532516          1908872283     
+[2025-08-20 11:14:39,944][DL_COMM][OUTPUT] - 8                1675814171          1601751970          1544069504          1882673004          1671669114          1887887583          1760044065          1911463831     
+[2025-08-20 11:14:39,945][DL_COMM][OUTPUT] - 9                1778765458          1639488406          1654919768          1398593951          1629979940          1706200969          1735571444          1785410578     
+[2025-08-20 11:14:39,945][DL_COMM][OUTPUT] - ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+[2025-08-20 11:14:39,945][DL_COMM][OUTPUT] - 
+[2025-08-20 11:14:39,945][DL_COMM][OUTPUT] - [BANDWIDTH] -------------------------------------------
+[2025-08-20 11:14:39,945][DL_COMM][INFO] - -------------------------------------------------------------------------
+[2025-08-20 11:14:39,945][DL_COMM][INFO] - [MPI] Job complete
+[2025-08-20 11:14:39,945][DL_COMM][INFO] - -------------------------------------------------------------------------
+[2025-08-20 11:14:39,945][DL_COMM][INFO] - -------------------------------------------------------------------------
+[2025-08-20 11:14:39,945][DL_COMM][INFO] - [EXIT] All Done.
+[2025-08-20 11:14:39,945][DL_COMM][INFO] - -------------------------------------------------------------------------
+[2025-08-20 11:14:39,945][DL_COMM][INFO] - 
+[2025-08-20 11:14:39,945][DL_COMM][INFO] - ================================================================================
+[2025-08-20 11:14:39,945][DL_COMM][INFO] - [TASK 2/10] ==================== ALLGATHER-SCALE ====================
+[2025-08-20 11:14:39,945][DL_COMM][INFO] - ================================================================================
+[2025-08-20 11:14:39,945][DL_COMM][INFO] - 
+[2025-08-20 11:14:39,946][DL_COMM][INFO] - 
+[2025-08-20 11:14:39,946][DL_COMM][INFO] - [CONFIG] Setup
+[2025-08-20 11:14:39,946][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-08-20 11:14:39,946][DL_COMM][INFO] - [CONFIG] Task Name            : allgather-scale
+[2025-08-20 11:14:39,946][DL_COMM][INFO] - [CONFIG] Framework            : pytorch
+[2025-08-20 11:14:39,946][DL_COMM][INFO] - [CONFIG] Backend              : nccl
+[2025-08-20 11:14:39,946][DL_COMM][INFO] - [CONFIG] Extended Logging     : False
+[2025-08-20 11:14:39,947][DL_COMM][INFO] - [CONFIG] Barrier Enabled      : True
+[2025-08-20 11:14:39,947][DL_COMM][INFO] - [CONFIG] World Size           : 16
+[2025-08-20 11:14:39,947][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-08-20 11:14:39,947][DL_COMM][INFO] - 
+[2025-08-20 11:14:39,947][DL_COMM][INFO] - [CONFIG] Communication Group
+[2025-08-20 11:14:39,947][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-08-20 11:14:39,947][DL_COMM][INFO] - [CONFIG] Mode                 : within_node
+[2025-08-20 11:14:39,947][DL_COMM][INFO] - [CONFIG] Topology             : 2 nodes x 8 devices
+[2025-08-20 11:14:39,947][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-08-20 11:14:39,947][DL_COMM][INFO] - 
+[2025-08-20 11:14:39,947][DL_COMM][INFO] - [CONFIG] Communication Group Details
+[2025-08-20 11:14:39,947][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-08-20 11:14:39,947][DL_COMM][INFO] - [CONFIG] Collective Name      : allgather
+[2025-08-20 11:14:39,947][DL_COMM][INFO] - [CONFIG] Operation            : N/A
+[2025-08-20 11:14:39,947][DL_COMM][INFO] - [CONFIG] Scale Up Algorithm   : default
+[2025-08-20 11:14:39,948][DL_COMM][INFO] - [CONFIG] Scale Out Algorithm  : default
+[2025-08-20 11:14:39,948][DL_COMM][INFO] - [CONFIG] Data Type            : float32
+[2025-08-20 11:14:39,948][DL_COMM][INFO] - [CONFIG] Element Count        : 25600
+[2025-08-20 11:14:39,948][DL_COMM][INFO] - [CONFIG] Buffer Size          : 100KB (102400 bytes)
+[2025-08-20 11:14:39,948][DL_COMM][INFO] - [CONFIG] Iterations           : 10
+[2025-08-20 11:14:39,948][DL_COMM][INFO] - [CONFIG] Verify Correctness   : True
+[2025-08-20 11:14:39,948][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-08-20 11:14:39,948][DL_COMM][INFO] - 
+[2025-08-20 11:14:39,948][DL_COMM][INFO] - [COMM][CONFIG] Setting up communication groups for mode: Within
+[2025-08-20 11:14:39,948][DL_COMM][INFO] - [COMM][CONFIG] Within-node: 8 devices per node, Device IDs: [0, 1, 2, 3, 4, 5, 6, 7]
+[2025-08-20 11:14:39,948][DL_COMM][INFO] - [COMM][GROUP CREATION] Within-node groups:
+[2025-08-20 11:14:39,948][DL_COMM][INFO] - 
+[2025-08-20 11:14:39,949][DL_COMM][INFO] - [COMM][GROUP CREATION][Within Group-0] Ranks: [0, 1, 2, 3, 4, 5, 6, 7], Required Devices: [0, 1, 2, 3, 4, 5, 6, 7], Logging: rank 0
+[2025-08-20 11:14:39,949][DL_COMM][INFO] - [COMM][GROUP CREATION][Within Group-1] Ranks: [8, 9, 10, 11, 12, 13, 14, 15], Required Devices: [0, 1, 2, 3, 4, 5, 6, 7], Logging: rank 8
+[2025-08-20 11:14:39,949][DL_COMM][INFO] - [COMM][GROUP CREATION] Created 2 within-node groups
+[2025-08-20 11:14:39,949][DL_COMM][INFO] - 
+[2025-08-20 11:14:39,949][DL_COMM][OUTPUT] - 
+[2025-08-20 11:14:39,949][DL_COMM][OUTPUT] - [TIMERS - SETUP] ---------------------------------------------------------
+[2025-08-20 11:14:39,950][DL_COMM][OUTPUT] - [TIMERS][LOGGING RANK - 0] Group Creation (Within)             = 0.000593 s
+[2025-08-20 11:14:39,950][DL_COMM][OUTPUT] - [TIMERS - SETUP] ---------------------------------------------------------
+[2025-08-20 11:14:39,950][DL_COMM][OUTPUT] - 
+[2025-08-20 11:14:39,950][DL_COMM][OUTPUT] - [MPI] Launching profiling job
+[2025-08-20 11:14:40,946][DL_COMM][OUTPUT] - 
+[2025-08-20 11:14:40,946][DL_COMM][OUTPUT] - [TIMERS] ---------------------------------------------------------
+[2025-08-20 11:14:40,947][DL_COMM][OUTPUT] - 
+[2025-08-20 11:14:40,947][DL_COMM][INFO] -   [TIMERS] [BARRIER ENABLED] Timing measurements used MPI barriers for synchronization
+[2025-08-20 11:14:40,947][DL_COMM][OUTPUT] - 
+[2025-08-20 11:14:40,947][DL_COMM][OUTPUT] - [TIMERS] ITERATION TABLE FOR ALLGATHER (seconds):
+[2025-08-20 11:14:40,947][DL_COMM][OUTPUT] - Iteration     (Within-Group-0)    (Within-Group-1)  
+[2025-08-20 11:14:40,947][DL_COMM][OUTPUT] -               LOGGING RANK - 0    LOGGING RANK - 8  
+[2025-08-20 11:14:40,947][DL_COMM][OUTPUT] - ----------------------------------------------------
+[2025-08-20 11:14:40,947][DL_COMM][OUTPUT] - 0                 0.000615            0.000961      
+[2025-08-20 11:14:40,947][DL_COMM][OUTPUT] - 1                 0.000570            0.000475      
+[2025-08-20 11:14:40,947][DL_COMM][OUTPUT] - 2                 0.000410            0.000375      
+[2025-08-20 11:14:40,947][DL_COMM][OUTPUT] - 3                 0.000398            0.000368      
+[2025-08-20 11:14:40,947][DL_COMM][OUTPUT] - 4                 0.000399            0.000370      
+[2025-08-20 11:14:40,947][DL_COMM][OUTPUT] - 5                 0.000392            0.000411      
+[2025-08-20 11:14:40,947][DL_COMM][OUTPUT] - 6                 0.000401            0.000370      
+[2025-08-20 11:14:40,947][DL_COMM][OUTPUT] - 7                 0.000400            0.000390      
+[2025-08-20 11:14:40,948][DL_COMM][OUTPUT] - 8                 0.000398            0.000368      
+[2025-08-20 11:14:40,948][DL_COMM][OUTPUT] - 9                 0.000389            0.000363      
+[2025-08-20 11:14:40,948][DL_COMM][OUTPUT] - ----------------------------------------------------
+[2025-08-20 11:14:40,948][DL_COMM][OUTPUT] - 
+[2025-08-20 11:14:40,948][DL_COMM][OUTPUT] - [TIMERS] ---------------------------------------------------------
+[2025-08-20 11:14:40,948][DL_COMM][OUTPUT] - 
+[2025-08-20 11:14:40,948][DL_COMM][OUTPUT] - [BANDWIDTH] -------------------------------------------
+[2025-08-20 11:14:40,948][DL_COMM][OUTPUT] - 
+[2025-08-20 11:14:40,948][DL_COMM][OUTPUT] - [BANDWIDTH] BANDWIDTH TABLE FOR ALLGATHER (bytes/seconds):
+[2025-08-20 11:14:40,949][DL_COMM][OUTPUT] - Iteration     (Within-Group-0)    (Within-Group-1)  
+[2025-08-20 11:14:40,949][DL_COMM][OUTPUT] -               LOGGING RANK - 0    LOGGING RANK - 8  
+[2025-08-20 11:14:40,949][DL_COMM][OUTPUT] - ----------------------------------------------------
+[2025-08-20 11:14:40,949][DL_COMM][OUTPUT] - 0                1331714333          852738034      
+[2025-08-20 11:14:40,949][DL_COMM][OUTPUT] - 1                1436938455          1725466749     
+[2025-08-20 11:14:40,949][DL_COMM][OUTPUT] - 2                2000112107          2182374466     
+[2025-08-20 11:14:40,949][DL_COMM][OUTPUT] - 3                2059305793          2225252023     
+[2025-08-20 11:14:40,949][DL_COMM][OUTPUT] - 4                2050676067          2214766090     
+[2025-08-20 11:14:40,949][DL_COMM][OUTPUT] - 5                2091274270          1992465593     
+[2025-08-20 11:14:40,949][DL_COMM][OUTPUT] - 6                2041105476          2212672680     
+[2025-08-20 11:14:40,949][DL_COMM][OUTPUT] - 7                2048670078          2099226049     
+[2025-08-20 11:14:40,949][DL_COMM][OUTPUT] - 8                2056968978          2227067604     
+[2025-08-20 11:14:40,949][DL_COMM][OUTPUT] - 9                2105599138          2255519797     
+[2025-08-20 11:14:40,949][DL_COMM][OUTPUT] - ----------------------------------------------------
+[2025-08-20 11:14:40,949][DL_COMM][OUTPUT] - 
+[2025-08-20 11:14:40,949][DL_COMM][OUTPUT] - [BANDWIDTH] -------------------------------------------
+[2025-08-20 11:14:40,949][DL_COMM][INFO] - -------------------------------------------------------------------------
+[2025-08-20 11:14:40,949][DL_COMM][INFO] - [MPI] Job complete
+[2025-08-20 11:14:40,950][DL_COMM][INFO] - -------------------------------------------------------------------------
+[2025-08-20 11:14:40,950][DL_COMM][INFO] - -------------------------------------------------------------------------
+[2025-08-20 11:14:40,950][DL_COMM][INFO] - [EXIT] All Done.
+[2025-08-20 11:14:40,950][DL_COMM][INFO] - -------------------------------------------------------------------------
+[2025-08-20 11:14:40,950][DL_COMM][INFO] - 
+[2025-08-20 11:14:40,950][DL_COMM][INFO] - ================================================================================
+[2025-08-20 11:14:40,950][DL_COMM][INFO] - [TASK 3/10] ==================== REDUCESCATTER-SCALE ====================
+[2025-08-20 11:14:40,950][DL_COMM][INFO] - ================================================================================
+[2025-08-20 11:14:40,950][DL_COMM][INFO] - 
+[2025-08-20 11:14:40,951][DL_COMM][INFO] - 
+[2025-08-20 11:14:40,951][DL_COMM][INFO] - [CONFIG] Setup
+[2025-08-20 11:14:40,951][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-08-20 11:14:40,951][DL_COMM][INFO] - [CONFIG] Task Name            : reducescatter-scale
+[2025-08-20 11:14:40,951][DL_COMM][INFO] - [CONFIG] Framework            : pytorch
+[2025-08-20 11:14:40,951][DL_COMM][INFO] - [CONFIG] Backend              : nccl
+[2025-08-20 11:14:40,951][DL_COMM][INFO] - [CONFIG] Extended Logging     : False
+[2025-08-20 11:14:40,951][DL_COMM][INFO] - [CONFIG] Barrier Enabled      : True
+[2025-08-20 11:14:40,951][DL_COMM][INFO] - [CONFIG] World Size           : 16
+[2025-08-20 11:14:40,951][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-08-20 11:14:40,951][DL_COMM][INFO] - 
+[2025-08-20 11:14:40,951][DL_COMM][INFO] - [CONFIG] Communication Group
+[2025-08-20 11:14:40,951][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-08-20 11:14:40,952][DL_COMM][INFO] - [CONFIG] Mode                 : flatview
+[2025-08-20 11:14:40,952][DL_COMM][INFO] - [CONFIG] Topology             : 2 nodes x 8 devices
+[2025-08-20 11:14:40,952][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-08-20 11:14:40,952][DL_COMM][INFO] - 
+[2025-08-20 11:14:40,952][DL_COMM][INFO] - [CONFIG] Communication Group Details
+[2025-08-20 11:14:40,952][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-08-20 11:14:40,952][DL_COMM][INFO] - [CONFIG] Collective Name      : reducescatter
+[2025-08-20 11:14:40,952][DL_COMM][INFO] - [CONFIG] Operation            : sum
+[2025-08-20 11:14:40,952][DL_COMM][INFO] - [CONFIG] Scale Up Algorithm   : default
+[2025-08-20 11:14:40,952][DL_COMM][INFO] - [CONFIG] Scale Out Algorithm  : default
+[2025-08-20 11:14:40,952][DL_COMM][INFO] - [CONFIG] Data Type            : float32
+[2025-08-20 11:14:40,952][DL_COMM][INFO] - [CONFIG] Element Count        : 25600
+[2025-08-20 11:14:40,952][DL_COMM][INFO] - [CONFIG] Buffer Size          : 100KB (102400 bytes)
+[2025-08-20 11:14:40,952][DL_COMM][INFO] - [CONFIG] Iterations           : 10
+[2025-08-20 11:14:40,952][DL_COMM][INFO] - [CONFIG] Verify Correctness   : True
+[2025-08-20 11:14:40,952][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-08-20 11:14:40,953][DL_COMM][INFO] - 
+[2025-08-20 11:14:40,953][DL_COMM][INFO] - [COMM][CONFIG] Flatview: 2 nodes, 8 devices per node, Device IDs: [0, 1, 2, 3, 4, 5, 6, 7]
+[2025-08-20 11:14:40,953][DL_COMM][INFO] - 
+[2025-08-20 11:14:40,953][DL_COMM][INFO] - [COMM][GROUP CREATION] Flatview groups:
+[2025-08-20 11:14:40,953][DL_COMM][INFO] - [COMM][GROUP CREATION][Flatview] Ranks: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15], Required Devices: [0, 1, 2, 3, 4, 5, 6, 7], Logging: rank 0
+[2025-08-20 11:14:40,954][DL_COMM][OUTPUT] - 
+[2025-08-20 11:14:40,954][DL_COMM][OUTPUT] - [TIMERS - SETUP] ---------------------------------------------------------
+[2025-08-20 11:14:40,954][DL_COMM][OUTPUT] - [TIMERS][LOGGING RANK - 0] Group Creation (Flatview)           = 0.000498 s
+[2025-08-20 11:14:40,954][DL_COMM][OUTPUT] - [TIMERS - SETUP] ---------------------------------------------------------
+[2025-08-20 11:14:40,954][DL_COMM][OUTPUT] - 
+[2025-08-20 11:14:40,954][DL_COMM][OUTPUT] - [MPI] Launching profiling job
+[2025-08-20 11:14:41,742][DL_COMM][OUTPUT] - 
+[2025-08-20 11:14:41,742][DL_COMM][OUTPUT] - [TIMERS] ---------------------------------------------------------
+[2025-08-20 11:14:41,742][DL_COMM][OUTPUT] - 
+[2025-08-20 11:14:41,742][DL_COMM][INFO] -   [TIMERS] [BARRIER ENABLED] Timing measurements used MPI barriers for synchronization
+[2025-08-20 11:14:41,742][DL_COMM][OUTPUT] - 
+[2025-08-20 11:14:41,742][DL_COMM][OUTPUT] - [TIMERS] ITERATION TABLE FOR REDUCESCATTER (seconds):
+[2025-08-20 11:14:41,742][DL_COMM][OUTPUT] - Iteration        (Flatview)     
+[2025-08-20 11:14:41,742][DL_COMM][OUTPUT] -               LOGGING RANK - 0  
+[2025-08-20 11:14:41,743][DL_COMM][OUTPUT] - --------------------------------
+[2025-08-20 11:14:41,743][DL_COMM][OUTPUT] - 0                 0.002802      
+[2025-08-20 11:14:41,743][DL_COMM][OUTPUT] - 1                 0.019330      
+[2025-08-20 11:14:41,743][DL_COMM][OUTPUT] - 2                 0.018884      
+[2025-08-20 11:14:41,743][DL_COMM][OUTPUT] - 3                 0.018869      
+[2025-08-20 11:14:41,743][DL_COMM][OUTPUT] - 4                 0.018284      
+[2025-08-20 11:14:41,743][DL_COMM][OUTPUT] - 5                 0.000918      
+[2025-08-20 11:14:41,743][DL_COMM][OUTPUT] - 6                 0.000736      
+[2025-08-20 11:14:41,743][DL_COMM][OUTPUT] - 7                 0.000770      
+[2025-08-20 11:14:41,743][DL_COMM][OUTPUT] - 8                 0.000783      
+[2025-08-20 11:14:41,743][DL_COMM][OUTPUT] - 9                 0.000764      
+[2025-08-20 11:14:41,743][DL_COMM][OUTPUT] - --------------------------------
+[2025-08-20 11:14:41,743][DL_COMM][OUTPUT] - 
+[2025-08-20 11:14:41,743][DL_COMM][OUTPUT] - [TIMERS] ---------------------------------------------------------
+[2025-08-20 11:14:41,743][DL_COMM][OUTPUT] - 
+[2025-08-20 11:14:41,743][DL_COMM][OUTPUT] - [BANDWIDTH] -------------------------------------------
+[2025-08-20 11:14:41,743][DL_COMM][OUTPUT] - 
+[2025-08-20 11:14:41,744][DL_COMM][OUTPUT] - [BANDWIDTH] BANDWIDTH TABLE FOR REDUCESCATTER (bytes/seconds):
+[2025-08-20 11:14:41,744][DL_COMM][OUTPUT] - Iteration        (Flatview)     
+[2025-08-20 11:14:41,744][DL_COMM][OUTPUT] -               LOGGING RANK - 0  
+[2025-08-20 11:14:41,744][DL_COMM][OUTPUT] - --------------------------------
+[2025-08-20 11:14:41,744][DL_COMM][OUTPUT] - 0                584801603      
+[2025-08-20 11:14:41,744][DL_COMM][OUTPUT] - 1                 84757253      
+[2025-08-20 11:14:41,744][DL_COMM][OUTPUT] - 2                 86761960      
+[2025-08-20 11:14:41,744][DL_COMM][OUTPUT] - 3                 86828157      
+[2025-08-20 11:14:41,744][DL_COMM][OUTPUT] - 4                 89609704      
+[2025-08-20 11:14:41,744][DL_COMM][OUTPUT] - 5                1783907890     
+[2025-08-20 11:14:41,744][DL_COMM][OUTPUT] - 6                2227188138     
+[2025-08-20 11:14:41,744][DL_COMM][OUTPUT] - 7                2126712376     
+[2025-08-20 11:14:41,744][DL_COMM][OUTPUT] - 8                2093360866     
+[2025-08-20 11:14:41,744][DL_COMM][OUTPUT] - 9                2144194200     
+[2025-08-20 11:14:41,744][DL_COMM][OUTPUT] - --------------------------------
+[2025-08-20 11:14:41,744][DL_COMM][OUTPUT] - 
+[2025-08-20 11:14:41,744][DL_COMM][OUTPUT] - [BANDWIDTH] -------------------------------------------
+[2025-08-20 11:14:41,744][DL_COMM][INFO] - -------------------------------------------------------------------------
+[2025-08-20 11:14:41,745][DL_COMM][INFO] - [MPI] Job complete
+[2025-08-20 11:14:41,745][DL_COMM][INFO] - -------------------------------------------------------------------------
+[2025-08-20 11:14:41,745][DL_COMM][INFO] - -------------------------------------------------------------------------
+[2025-08-20 11:14:41,745][DL_COMM][INFO] - [EXIT] All Done.
+[2025-08-20 11:14:41,745][DL_COMM][INFO] - -------------------------------------------------------------------------
+[2025-08-20 11:14:41,745][DL_COMM][INFO] - 
+[2025-08-20 11:14:41,745][DL_COMM][INFO] - ================================================================================
+[2025-08-20 11:14:41,745][DL_COMM][INFO] - [TASK 4/10] ==================== BROADCAST-SCALE ====================
+[2025-08-20 11:14:41,745][DL_COMM][INFO] - ================================================================================
+[2025-08-20 11:14:41,745][DL_COMM][INFO] - 
+[2025-08-20 11:14:41,746][DL_COMM][INFO] - 
+[2025-08-20 11:14:41,746][DL_COMM][INFO] - [CONFIG] Setup
+[2025-08-20 11:14:41,746][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-08-20 11:14:41,746][DL_COMM][INFO] - [CONFIG] Task Name            : broadcast-scale
+[2025-08-20 11:14:41,746][DL_COMM][INFO] - [CONFIG] Framework            : pytorch
+[2025-08-20 11:14:41,746][DL_COMM][INFO] - [CONFIG] Backend              : nccl
+[2025-08-20 11:14:41,746][DL_COMM][INFO] - [CONFIG] Extended Logging     : False
+[2025-08-20 11:14:41,746][DL_COMM][INFO] - [CONFIG] Barrier Enabled      : True
+[2025-08-20 11:14:41,746][DL_COMM][INFO] - [CONFIG] World Size           : 16
+[2025-08-20 11:14:41,746][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-08-20 11:14:41,746][DL_COMM][INFO] - 
+[2025-08-20 11:14:41,747][DL_COMM][INFO] - [CONFIG] Communication Group
+[2025-08-20 11:14:41,747][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-08-20 11:14:41,747][DL_COMM][INFO] - [CONFIG] Mode                 : across_node
+[2025-08-20 11:14:41,747][DL_COMM][INFO] - [CONFIG] Topology             : 2 nodes x 8 devices
+[2025-08-20 11:14:41,747][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-08-20 11:14:41,747][DL_COMM][INFO] - 
+[2025-08-20 11:14:41,747][DL_COMM][INFO] - [CONFIG] Communication Group Details
+[2025-08-20 11:14:41,747][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-08-20 11:14:41,747][DL_COMM][INFO] - [CONFIG] Collective Name      : broadcast
+[2025-08-20 11:14:41,747][DL_COMM][INFO] - [CONFIG] Operation            : N/A
+[2025-08-20 11:14:41,747][DL_COMM][INFO] - [CONFIG] Scale Up Algorithm   : default
+[2025-08-20 11:14:41,747][DL_COMM][INFO] - [CONFIG] Scale Out Algorithm  : default
+[2025-08-20 11:14:41,747][DL_COMM][INFO] - [CONFIG] Data Type            : float32
+[2025-08-20 11:14:41,747][DL_COMM][INFO] - [CONFIG] Element Count        : 25600
+[2025-08-20 11:14:41,747][DL_COMM][INFO] - [CONFIG] Buffer Size          : 100KB (102400 bytes)
+[2025-08-20 11:14:41,748][DL_COMM][INFO] - [CONFIG] Iterations           : 10
+[2025-08-20 11:14:41,748][DL_COMM][INFO] - [CONFIG] Verify Correctness   : True
+[2025-08-20 11:14:41,748][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-08-20 11:14:41,748][DL_COMM][INFO] - 
+[2025-08-20 11:14:41,748][DL_COMM][INFO] - 
+[2025-08-20 11:14:41,748][DL_COMM][INFO] - [COMM][CONFIG] Setting up communication groups for mode: Across
+[2025-08-20 11:14:41,748][DL_COMM][INFO] - [COMM][CONFIG] Across-node: 2 nodes, 8 devices per node, Device IDs: [0, 1, 2, 3, 4, 5, 6, 7]
+[2025-08-20 11:14:41,748][DL_COMM][INFO] - [COMM][GROUP CREATION] Across-node groups:
+[2025-08-20 11:14:41,748][DL_COMM][INFO] - [COMM][GROUP CREATION][Across Group-0] Ranks: [0, 8], Device ID: 0, Logging: rank 0
+[2025-08-20 11:14:41,748][DL_COMM][INFO] - [COMM][GROUP CREATION][Across Group-1] Ranks: [1, 9], Device ID: 1, Logging: rank 1
+[2025-08-20 11:14:41,749][DL_COMM][INFO] - [COMM][GROUP CREATION][Across Group-2] Ranks: [2, 10], Device ID: 2, Logging: rank 2
+[2025-08-20 11:14:41,749][DL_COMM][INFO] - [COMM][GROUP CREATION][Across Group-3] Ranks: [3, 11], Device ID: 3, Logging: rank 3
+[2025-08-20 11:14:41,749][DL_COMM][INFO] - [COMM][GROUP CREATION][Across Group-4] Ranks: [4, 12], Device ID: 4, Logging: rank 4
+[2025-08-20 11:14:41,749][DL_COMM][INFO] - [COMM][GROUP CREATION][Across Group-5] Ranks: [5, 13], Device ID: 5, Logging: rank 5
+[2025-08-20 11:14:41,749][DL_COMM][INFO] - [COMM][GROUP CREATION][Across Group-6] Ranks: [6, 14], Device ID: 6, Logging: rank 6
+[2025-08-20 11:14:41,749][DL_COMM][INFO] - [COMM][GROUP CREATION][Across Group-7] Ranks: [7, 15], Device ID: 7, Logging: rank 7
+[2025-08-20 11:14:41,749][DL_COMM][INFO] - [COMM][GROUP CREATION] Created 8 across-node groups
+[2025-08-20 11:14:41,749][DL_COMM][INFO] - 
+[2025-08-20 11:14:41,749][DL_COMM][OUTPUT] - 
+[2025-08-20 11:14:41,750][DL_COMM][OUTPUT] - [TIMERS - SETUP] ---------------------------------------------------------
+[2025-08-20 11:14:41,750][DL_COMM][OUTPUT] - [TIMERS][LOGGING RANK - 0] Group Creation (Across)             = 0.001142 s
+[2025-08-20 11:14:41,750][DL_COMM][OUTPUT] - [TIMERS - SETUP] ---------------------------------------------------------
+[2025-08-20 11:14:41,750][DL_COMM][OUTPUT] - 
+[2025-08-20 11:14:41,750][DL_COMM][OUTPUT] - [MPI] Launching profiling job
+[2025-08-20 11:14:42,031][DL_COMM][OUTPUT] - 
+[2025-08-20 11:14:42,032][DL_COMM][OUTPUT] - [TIMERS] ---------------------------------------------------------
+[2025-08-20 11:14:42,032][DL_COMM][OUTPUT] - 
+[2025-08-20 11:14:42,032][DL_COMM][INFO] -   [TIMERS] [BARRIER ENABLED] Timing measurements used MPI barriers for synchronization
+[2025-08-20 11:14:42,032][DL_COMM][OUTPUT] - 
+[2025-08-20 11:14:42,032][DL_COMM][OUTPUT] - [TIMERS] ITERATION TABLE FOR BROADCAST (seconds):
+[2025-08-20 11:14:42,032][DL_COMM][OUTPUT] - Iteration     (Across-Group-0)    (Across-Group-1)    (Across-Group-2)    (Across-Group-3)    (Across-Group-4)    (Across-Group-5)    (Across-Group-6)    (Across-Group-7)  
+[2025-08-20 11:14:42,032][DL_COMM][OUTPUT] -               LOGGING RANK - 0    LOGGING RANK - 1    LOGGING RANK - 2    LOGGING RANK - 3    LOGGING RANK - 4    LOGGING RANK - 5    LOGGING RANK - 6    LOGGING RANK - 7  
+[2025-08-20 11:14:42,032][DL_COMM][OUTPUT] - ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+[2025-08-20 11:14:42,032][DL_COMM][OUTPUT] - 0                 0.000566            0.000587            0.000935            0.000494            0.000548            0.000444            0.010179            0.000477      
+[2025-08-20 11:14:42,032][DL_COMM][OUTPUT] - 1                 0.011493            0.010774            0.005809            0.011761            0.008413            0.000379            0.000403            0.009626      
+[2025-08-20 11:14:42,032][DL_COMM][OUTPUT] - 2                 0.000387            0.011765            0.000383            0.000353            0.000451            0.000358            0.000367            0.000381      
+[2025-08-20 11:14:42,032][DL_COMM][OUTPUT] - 3                 0.000400            0.011768            0.000373            0.000355            0.000417            0.000353            0.000362            0.000358      
+[2025-08-20 11:14:42,032][DL_COMM][OUTPUT] - 4                 0.000368            0.002619            0.000398            0.000359            0.000366            0.000352            0.000384            0.000362      
+[2025-08-20 11:14:42,032][DL_COMM][OUTPUT] - 5                 0.000358            0.000349            0.000377            0.000353            0.000388            0.000351            0.000382            0.000367      
+[2025-08-20 11:14:42,032][DL_COMM][OUTPUT] - 6                 0.000368            0.000349            0.000391            0.000348            0.000377            0.000361            0.000372            0.000358      
+[2025-08-20 11:14:42,033][DL_COMM][OUTPUT] - 7                 0.000371            0.000351            0.000418            0.000357            0.000374            0.000357            0.000404            0.000364      
+[2025-08-20 11:14:42,033][DL_COMM][OUTPUT] - 8                 0.000368            0.000359            0.000396            0.000356            0.000391            0.000358            0.000404            0.000366      
+[2025-08-20 11:14:42,033][DL_COMM][OUTPUT] - 9                 0.000377            0.000343            0.000412            0.000353            0.000400            0.000365            0.000400            0.000371      
+[2025-08-20 11:14:42,033][DL_COMM][OUTPUT] - ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+[2025-08-20 11:14:42,033][DL_COMM][OUTPUT] - 
+[2025-08-20 11:14:42,033][DL_COMM][OUTPUT] - [TIMERS] ---------------------------------------------------------
+[2025-08-20 11:14:42,033][DL_COMM][OUTPUT] - 
+[2025-08-20 11:14:42,033][DL_COMM][OUTPUT] - [BANDWIDTH] -------------------------------------------
+[2025-08-20 11:14:42,035][DL_COMM][OUTPUT] - 
+[2025-08-20 11:14:42,035][DL_COMM][OUTPUT] - [BANDWIDTH] BANDWIDTH TABLE FOR BROADCAST (bytes/seconds):
+[2025-08-20 11:14:42,035][DL_COMM][OUTPUT] - Iteration     (Across-Group-0)    (Across-Group-1)    (Across-Group-2)    (Across-Group-3)    (Across-Group-4)    (Across-Group-5)    (Across-Group-6)    (Across-Group-7)  
+[2025-08-20 11:14:42,035][DL_COMM][OUTPUT] -               LOGGING RANK - 0    LOGGING RANK - 1    LOGGING RANK - 2    LOGGING RANK - 3    LOGGING RANK - 4    LOGGING RANK - 5    LOGGING RANK - 6    LOGGING RANK - 7  
+[2025-08-20 11:14:42,035][DL_COMM][OUTPUT] - ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+[2025-08-20 11:14:42,035][DL_COMM][OUTPUT] - 0                1447262599          1396110506          876193680           1659792080          1494099596          1846122030           80477372           1716658352     
+[2025-08-20 11:14:42,035][DL_COMM][OUTPUT] - 1                 71280893            76033855           141018911            69654297            97367791           2162001679          2033844569           85100893      
+[2025-08-20 11:14:42,035][DL_COMM][OUTPUT] - 2                2115461215           69628905           2137748697          2322725826          1817274153          2286735275          2229983793          2148641638     
+[2025-08-20 11:14:42,035][DL_COMM][OUTPUT] - 3                2047339696           69615225           2198444790          2309733093          1964644813          2320088367          2261565434          2285714700     
+[2025-08-20 11:14:42,035][DL_COMM][OUTPUT] - 4                2225736264          312842742           2056038620          2281634096          2239328367          2325303206          2134010622          2260130111     
+[2025-08-20 11:14:42,035][DL_COMM][OUTPUT] - 5                2290770027          2349418333          2174529894          2322002302          2113436983          2333996834          2141833621          2232176659     
+[2025-08-20 11:14:42,035][DL_COMM][OUTPUT] - 6                2227435589          2346995451          2094113409          2356874956          2175114667          2268340919          2204135472          2287634789     
+[2025-08-20 11:14:42,035][DL_COMM][OUTPUT] - 7                2209372786          2337064916          1961348295          2297076852          2191606039          2295660520          2028043941          2252591284     
+[2025-08-20 11:14:42,036][DL_COMM][OUTPUT] - 8                2225736264          2284376114          2069569120          2299276000          2093785662          2290064781          2026935191          2238288430     
+[2025-08-20 11:14:42,036][DL_COMM][OUTPUT] - 9                2172102757          2386591444          1987471790          2323917864          2047903348          2244917794          2045902777          2210630447     
+[2025-08-20 11:14:42,036][DL_COMM][OUTPUT] - ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+[2025-08-20 11:14:42,036][DL_COMM][OUTPUT] - 
+[2025-08-20 11:14:42,036][DL_COMM][OUTPUT] - [BANDWIDTH] -------------------------------------------
+[2025-08-20 11:14:42,036][DL_COMM][INFO] - -------------------------------------------------------------------------
+[2025-08-20 11:14:42,036][DL_COMM][INFO] - [MPI] Job complete
+[2025-08-20 11:14:42,036][DL_COMM][INFO] - -------------------------------------------------------------------------
+[2025-08-20 11:14:42,036][DL_COMM][INFO] - -------------------------------------------------------------------------
+[2025-08-20 11:14:42,036][DL_COMM][INFO] - [EXIT] All Done.
+[2025-08-20 11:14:42,036][DL_COMM][INFO] - -------------------------------------------------------------------------
+[2025-08-20 11:14:42,036][DL_COMM][INFO] - 
+[2025-08-20 11:14:42,036][DL_COMM][INFO] - ================================================================================
+[2025-08-20 11:14:42,036][DL_COMM][INFO] - [TASK 5/10] ==================== REDUCE-SCALE ====================
+[2025-08-20 11:14:42,036][DL_COMM][INFO] - ================================================================================
+[2025-08-20 11:14:42,036][DL_COMM][INFO] - 
+[2025-08-20 11:14:42,037][DL_COMM][INFO] - 
+[2025-08-20 11:14:42,037][DL_COMM][INFO] - [CONFIG] Setup
+[2025-08-20 11:14:42,037][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-08-20 11:14:42,037][DL_COMM][INFO] - [CONFIG] Task Name            : reduce-scale
+[2025-08-20 11:14:42,037][DL_COMM][INFO] - [CONFIG] Framework            : pytorch
+[2025-08-20 11:14:42,037][DL_COMM][INFO] - [CONFIG] Backend              : nccl
+[2025-08-20 11:14:42,037][DL_COMM][INFO] - [CONFIG] Extended Logging     : False
+[2025-08-20 11:14:42,038][DL_COMM][INFO] - [CONFIG] Barrier Enabled      : True
+[2025-08-20 11:14:42,038][DL_COMM][INFO] - [CONFIG] World Size           : 16
+[2025-08-20 11:14:42,038][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-08-20 11:14:42,038][DL_COMM][INFO] - 
+[2025-08-20 11:14:42,038][DL_COMM][INFO] - [CONFIG] Communication Group
+[2025-08-20 11:14:42,038][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-08-20 11:14:42,038][DL_COMM][INFO] - [CONFIG] Mode                 : across_node
+[2025-08-20 11:14:42,038][DL_COMM][INFO] - [CONFIG] Topology             : 2 nodes x 8 devices
+[2025-08-20 11:14:42,038][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-08-20 11:14:42,038][DL_COMM][INFO] - 
+[2025-08-20 11:14:42,038][DL_COMM][INFO] - [CONFIG] Communication Group Details
+[2025-08-20 11:14:42,038][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-08-20 11:14:42,038][DL_COMM][INFO] - [CONFIG] Collective Name      : reduce
+[2025-08-20 11:14:42,038][DL_COMM][INFO] - [CONFIG] Operation            : sum
+[2025-08-20 11:14:42,038][DL_COMM][INFO] - [CONFIG] Scale Up Algorithm   : default
+[2025-08-20 11:14:42,038][DL_COMM][INFO] - [CONFIG] Scale Out Algorithm  : default
+[2025-08-20 11:14:42,039][DL_COMM][INFO] - [CONFIG] Data Type            : float32
+[2025-08-20 11:14:42,039][DL_COMM][INFO] - [CONFIG] Element Count        : 25600
+[2025-08-20 11:14:42,039][DL_COMM][INFO] - [CONFIG] Buffer Size          : 100KB (102400 bytes)
+[2025-08-20 11:14:42,039][DL_COMM][INFO] - [CONFIG] Iterations           : 10
+[2025-08-20 11:14:42,039][DL_COMM][INFO] - [CONFIG] Verify Correctness   : True
+[2025-08-20 11:14:42,039][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-08-20 11:14:42,039][DL_COMM][INFO] - 
+[2025-08-20 11:14:42,039][DL_COMM][INFO] - 
+[2025-08-20 11:14:42,039][DL_COMM][INFO] - [COMM][CONFIG] Setting up communication groups for mode: Across
+[2025-08-20 11:14:42,039][DL_COMM][INFO] - [COMM][CONFIG] Across-node: 2 nodes, 8 devices per node, Device IDs: [0, 1, 2, 3, 4, 5, 6, 7]
+[2025-08-20 11:14:42,039][DL_COMM][INFO] - [COMM][GROUP CREATION] Across-node groups:
+[2025-08-20 11:14:42,039][DL_COMM][INFO] - [COMM][GROUP CREATION][Across Group-0] Ranks: [0, 8], Device ID: 0, Logging: rank 0
+[2025-08-20 11:14:42,040][DL_COMM][INFO] - [COMM][GROUP CREATION][Across Group-1] Ranks: [1, 9], Device ID: 1, Logging: rank 1
+[2025-08-20 11:14:42,040][DL_COMM][INFO] - [COMM][GROUP CREATION][Across Group-2] Ranks: [2, 10], Device ID: 2, Logging: rank 2
+[2025-08-20 11:14:42,040][DL_COMM][INFO] - [COMM][GROUP CREATION][Across Group-3] Ranks: [3, 11], Device ID: 3, Logging: rank 3
+[2025-08-20 11:14:42,040][DL_COMM][INFO] - [COMM][GROUP CREATION][Across Group-4] Ranks: [4, 12], Device ID: 4, Logging: rank 4
+[2025-08-20 11:14:42,040][DL_COMM][INFO] - [COMM][GROUP CREATION][Across Group-5] Ranks: [5, 13], Device ID: 5, Logging: rank 5
+[2025-08-20 11:14:42,040][DL_COMM][INFO] - [COMM][GROUP CREATION][Across Group-6] Ranks: [6, 14], Device ID: 6, Logging: rank 6
+[2025-08-20 11:14:42,040][DL_COMM][INFO] - [COMM][GROUP CREATION][Across Group-7] Ranks: [7, 15], Device ID: 7, Logging: rank 7
+[2025-08-20 11:14:42,040][DL_COMM][INFO] - [COMM][GROUP CREATION] Created 8 across-node groups
+[2025-08-20 11:14:42,041][DL_COMM][INFO] - 
+[2025-08-20 11:14:42,041][DL_COMM][OUTPUT] - 
+[2025-08-20 11:14:42,041][DL_COMM][OUTPUT] - [TIMERS - SETUP] ---------------------------------------------------------
+[2025-08-20 11:14:42,041][DL_COMM][OUTPUT] - [TIMERS][LOGGING RANK - 0] Group Creation (Across)             = 0.001122 s
+[2025-08-20 11:14:42,041][DL_COMM][OUTPUT] - [TIMERS - SETUP] ---------------------------------------------------------
+[2025-08-20 11:14:42,041][DL_COMM][OUTPUT] - 
+[2025-08-20 11:14:42,041][DL_COMM][OUTPUT] - [MPI] Launching profiling job
+[2025-08-20 11:14:42,236][DL_COMM][OUTPUT] - 
+[2025-08-20 11:14:42,236][DL_COMM][OUTPUT] - [TIMERS] ---------------------------------------------------------
+[2025-08-20 11:14:42,236][DL_COMM][OUTPUT] - 
+[2025-08-20 11:14:42,236][DL_COMM][INFO] -   [TIMERS] [BARRIER ENABLED] Timing measurements used MPI barriers for synchronization
+[2025-08-20 11:14:42,236][DL_COMM][OUTPUT] - 
+[2025-08-20 11:14:42,236][DL_COMM][OUTPUT] - [TIMERS] ITERATION TABLE FOR REDUCE (seconds):
+[2025-08-20 11:14:42,236][DL_COMM][OUTPUT] - Iteration     (Across-Group-0)    (Across-Group-1)    (Across-Group-2)    (Across-Group-3)    (Across-Group-4)    (Across-Group-5)    (Across-Group-6)    (Across-Group-7)  
+[2025-08-20 11:14:42,236][DL_COMM][OUTPUT] -               LOGGING RANK - 0    LOGGING RANK - 1    LOGGING RANK - 2    LOGGING RANK - 3    LOGGING RANK - 4    LOGGING RANK - 5    LOGGING RANK - 6    LOGGING RANK - 7  
+[2025-08-20 11:14:42,237][DL_COMM][OUTPUT] - ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+[2025-08-20 11:14:42,237][DL_COMM][OUTPUT] - 0                 0.000493            0.000484            0.000591            0.000482            0.008712            0.006532            0.000481            0.000458      
+[2025-08-20 11:14:42,237][DL_COMM][OUTPUT] - 1                 0.000411            0.000404            0.000390            0.000366            0.000378            0.000363            0.000412            0.000375      
+[2025-08-20 11:14:42,237][DL_COMM][OUTPUT] - 2                 0.000397            0.000372            0.000380            0.000352            0.000365            0.000351            0.000425            0.000356      
+[2025-08-20 11:14:42,237][DL_COMM][OUTPUT] - 3                 0.000398            0.000380            0.000367            0.000343            0.000366            0.000348            0.000437            0.000355      
+[2025-08-20 11:14:42,237][DL_COMM][OUTPUT] - 4                 0.000423            0.000374            0.000382            0.000381            0.000372            0.000364            0.000447            0.000378      
+[2025-08-20 11:14:42,237][DL_COMM][OUTPUT] - 5                 0.000404            0.000376            0.000382            0.000354            0.000376            0.000353            0.000433            0.000355      
+[2025-08-20 11:14:42,237][DL_COMM][OUTPUT] - 6                 0.000455            0.000390            0.000380            0.000345            0.000362            0.000345            0.000430            0.000364      
+[2025-08-20 11:14:42,237][DL_COMM][OUTPUT] - 7                 0.000488            0.000385            0.000413            0.000356            0.000370            0.000349            0.000408            0.000359      
+[2025-08-20 11:14:42,237][DL_COMM][OUTPUT] - 8                 0.000464            0.000394            0.000413            0.000361            0.000356            0.000351            0.000410            0.000356      
+[2025-08-20 11:14:42,237][DL_COMM][OUTPUT] - 9                 0.000442            0.000387            0.000438            0.000354            0.000353            0.000346            0.000430            0.000353      
+[2025-08-20 11:14:42,237][DL_COMM][OUTPUT] - ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+[2025-08-20 11:14:42,237][DL_COMM][OUTPUT] - 
+[2025-08-20 11:14:42,237][DL_COMM][OUTPUT] - [TIMERS] ---------------------------------------------------------
+[2025-08-20 11:14:42,237][DL_COMM][OUTPUT] - 
+[2025-08-20 11:14:42,237][DL_COMM][OUTPUT] - [BANDWIDTH] -------------------------------------------
+[2025-08-20 11:14:42,239][DL_COMM][OUTPUT] - 
+[2025-08-20 11:14:42,239][DL_COMM][OUTPUT] - [BANDWIDTH] BANDWIDTH TABLE FOR REDUCE (bytes/seconds):
+[2025-08-20 11:14:42,239][DL_COMM][OUTPUT] - Iteration     (Across-Group-0)    (Across-Group-1)    (Across-Group-2)    (Across-Group-3)    (Across-Group-4)    (Across-Group-5)    (Across-Group-6)    (Across-Group-7)  
+[2025-08-20 11:14:42,239][DL_COMM][OUTPUT] -               LOGGING RANK - 0    LOGGING RANK - 1    LOGGING RANK - 2    LOGGING RANK - 3    LOGGING RANK - 4    LOGGING RANK - 5    LOGGING RANK - 6    LOGGING RANK - 7  
+[2025-08-20 11:14:42,239][DL_COMM][OUTPUT] - ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+[2025-08-20 11:14:42,239][DL_COMM][OUTPUT] - 0                1663201956          1692181156          1385651744          1698334173           94034285           125413526           1701975221          1788650854     
+[2025-08-20 11:14:42,240][DL_COMM][OUTPUT] - 1                1995230420          2028597017          2098354689          2238104761          2169628853          2256823322          1990276805          2182194445     
+[2025-08-20 11:14:42,240][DL_COMM][OUTPUT] - 2                2064656689          2203541894          2154082366          2329674303          2245664300          2332534622          1927365856          2301220456     
+[2025-08-20 11:14:42,240][DL_COMM][OUTPUT] - 3                2059409453          2158345193          2230171786          2385965113          2238655859          2354496549          1875160730          2308170886     
+[2025-08-20 11:14:42,240][DL_COMM][OUTPUT] - 4                1938374837          2191963762          2142624034          2151530900          2204076100          2247888129          1831436733          2169802793     
+[2025-08-20 11:14:42,240][DL_COMM][OUTPUT] - 5                2028094208          2178532793          2146389754          2316675627          2179923042          2322595497          1891257707          2308885815     
+[2025-08-20 11:14:42,240][DL_COMM][OUTPUT] - 6                1799912834          2098785271          2156634602          2377084730          2260124304          2373425530          1906690639          2250116367     
+[2025-08-20 11:14:42,240][DL_COMM][OUTPUT] - 7                1679945344          2129174360          1983324338          2301349902          2215605679          2344168296          2007971082          2279468550     
+[2025-08-20 11:14:42,240][DL_COMM][OUTPUT] - 8                1764068912          2076932100          1982028318          2267399522          2298888405          2335133828          1996350055          2298181154     
+[2025-08-20 11:14:42,240][DL_COMM][OUTPUT] - 9                1854702393          2116609111          1871814817          2316539876          2318250899          2367239279          1906557357          2319497981     
+[2025-08-20 11:14:42,240][DL_COMM][OUTPUT] - ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+[2025-08-20 11:14:42,240][DL_COMM][OUTPUT] - 
+[2025-08-20 11:14:42,240][DL_COMM][OUTPUT] - [BANDWIDTH] -------------------------------------------
+[2025-08-20 11:14:42,240][DL_COMM][INFO] - -------------------------------------------------------------------------
+[2025-08-20 11:14:42,240][DL_COMM][INFO] - [MPI] Job complete
+[2025-08-20 11:14:42,240][DL_COMM][INFO] - -------------------------------------------------------------------------
+[2025-08-20 11:14:42,240][DL_COMM][INFO] - -------------------------------------------------------------------------
+[2025-08-20 11:14:42,240][DL_COMM][INFO] - [EXIT] All Done.
+[2025-08-20 11:14:42,241][DL_COMM][INFO] - -------------------------------------------------------------------------
+[2025-08-20 11:14:42,241][DL_COMM][INFO] - 
+[2025-08-20 11:14:42,241][DL_COMM][INFO] - ================================================================================
+[2025-08-20 11:14:42,241][DL_COMM][INFO] - [TASK 6/10] ==================== ALLTOALL-SCALE ====================
+[2025-08-20 11:14:42,241][DL_COMM][INFO] - ================================================================================
+[2025-08-20 11:14:42,241][DL_COMM][INFO] - 
+[2025-08-20 11:14:42,241][DL_COMM][INFO] - 
+[2025-08-20 11:14:42,242][DL_COMM][INFO] - [CONFIG] Setup
+[2025-08-20 11:14:42,242][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-08-20 11:14:42,242][DL_COMM][INFO] - [CONFIG] Task Name            : alltoall-scale
+[2025-08-20 11:14:42,242][DL_COMM][INFO] - [CONFIG] Framework            : pytorch
+[2025-08-20 11:14:42,242][DL_COMM][INFO] - [CONFIG] Backend              : nccl
+[2025-08-20 11:14:42,242][DL_COMM][INFO] - [CONFIG] Extended Logging     : False
+[2025-08-20 11:14:42,242][DL_COMM][INFO] - [CONFIG] Barrier Enabled      : True
+[2025-08-20 11:14:42,242][DL_COMM][INFO] - [CONFIG] World Size           : 16
+[2025-08-20 11:14:42,242][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-08-20 11:14:42,242][DL_COMM][INFO] - 
+[2025-08-20 11:14:42,242][DL_COMM][INFO] - [CONFIG] Communication Group
+[2025-08-20 11:14:42,242][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-08-20 11:14:42,242][DL_COMM][INFO] - [CONFIG] Mode                 : across_node
+[2025-08-20 11:14:42,242][DL_COMM][INFO] - [CONFIG] Topology             : 2 nodes x 8 devices
+[2025-08-20 11:14:42,242][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-08-20 11:14:42,242][DL_COMM][INFO] - 
+[2025-08-20 11:14:42,243][DL_COMM][INFO] - [CONFIG] Communication Group Details
+[2025-08-20 11:14:42,243][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-08-20 11:14:42,243][DL_COMM][INFO] - [CONFIG] Collective Name      : alltoall
+[2025-08-20 11:14:42,243][DL_COMM][INFO] - [CONFIG] Operation            : N/A
+[2025-08-20 11:14:42,243][DL_COMM][INFO] - [CONFIG] Scale Up Algorithm   : default
+[2025-08-20 11:14:42,243][DL_COMM][INFO] - [CONFIG] Scale Out Algorithm  : default
+[2025-08-20 11:14:42,243][DL_COMM][INFO] - [CONFIG] Data Type            : float32
+[2025-08-20 11:14:42,243][DL_COMM][INFO] - [CONFIG] Element Count        : 25600
+[2025-08-20 11:14:42,243][DL_COMM][INFO] - [CONFIG] Buffer Size          : 100KB (102400 bytes)
+[2025-08-20 11:14:42,243][DL_COMM][INFO] - [CONFIG] Iterations           : 10
+[2025-08-20 11:14:42,243][DL_COMM][INFO] - [CONFIG] Verify Correctness   : True
+[2025-08-20 11:14:42,243][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-08-20 11:14:42,243][DL_COMM][INFO] - 
+[2025-08-20 11:14:42,243][DL_COMM][INFO] - 
+[2025-08-20 11:14:42,244][DL_COMM][INFO] - [COMM][CONFIG] Setting up communication groups for mode: Across
+[2025-08-20 11:14:42,244][DL_COMM][INFO] - [COMM][CONFIG] Across-node: 2 nodes, 8 devices per node, Device IDs: [0, 1, 2, 3, 4, 5, 6, 7]
+[2025-08-20 11:14:42,244][DL_COMM][INFO] - [COMM][GROUP CREATION] Across-node groups:
+[2025-08-20 11:14:42,244][DL_COMM][INFO] - [COMM][GROUP CREATION][Across Group-0] Ranks: [0, 8], Device ID: 0, Logging: rank 0
+[2025-08-20 11:14:42,244][DL_COMM][INFO] - [COMM][GROUP CREATION][Across Group-1] Ranks: [1, 9], Device ID: 1, Logging: rank 1
+[2025-08-20 11:14:42,244][DL_COMM][INFO] - [COMM][GROUP CREATION][Across Group-2] Ranks: [2, 10], Device ID: 2, Logging: rank 2
+[2025-08-20 11:14:42,244][DL_COMM][INFO] - [COMM][GROUP CREATION][Across Group-3] Ranks: [3, 11], Device ID: 3, Logging: rank 3
+[2025-08-20 11:14:42,244][DL_COMM][INFO] - [COMM][GROUP CREATION][Across Group-4] Ranks: [4, 12], Device ID: 4, Logging: rank 4
+[2025-08-20 11:14:42,245][DL_COMM][INFO] - [COMM][GROUP CREATION][Across Group-5] Ranks: [5, 13], Device ID: 5, Logging: rank 5
+[2025-08-20 11:14:42,245][DL_COMM][INFO] - [COMM][GROUP CREATION][Across Group-6] Ranks: [6, 14], Device ID: 6, Logging: rank 6
+[2025-08-20 11:14:42,245][DL_COMM][INFO] - [COMM][GROUP CREATION][Across Group-7] Ranks: [7, 15], Device ID: 7, Logging: rank 7
+[2025-08-20 11:14:42,245][DL_COMM][INFO] - [COMM][GROUP CREATION] Created 8 across-node groups
+[2025-08-20 11:14:42,245][DL_COMM][INFO] - 
+[2025-08-20 11:14:42,245][DL_COMM][OUTPUT] - 
+[2025-08-20 11:14:42,245][DL_COMM][OUTPUT] - [TIMERS - SETUP] ---------------------------------------------------------
+[2025-08-20 11:14:42,245][DL_COMM][OUTPUT] - [TIMERS][LOGGING RANK - 0] Group Creation (Across)             = 0.001078 s
+[2025-08-20 11:14:42,245][DL_COMM][OUTPUT] - [TIMERS - SETUP] ---------------------------------------------------------
+[2025-08-20 11:14:42,246][DL_COMM][OUTPUT] - 
+[2025-08-20 11:14:42,246][DL_COMM][OUTPUT] - [MPI] Launching profiling job
+[2025-08-20 11:14:42,506][DL_COMM][OUTPUT] - 
+[2025-08-20 11:14:42,506][DL_COMM][OUTPUT] - [TIMERS] ---------------------------------------------------------
+[2025-08-20 11:14:42,506][DL_COMM][OUTPUT] - 
+[2025-08-20 11:14:42,506][DL_COMM][INFO] -   [TIMERS] [BARRIER ENABLED] Timing measurements used MPI barriers for synchronization
+[2025-08-20 11:14:42,506][DL_COMM][OUTPUT] - 
+[2025-08-20 11:14:42,506][DL_COMM][OUTPUT] - [TIMERS] ITERATION TABLE FOR ALLTOALL (seconds):
+[2025-08-20 11:14:42,506][DL_COMM][OUTPUT] - Iteration     (Across-Group-0)    (Across-Group-1)    (Across-Group-2)    (Across-Group-3)    (Across-Group-4)    (Across-Group-5)    (Across-Group-6)    (Across-Group-7)  
+[2025-08-20 11:14:42,506][DL_COMM][OUTPUT] -               LOGGING RANK - 0    LOGGING RANK - 1    LOGGING RANK - 2    LOGGING RANK - 3    LOGGING RANK - 4    LOGGING RANK - 5    LOGGING RANK - 6    LOGGING RANK - 7  
+[2025-08-20 11:14:42,506][DL_COMM][OUTPUT] - ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+[2025-08-20 11:14:42,506][DL_COMM][OUTPUT] - 0                 0.070285            0.046294            0.046321            0.041101            0.052106            0.049876            0.042312            0.039135      
+[2025-08-20 11:14:42,506][DL_COMM][OUTPUT] - 1                 0.000561            0.000516            0.000582            0.000529            0.011834            0.000696            0.000562            0.009760      
+[2025-08-20 11:14:42,506][DL_COMM][OUTPUT] - 2                 0.000528            0.000508            0.000539            0.000522            0.000535            0.000478            0.000579            0.000481      
+[2025-08-20 11:14:42,506][DL_COMM][OUTPUT] - 3                 0.000515            0.000489            0.000512            0.000494            0.000511            0.000494            0.000561            0.000490      
+[2025-08-20 11:14:42,506][DL_COMM][OUTPUT] - 4                 0.000526            0.000486            0.000632            0.000504            0.000518            0.000471            0.000549            0.000491      
+[2025-08-20 11:14:42,506][DL_COMM][OUTPUT] - 5                 0.000515            0.000488            0.002208            0.000494            0.000516            0.000479            0.000525            0.000485      
+[2025-08-20 11:14:42,507][DL_COMM][OUTPUT] - 6                 0.000525            0.000492            0.000545            0.000503            0.000516            0.000481            0.000505            0.000474      
+[2025-08-20 11:14:42,507][DL_COMM][OUTPUT] - 7                 0.000524            0.000475            0.000560            0.000491            0.000526            0.000476            0.000515            0.000486      
+[2025-08-20 11:14:42,507][DL_COMM][OUTPUT] - 8                 0.000527            0.000484            0.000547            0.000494            0.000517            0.000477            0.000511            0.000483      
+[2025-08-20 11:14:42,507][DL_COMM][OUTPUT] - 9                 0.000521            0.000482            0.000548            0.000500            0.000516            0.000484            0.000504            0.000493      
+[2025-08-20 11:14:42,507][DL_COMM][OUTPUT] - ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+[2025-08-20 11:14:42,507][DL_COMM][OUTPUT] - 
+[2025-08-20 11:14:42,507][DL_COMM][OUTPUT] - [TIMERS] ---------------------------------------------------------
+[2025-08-20 11:14:42,507][DL_COMM][OUTPUT] - 
+[2025-08-20 11:14:42,507][DL_COMM][OUTPUT] - [BANDWIDTH] -------------------------------------------
+[2025-08-20 11:14:42,509][DL_COMM][OUTPUT] - 
+[2025-08-20 11:14:42,509][DL_COMM][OUTPUT] - [BANDWIDTH] BANDWIDTH TABLE FOR ALLTOALL (bytes/seconds):
+[2025-08-20 11:14:42,509][DL_COMM][OUTPUT] - Iteration     (Across-Group-0)    (Across-Group-1)    (Across-Group-2)    (Across-Group-3)    (Across-Group-4)    (Across-Group-5)    (Across-Group-6)    (Across-Group-7)  
+[2025-08-20 11:14:42,509][DL_COMM][OUTPUT] -               LOGGING RANK - 0    LOGGING RANK - 1    LOGGING RANK - 2    LOGGING RANK - 3    LOGGING RANK - 4    LOGGING RANK - 5    LOGGING RANK - 6    LOGGING RANK - 7  
+[2025-08-20 11:14:42,509][DL_COMM][OUTPUT] - ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+[2025-08-20 11:14:42,509][DL_COMM][OUTPUT] - 0                 11655436            17695533            17685211            19931341            15721891            16424775            19361050            20932767      
+[2025-08-20 11:14:42,509][DL_COMM][OUTPUT] - 1                1458962030          1588403302          1408545103          1548043763           69221638           1177282151          1458546530           83933257      
+[2025-08-20 11:14:42,509][DL_COMM][OUTPUT] - 2                1550451818          1614177493          1519817683          1570646054          1531372571          1715041703          1414953374          1702895341     
+[2025-08-20 11:14:42,509][DL_COMM][OUTPUT] - 3                1591028586          1676945959          1598900817          1657467503          1603259895          1657537778          1459404402          1671669908     
+[2025-08-20 11:14:42,509][DL_COMM][OUTPUT] - 4                1556769317          1686457250          1296122948          1626474686          1582102257          1740042466          1491102685          1667677296     
+[2025-08-20 11:14:42,509][DL_COMM][OUTPUT] - 5                1591245173          1677255330          371087268           1659757629          1588650018          1711201437          1558905485          1690469736     
+[2025-08-20 11:14:42,509][DL_COMM][OUTPUT] - 6                1559112723          1665131987          1503107821          1628191520          1587787563          1702298015          1621089611          1726885268     
+[2025-08-20 11:14:42,510][DL_COMM][OUTPUT] - 7                1562184215          1726376027          1463609695          1669788094          1557423271          1722629944          1591742610          1685485362     
+[2025-08-20 11:14:42,510][DL_COMM][OUTPUT] - 8                1555317973          1690819056          1497793056          1658679411          1583481457          1717274183          1603256973          1695303950     
+[2025-08-20 11:14:42,510][DL_COMM][OUTPUT] - 9                1570886583          1698295645          1494563535          1638370740          1586182724          1693128192          1626930449          1660363077     
+[2025-08-20 11:14:42,510][DL_COMM][OUTPUT] - ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+[2025-08-20 11:14:42,510][DL_COMM][OUTPUT] - 
+[2025-08-20 11:14:42,510][DL_COMM][OUTPUT] - [BANDWIDTH] -------------------------------------------
+[2025-08-20 11:14:42,510][DL_COMM][INFO] - -------------------------------------------------------------------------
+[2025-08-20 11:14:42,510][DL_COMM][INFO] - [MPI] Job complete
+[2025-08-20 11:14:42,510][DL_COMM][INFO] - -------------------------------------------------------------------------
+[2025-08-20 11:14:42,510][DL_COMM][INFO] - -------------------------------------------------------------------------
+[2025-08-20 11:14:42,510][DL_COMM][INFO] - [EXIT] All Done.
+[2025-08-20 11:14:42,510][DL_COMM][INFO] - -------------------------------------------------------------------------
+[2025-08-20 11:14:42,510][DL_COMM][INFO] - 
+[2025-08-20 11:14:42,510][DL_COMM][INFO] - ================================================================================
+[2025-08-20 11:14:42,510][DL_COMM][INFO] - [TASK 7/10] ==================== ALLTOALLSINGLE-SCALE ====================
+[2025-08-20 11:14:42,510][DL_COMM][INFO] - ================================================================================
+[2025-08-20 11:14:42,511][DL_COMM][INFO] - 
+[2025-08-20 11:14:42,511][DL_COMM][INFO] - 
+[2025-08-20 11:14:42,511][DL_COMM][INFO] - [CONFIG] Setup
+[2025-08-20 11:14:42,511][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-08-20 11:14:42,511][DL_COMM][INFO] - [CONFIG] Task Name            : alltoallsingle-scale
+[2025-08-20 11:14:42,511][DL_COMM][INFO] - [CONFIG] Framework            : pytorch
+[2025-08-20 11:14:42,511][DL_COMM][INFO] - [CONFIG] Backend              : nccl
+[2025-08-20 11:14:42,512][DL_COMM][INFO] - [CONFIG] Extended Logging     : False
+[2025-08-20 11:14:42,512][DL_COMM][INFO] - [CONFIG] Barrier Enabled      : True
+[2025-08-20 11:14:42,512][DL_COMM][INFO] - [CONFIG] World Size           : 16
+[2025-08-20 11:14:42,512][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-08-20 11:14:42,512][DL_COMM][INFO] - 
+[2025-08-20 11:14:42,512][DL_COMM][INFO] - [CONFIG] Communication Group
+[2025-08-20 11:14:42,512][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-08-20 11:14:42,512][DL_COMM][INFO] - [CONFIG] Mode                 : across_node
+[2025-08-20 11:14:42,512][DL_COMM][INFO] - [CONFIG] Topology             : 2 nodes x 8 devices
+[2025-08-20 11:14:42,512][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-08-20 11:14:42,512][DL_COMM][INFO] - 
+[2025-08-20 11:14:42,512][DL_COMM][INFO] - [CONFIG] Communication Group Details
+[2025-08-20 11:14:42,512][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-08-20 11:14:42,512][DL_COMM][INFO] - [CONFIG] Collective Name      : alltoallsingle
+[2025-08-20 11:14:42,512][DL_COMM][INFO] - [CONFIG] Operation            : N/A
+[2025-08-20 11:14:42,513][DL_COMM][INFO] - [CONFIG] Scale Up Algorithm   : default
+[2025-08-20 11:14:42,513][DL_COMM][INFO] - [CONFIG] Scale Out Algorithm  : default
+[2025-08-20 11:14:42,513][DL_COMM][INFO] - [CONFIG] Data Type            : float32
+[2025-08-20 11:14:42,513][DL_COMM][INFO] - [CONFIG] Element Count        : 25600
+[2025-08-20 11:14:42,513][DL_COMM][INFO] - [CONFIG] Buffer Size          : 100KB (102400 bytes)
+[2025-08-20 11:14:42,513][DL_COMM][INFO] - [CONFIG] Iterations           : 10
+[2025-08-20 11:14:42,513][DL_COMM][INFO] - [CONFIG] Verify Correctness   : True
+[2025-08-20 11:14:42,513][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-08-20 11:14:42,513][DL_COMM][INFO] - 
+[2025-08-20 11:14:42,513][DL_COMM][INFO] - 
+[2025-08-20 11:14:42,513][DL_COMM][INFO] - [COMM][CONFIG] Setting up communication groups for mode: Across
+[2025-08-20 11:14:42,513][DL_COMM][INFO] - [COMM][CONFIG] Across-node: 2 nodes, 8 devices per node, Device IDs: [0, 1, 2, 3, 4, 5, 6, 7]
+[2025-08-20 11:14:42,513][DL_COMM][INFO] - [COMM][GROUP CREATION] Across-node groups:
+[2025-08-20 11:14:42,513][DL_COMM][INFO] - [COMM][GROUP CREATION][Across Group-0] Ranks: [0, 8], Device ID: 0, Logging: rank 0
+[2025-08-20 11:14:42,514][DL_COMM][INFO] - [COMM][GROUP CREATION][Across Group-1] Ranks: [1, 9], Device ID: 1, Logging: rank 1
+[2025-08-20 11:14:42,514][DL_COMM][INFO] - [COMM][GROUP CREATION][Across Group-2] Ranks: [2, 10], Device ID: 2, Logging: rank 2
+[2025-08-20 11:14:42,514][DL_COMM][INFO] - [COMM][GROUP CREATION][Across Group-3] Ranks: [3, 11], Device ID: 3, Logging: rank 3
+[2025-08-20 11:14:42,514][DL_COMM][INFO] - [COMM][GROUP CREATION][Across Group-4] Ranks: [4, 12], Device ID: 4, Logging: rank 4
+[2025-08-20 11:14:42,514][DL_COMM][INFO] - [COMM][GROUP CREATION][Across Group-5] Ranks: [5, 13], Device ID: 5, Logging: rank 5
+[2025-08-20 11:14:42,514][DL_COMM][INFO] - [COMM][GROUP CREATION][Across Group-6] Ranks: [6, 14], Device ID: 6, Logging: rank 6
+[2025-08-20 11:14:42,514][DL_COMM][INFO] - [COMM][GROUP CREATION][Across Group-7] Ranks: [7, 15], Device ID: 7, Logging: rank 7
+[2025-08-20 11:14:42,515][DL_COMM][INFO] - [COMM][GROUP CREATION] Created 8 across-node groups
+[2025-08-20 11:14:42,515][DL_COMM][INFO] - 
+[2025-08-20 11:14:42,515][DL_COMM][OUTPUT] - 
+[2025-08-20 11:14:42,515][DL_COMM][OUTPUT] - [TIMERS - SETUP] ---------------------------------------------------------
+[2025-08-20 11:14:42,515][DL_COMM][OUTPUT] - [TIMERS][LOGGING RANK - 0] Group Creation (Across)             = 0.001107 s
+[2025-08-20 11:14:42,515][DL_COMM][OUTPUT] - [TIMERS - SETUP] ---------------------------------------------------------
+[2025-08-20 11:14:42,515][DL_COMM][OUTPUT] - 
+[2025-08-20 11:14:42,515][DL_COMM][OUTPUT] - [MPI] Launching profiling job
+[2025-08-20 11:14:42,772][DL_COMM][OUTPUT] - 
+[2025-08-20 11:14:42,772][DL_COMM][OUTPUT] - [TIMERS] ---------------------------------------------------------
+[2025-08-20 11:14:42,772][DL_COMM][OUTPUT] - 
+[2025-08-20 11:14:42,772][DL_COMM][INFO] -   [TIMERS] [BARRIER ENABLED] Timing measurements used MPI barriers for synchronization
+[2025-08-20 11:14:42,772][DL_COMM][OUTPUT] - 
+[2025-08-20 11:14:42,772][DL_COMM][OUTPUT] - [TIMERS] ITERATION TABLE FOR ALLTOALLSINGLE (seconds):
+[2025-08-20 11:14:42,772][DL_COMM][OUTPUT] - Iteration     (Across-Group-0)    (Across-Group-1)    (Across-Group-2)    (Across-Group-3)    (Across-Group-4)    (Across-Group-5)    (Across-Group-6)    (Across-Group-7)  
+[2025-08-20 11:14:42,772][DL_COMM][OUTPUT] -               LOGGING RANK - 0    LOGGING RANK - 1    LOGGING RANK - 2    LOGGING RANK - 3    LOGGING RANK - 4    LOGGING RANK - 5    LOGGING RANK - 6    LOGGING RANK - 7  
+[2025-08-20 11:14:42,772][DL_COMM][OUTPUT] - ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+[2025-08-20 11:14:42,772][DL_COMM][OUTPUT] - 0                 0.038545            0.039310            0.041934            0.040213            0.039397            0.055988            0.043516            0.041200      
+[2025-08-20 11:14:42,773][DL_COMM][OUTPUT] - 1                 0.001370            0.004640            0.000467            0.000377            0.000408            0.000376            0.000440            0.012057      
+[2025-08-20 11:14:42,773][DL_COMM][OUTPUT] - 2                 0.000431            0.000377            0.000440            0.000384            0.000402            0.000364            0.000416            0.010803      
+[2025-08-20 11:14:42,773][DL_COMM][OUTPUT] - 3                 0.000435            0.000381            0.000447            0.000378            0.000399            0.000358            0.000452            0.000368      
+[2025-08-20 11:14:42,773][DL_COMM][OUTPUT] - 4                 0.000429            0.000383            0.000451            0.000364            0.000378            0.000362            0.000389            0.000382      
+[2025-08-20 11:14:42,773][DL_COMM][OUTPUT] - 5                 0.000447            0.000366            0.000448            0.000362            0.000381            0.000351            0.000411            0.000375      
+[2025-08-20 11:14:42,773][DL_COMM][OUTPUT] - 6                 0.000467            0.000368            0.000441            0.000360            0.000370            0.000370            0.000403            0.000384      
+[2025-08-20 11:14:42,773][DL_COMM][OUTPUT] - 7                 0.000433            0.000427            0.000454            0.000366            0.000370            0.000368            0.000414            0.000374      
+[2025-08-20 11:14:42,773][DL_COMM][OUTPUT] - 8                 0.000443            0.000423            0.000445            0.000361            0.000407            0.000358            0.000401            0.000375      
+[2025-08-20 11:14:42,773][DL_COMM][OUTPUT] - 9                 0.000421            0.000364            0.000434            0.000348            0.000387            0.000347            0.000388            0.000369      
+[2025-08-20 11:14:42,773][DL_COMM][OUTPUT] - ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+[2025-08-20 11:14:42,773][DL_COMM][OUTPUT] - 
+[2025-08-20 11:14:42,773][DL_COMM][OUTPUT] - [TIMERS] ---------------------------------------------------------
+[2025-08-20 11:14:42,773][DL_COMM][OUTPUT] - 
+[2025-08-20 11:14:42,773][DL_COMM][OUTPUT] - [BANDWIDTH] -------------------------------------------
+[2025-08-20 11:14:42,775][DL_COMM][OUTPUT] - 
+[2025-08-20 11:14:42,775][DL_COMM][OUTPUT] - [BANDWIDTH] BANDWIDTH TABLE FOR ALLTOALLSINGLE (bytes/seconds):
+[2025-08-20 11:14:42,775][DL_COMM][OUTPUT] - Iteration     (Across-Group-0)    (Across-Group-1)    (Across-Group-2)    (Across-Group-3)    (Across-Group-4)    (Across-Group-5)    (Across-Group-6)    (Across-Group-7)  
+[2025-08-20 11:14:42,775][DL_COMM][OUTPUT] -               LOGGING RANK - 0    LOGGING RANK - 1    LOGGING RANK - 2    LOGGING RANK - 3    LOGGING RANK - 4    LOGGING RANK - 5    LOGGING RANK - 6    LOGGING RANK - 7  
+[2025-08-20 11:14:42,775][DL_COMM][OUTPUT] - ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+[2025-08-20 11:14:42,775][DL_COMM][OUTPUT] - 0                 21252888            20839720            19535397            20371764            20793395            14631582            18825187            19883566      
+[2025-08-20 11:14:42,775][DL_COMM][OUTPUT] - 1                597890787           176560825           1753401694          2171181918          2008074223          2180916199          1862732513           67946520      
+[2025-08-20 11:14:42,776][DL_COMM][OUTPUT] - 2                1902209602          2173837984          1860397238          2135123027          2038505001          2252783108          1967386820           75829784      
+[2025-08-20 11:14:42,776][DL_COMM][OUTPUT] - 3                1883976468          2149324164          1833038741          2168762245          2051913857          2290449407          1813806003          2225554649     
+[2025-08-20 11:14:42,776][DL_COMM][OUTPUT] - 4                1910563926          2136237889          1818201986          2248998821          2165774555          2262189234          2105977233          2144479753     
+[2025-08-20 11:14:42,776][DL_COMM][OUTPUT] - 5                1832055641          2240246593          1829632943          2264947380          2152491765          2332135733          1991341294          2181664028     
+[2025-08-20 11:14:42,776][DL_COMM][OUTPUT] - 6                1755773776          2226764567          1857525347          2272752776          2212068932          2216923527          2032577985          2131057182     
+[2025-08-20 11:14:42,776][DL_COMM][OUTPUT] - 7                1893705803          1919134309          1803126539          2240129634          2211889541          2227733167          1980250168          2191140627     
+[2025-08-20 11:14:42,776][DL_COMM][OUTPUT] - 8                1849919219          1935809965          1842621166          2269290415          2011481519          2288913167          2042430137          2186217487     
+[2025-08-20 11:14:42,776][DL_COMM][OUTPUT] - 9                1946591680          2248498658          1889634569          2352130800          2118695562          2361091530          2109508883          2218184208     
+[2025-08-20 11:14:42,776][DL_COMM][OUTPUT] - ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+[2025-08-20 11:14:42,776][DL_COMM][OUTPUT] - 
+[2025-08-20 11:14:42,776][DL_COMM][OUTPUT] - [BANDWIDTH] -------------------------------------------
+[2025-08-20 11:14:42,776][DL_COMM][INFO] - -------------------------------------------------------------------------
+[2025-08-20 11:14:42,776][DL_COMM][INFO] - [MPI] Job complete
+[2025-08-20 11:14:42,776][DL_COMM][INFO] - -------------------------------------------------------------------------
+[2025-08-20 11:14:42,776][DL_COMM][INFO] - -------------------------------------------------------------------------
+[2025-08-20 11:14:42,776][DL_COMM][INFO] - [EXIT] All Done.
+[2025-08-20 11:14:42,777][DL_COMM][INFO] - -------------------------------------------------------------------------
+[2025-08-20 11:14:42,777][DL_COMM][INFO] - 
+[2025-08-20 11:14:42,777][DL_COMM][INFO] - ================================================================================
+[2025-08-20 11:14:42,777][DL_COMM][INFO] - [TASK 8/10] ==================== GATHER-SCALE ====================
+[2025-08-20 11:14:42,777][DL_COMM][INFO] - ================================================================================
+[2025-08-20 11:14:42,777][DL_COMM][INFO] - 
+[2025-08-20 11:14:42,777][DL_COMM][INFO] - 
+[2025-08-20 11:14:42,777][DL_COMM][INFO] - [CONFIG] Setup
+[2025-08-20 11:14:42,778][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-08-20 11:14:42,778][DL_COMM][INFO] - [CONFIG] Task Name            : gather-scale
+[2025-08-20 11:14:42,778][DL_COMM][INFO] - [CONFIG] Framework            : pytorch
+[2025-08-20 11:14:42,778][DL_COMM][INFO] - [CONFIG] Backend              : nccl
+[2025-08-20 11:14:42,778][DL_COMM][INFO] - [CONFIG] Extended Logging     : False
+[2025-08-20 11:14:42,778][DL_COMM][INFO] - [CONFIG] Barrier Enabled      : True
+[2025-08-20 11:14:42,778][DL_COMM][INFO] - [CONFIG] World Size           : 16
+[2025-08-20 11:14:42,778][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-08-20 11:14:42,778][DL_COMM][INFO] - 
+[2025-08-20 11:14:42,778][DL_COMM][INFO] - [CONFIG] Communication Group
+[2025-08-20 11:14:42,778][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-08-20 11:14:42,778][DL_COMM][INFO] - [CONFIG] Mode                 : across_node
+[2025-08-20 11:14:42,778][DL_COMM][INFO] - [CONFIG] Topology             : 2 nodes x 8 devices
+[2025-08-20 11:14:42,778][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-08-20 11:14:42,778][DL_COMM][INFO] - 
+[2025-08-20 11:14:42,779][DL_COMM][INFO] - [CONFIG] Communication Group Details
+[2025-08-20 11:14:42,779][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-08-20 11:14:42,779][DL_COMM][INFO] - [CONFIG] Collective Name      : gather
+[2025-08-20 11:14:42,779][DL_COMM][INFO] - [CONFIG] Operation            : N/A
+[2025-08-20 11:14:42,779][DL_COMM][INFO] - [CONFIG] Scale Up Algorithm   : default
+[2025-08-20 11:14:42,779][DL_COMM][INFO] - [CONFIG] Scale Out Algorithm  : default
+[2025-08-20 11:14:42,779][DL_COMM][INFO] - [CONFIG] Data Type            : float32
+[2025-08-20 11:14:42,779][DL_COMM][INFO] - [CONFIG] Element Count        : 25600
+[2025-08-20 11:14:42,779][DL_COMM][INFO] - [CONFIG] Buffer Size          : 100KB (102400 bytes)
+[2025-08-20 11:14:42,779][DL_COMM][INFO] - [CONFIG] Iterations           : 10
+[2025-08-20 11:14:42,779][DL_COMM][INFO] - [CONFIG] Verify Correctness   : True
+[2025-08-20 11:14:42,779][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-08-20 11:14:42,779][DL_COMM][INFO] - 
+[2025-08-20 11:14:42,779][DL_COMM][INFO] - 
+[2025-08-20 11:14:42,779][DL_COMM][INFO] - [COMM][CONFIG] Setting up communication groups for mode: Across
+[2025-08-20 11:14:42,780][DL_COMM][INFO] - [COMM][CONFIG] Across-node: 2 nodes, 8 devices per node, Device IDs: [0, 1, 2, 3, 4, 5, 6, 7]
+[2025-08-20 11:14:42,780][DL_COMM][INFO] - [COMM][GROUP CREATION] Across-node groups:
+[2025-08-20 11:14:42,780][DL_COMM][INFO] - [COMM][GROUP CREATION][Across Group-0] Ranks: [0, 8], Device ID: 0, Logging: rank 0
+[2025-08-20 11:14:42,780][DL_COMM][INFO] - [COMM][GROUP CREATION][Across Group-1] Ranks: [1, 9], Device ID: 1, Logging: rank 1
+[2025-08-20 11:14:42,780][DL_COMM][INFO] - [COMM][GROUP CREATION][Across Group-2] Ranks: [2, 10], Device ID: 2, Logging: rank 2
+[2025-08-20 11:14:42,780][DL_COMM][INFO] - [COMM][GROUP CREATION][Across Group-3] Ranks: [3, 11], Device ID: 3, Logging: rank 3
+[2025-08-20 11:14:42,780][DL_COMM][INFO] - [COMM][GROUP CREATION][Across Group-4] Ranks: [4, 12], Device ID: 4, Logging: rank 4
+[2025-08-20 11:14:42,781][DL_COMM][INFO] - [COMM][GROUP CREATION][Across Group-5] Ranks: [5, 13], Device ID: 5, Logging: rank 5
+[2025-08-20 11:14:42,781][DL_COMM][INFO] - [COMM][GROUP CREATION][Across Group-6] Ranks: [6, 14], Device ID: 6, Logging: rank 6
+[2025-08-20 11:14:42,781][DL_COMM][INFO] - [COMM][GROUP CREATION][Across Group-7] Ranks: [7, 15], Device ID: 7, Logging: rank 7
+[2025-08-20 11:14:42,781][DL_COMM][INFO] - [COMM][GROUP CREATION] Created 8 across-node groups
+[2025-08-20 11:14:42,781][DL_COMM][INFO] - 
+[2025-08-20 11:14:42,781][DL_COMM][OUTPUT] - 
+[2025-08-20 11:14:42,781][DL_COMM][OUTPUT] - [TIMERS - SETUP] ---------------------------------------------------------
+[2025-08-20 11:14:42,781][DL_COMM][OUTPUT] - [TIMERS][LOGGING RANK - 0] Group Creation (Across)             = 0.001134 s
+[2025-08-20 11:14:42,782][DL_COMM][OUTPUT] - [TIMERS - SETUP] ---------------------------------------------------------
+[2025-08-20 11:14:42,782][DL_COMM][OUTPUT] - 
+[2025-08-20 11:14:42,782][DL_COMM][OUTPUT] - [MPI] Launching profiling job
+[2025-08-20 11:14:43,051][DL_COMM][OUTPUT] - 
+[2025-08-20 11:14:43,051][DL_COMM][OUTPUT] - [TIMERS] ---------------------------------------------------------
+[2025-08-20 11:14:43,051][DL_COMM][OUTPUT] - 
+[2025-08-20 11:14:43,052][DL_COMM][INFO] -   [TIMERS] [BARRIER ENABLED] Timing measurements used MPI barriers for synchronization
+[2025-08-20 11:14:43,052][DL_COMM][OUTPUT] - 
+[2025-08-20 11:14:43,052][DL_COMM][OUTPUT] - [TIMERS] ITERATION TABLE FOR GATHER (seconds):
+[2025-08-20 11:14:43,052][DL_COMM][OUTPUT] - Iteration     (Across-Group-0)    (Across-Group-1)    (Across-Group-2)    (Across-Group-3)    (Across-Group-4)    (Across-Group-5)    (Across-Group-6)    (Across-Group-7)  
+[2025-08-20 11:14:43,052][DL_COMM][OUTPUT] -               LOGGING RANK - 0    LOGGING RANK - 1    LOGGING RANK - 2    LOGGING RANK - 3    LOGGING RANK - 4    LOGGING RANK - 5    LOGGING RANK - 6    LOGGING RANK - 7  
+[2025-08-20 11:14:43,052][DL_COMM][OUTPUT] - ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+[2025-08-20 11:14:43,052][DL_COMM][OUTPUT] - 0                 0.056330            0.046337            0.036248            0.042539            0.040223            0.028883            0.028768            0.069745      
+[2025-08-20 11:14:43,052][DL_COMM][OUTPUT] - 1                 0.002140            0.002583            0.000545            0.000441            0.012100            0.000613            0.000469            0.000426      
+[2025-08-20 11:14:43,052][DL_COMM][OUTPUT] - 2                 0.000466            0.000422            0.000496            0.000427            0.000459            0.000408            0.000425            0.000414      
+[2025-08-20 11:14:43,052][DL_COMM][OUTPUT] - 3                 0.000467            0.000393            0.000438            0.000388            0.000460            0.000398            0.000421            0.000400      
+[2025-08-20 11:14:43,052][DL_COMM][OUTPUT] - 4                 0.000476            0.000381            0.000447            0.000394            0.000437            0.000390            0.000412            0.000393      
+[2025-08-20 11:14:43,052][DL_COMM][OUTPUT] - 5                 0.000427            0.000400            0.000447            0.000393            0.000441            0.000411            0.000404            0.000402      
+[2025-08-20 11:14:43,052][DL_COMM][OUTPUT] - 6                 0.000425            0.000390            0.000421            0.000401            0.000449            0.000392            0.000404            0.000394      
+[2025-08-20 11:14:43,052][DL_COMM][OUTPUT] - 7                 0.000424            0.000395            0.000421            0.000389            0.000445            0.000391            0.000402            0.000402      
+[2025-08-20 11:14:43,052][DL_COMM][OUTPUT] - 8                 0.000421            0.000383            0.000416            0.000386            0.000422            0.000389            0.000394            0.000387      
+[2025-08-20 11:14:43,052][DL_COMM][OUTPUT] - 9                 0.000414            0.000388            0.000421            0.000387            0.000438            0.000397            0.000413            0.000403      
+[2025-08-20 11:14:43,052][DL_COMM][OUTPUT] - ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+[2025-08-20 11:14:43,053][DL_COMM][OUTPUT] - 
+[2025-08-20 11:14:43,053][DL_COMM][OUTPUT] - [TIMERS] ---------------------------------------------------------
+[2025-08-20 11:14:43,053][DL_COMM][OUTPUT] - 
+[2025-08-20 11:14:43,053][DL_COMM][OUTPUT] - [BANDWIDTH] -------------------------------------------
+[2025-08-20 11:14:43,054][DL_COMM][OUTPUT] - 
+[2025-08-20 11:14:43,055][DL_COMM][OUTPUT] - [BANDWIDTH] BANDWIDTH TABLE FOR GATHER (bytes/seconds):
+[2025-08-20 11:14:43,055][DL_COMM][OUTPUT] - Iteration     (Across-Group-0)    (Across-Group-1)    (Across-Group-2)    (Across-Group-3)    (Across-Group-4)    (Across-Group-5)    (Across-Group-6)    (Across-Group-7)  
+[2025-08-20 11:14:43,055][DL_COMM][OUTPUT] -               LOGGING RANK - 0    LOGGING RANK - 1    LOGGING RANK - 2    LOGGING RANK - 3    LOGGING RANK - 4    LOGGING RANK - 5    LOGGING RANK - 6    LOGGING RANK - 7  
+[2025-08-20 11:14:43,055][DL_COMM][OUTPUT] - ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+[2025-08-20 11:14:43,055][DL_COMM][OUTPUT] - 0                 14542852            17679089            22599742            19257629            20366238            28362587            28476281            11745654      
+[2025-08-20 11:14:43,055][DL_COMM][OUTPUT] - 1                382855765           317178977           1503853716          1856388475           67701337           1336219080          1748376919          1923104618     
+[2025-08-20 11:14:43,055][DL_COMM][OUTPUT] - 2                1757355807          1942152899          1652779598          1918276322          1785839217          2006642661          1927321514          1978238265     
+[2025-08-20 11:14:43,055][DL_COMM][OUTPUT] - 3                1752610387          2086363537          1872285953          2112449782          1779891150          2058988850          1944554051          2049547215     
+[2025-08-20 11:14:43,055][DL_COMM][OUTPUT] - 4                1721435674          2152944853          1832793344          2081369918          1873788598          2102999007          1986021237          2086416736     
+[2025-08-20 11:14:43,055][DL_COMM][OUTPUT] - 5                1919584536          2046312099          1831109807          2085407641          1859641083          1991637751          2029455875          2036984924     
+[2025-08-20 11:14:43,055][DL_COMM][OUTPUT] - 6                1926913028          2101757843          1946870653          2040949190          1825632372          2089993519          2025932636          2078728534     
+[2025-08-20 11:14:43,055][DL_COMM][OUTPUT] - 7                1933790582          2071931008          1945385155          2107929100          1841585351          2094975012          2037896934          2038506182     
+[2025-08-20 11:14:43,055][DL_COMM][OUTPUT] - 8                1943586222          2137022879          1970992925          2123094753          1940538655          2103215229          2077880240          2116281923     
+[2025-08-20 11:14:43,055][DL_COMM][OUTPUT] - 9                1978719992          2109616394          1944411125          2117595106          1871772994          2063772627          1982123227          2032477008     
+[2025-08-20 11:14:43,055][DL_COMM][OUTPUT] - ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+[2025-08-20 11:14:43,055][DL_COMM][OUTPUT] - 
+[2025-08-20 11:14:43,055][DL_COMM][OUTPUT] - [BANDWIDTH] -------------------------------------------
+[2025-08-20 11:14:43,056][DL_COMM][INFO] - -------------------------------------------------------------------------
+[2025-08-20 11:14:43,056][DL_COMM][INFO] - [MPI] Job complete
+[2025-08-20 11:14:43,056][DL_COMM][INFO] - -------------------------------------------------------------------------
+[2025-08-20 11:14:43,056][DL_COMM][INFO] - -------------------------------------------------------------------------
+[2025-08-20 11:14:43,056][DL_COMM][INFO] - [EXIT] All Done.
+[2025-08-20 11:14:43,056][DL_COMM][INFO] - -------------------------------------------------------------------------
+[2025-08-20 11:14:43,056][DL_COMM][INFO] - 
+[2025-08-20 11:14:43,056][DL_COMM][INFO] - ================================================================================
+[2025-08-20 11:14:43,056][DL_COMM][INFO] - [TASK 9/10] ==================== SCATTER-SCALE ====================
+[2025-08-20 11:14:43,056][DL_COMM][INFO] - ================================================================================
+[2025-08-20 11:14:43,056][DL_COMM][INFO] - 
+[2025-08-20 11:14:43,057][DL_COMM][INFO] - 
+[2025-08-20 11:14:43,057][DL_COMM][INFO] - [CONFIG] Setup
+[2025-08-20 11:14:43,057][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-08-20 11:14:43,057][DL_COMM][INFO] - [CONFIG] Task Name            : scatter-scale
+[2025-08-20 11:14:43,057][DL_COMM][INFO] - [CONFIG] Framework            : pytorch
+[2025-08-20 11:14:43,057][DL_COMM][INFO] - [CONFIG] Backend              : nccl
+[2025-08-20 11:14:43,057][DL_COMM][INFO] - [CONFIG] Extended Logging     : False
+[2025-08-20 11:14:43,057][DL_COMM][INFO] - [CONFIG] Barrier Enabled      : True
+[2025-08-20 11:14:43,057][DL_COMM][INFO] - [CONFIG] World Size           : 16
+[2025-08-20 11:14:43,057][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-08-20 11:14:43,057][DL_COMM][INFO] - 
+[2025-08-20 11:14:43,058][DL_COMM][INFO] - [CONFIG] Communication Group
+[2025-08-20 11:14:43,058][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-08-20 11:14:43,058][DL_COMM][INFO] - [CONFIG] Mode                 : across_node
+[2025-08-20 11:14:43,058][DL_COMM][INFO] - [CONFIG] Topology             : 2 nodes x 8 devices
+[2025-08-20 11:14:43,058][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-08-20 11:14:43,058][DL_COMM][INFO] - 
+[2025-08-20 11:14:43,058][DL_COMM][INFO] - [CONFIG] Communication Group Details
+[2025-08-20 11:14:43,058][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-08-20 11:14:43,058][DL_COMM][INFO] - [CONFIG] Collective Name      : scatter
+[2025-08-20 11:14:43,058][DL_COMM][INFO] - [CONFIG] Operation            : N/A
+[2025-08-20 11:14:43,058][DL_COMM][INFO] - [CONFIG] Scale Up Algorithm   : default
+[2025-08-20 11:14:43,058][DL_COMM][INFO] - [CONFIG] Scale Out Algorithm  : default
+[2025-08-20 11:14:43,058][DL_COMM][INFO] - [CONFIG] Data Type            : float32
+[2025-08-20 11:14:43,058][DL_COMM][INFO] - [CONFIG] Element Count        : 25600
+[2025-08-20 11:14:43,059][DL_COMM][INFO] - [CONFIG] Buffer Size          : 100KB (102400 bytes)
+[2025-08-20 11:14:43,059][DL_COMM][INFO] - [CONFIG] Iterations           : 10
+[2025-08-20 11:14:43,059][DL_COMM][INFO] - [CONFIG] Verify Correctness   : True
+[2025-08-20 11:14:43,059][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-08-20 11:14:43,059][DL_COMM][INFO] - 
+[2025-08-20 11:14:43,059][DL_COMM][INFO] - 
+[2025-08-20 11:14:43,059][DL_COMM][INFO] - [COMM][CONFIG] Setting up communication groups for mode: Across
+[2025-08-20 11:14:43,059][DL_COMM][INFO] - [COMM][CONFIG] Across-node: 2 nodes, 8 devices per node, Device IDs: [0, 1, 2, 3, 4, 5, 6, 7]
+[2025-08-20 11:14:43,059][DL_COMM][INFO] - [COMM][GROUP CREATION] Across-node groups:
+[2025-08-20 11:14:43,059][DL_COMM][INFO] - [COMM][GROUP CREATION][Across Group-0] Ranks: [0, 8], Device ID: 0, Logging: rank 0
+[2025-08-20 11:14:43,060][DL_COMM][INFO] - [COMM][GROUP CREATION][Across Group-1] Ranks: [1, 9], Device ID: 1, Logging: rank 1
+[2025-08-20 11:14:43,060][DL_COMM][INFO] - [COMM][GROUP CREATION][Across Group-2] Ranks: [2, 10], Device ID: 2, Logging: rank 2
+[2025-08-20 11:14:43,060][DL_COMM][INFO] - [COMM][GROUP CREATION][Across Group-3] Ranks: [3, 11], Device ID: 3, Logging: rank 3
+[2025-08-20 11:14:43,060][DL_COMM][INFO] - [COMM][GROUP CREATION][Across Group-4] Ranks: [4, 12], Device ID: 4, Logging: rank 4
+[2025-08-20 11:14:43,060][DL_COMM][INFO] - [COMM][GROUP CREATION][Across Group-5] Ranks: [5, 13], Device ID: 5, Logging: rank 5
+[2025-08-20 11:14:43,060][DL_COMM][INFO] - [COMM][GROUP CREATION][Across Group-6] Ranks: [6, 14], Device ID: 6, Logging: rank 6
+[2025-08-20 11:14:43,060][DL_COMM][INFO] - [COMM][GROUP CREATION][Across Group-7] Ranks: [7, 15], Device ID: 7, Logging: rank 7
+[2025-08-20 11:14:43,060][DL_COMM][INFO] - [COMM][GROUP CREATION] Created 8 across-node groups
+[2025-08-20 11:14:43,060][DL_COMM][INFO] - 
+[2025-08-20 11:14:43,060][DL_COMM][OUTPUT] - 
+[2025-08-20 11:14:43,061][DL_COMM][OUTPUT] - [TIMERS - SETUP] ---------------------------------------------------------
+[2025-08-20 11:14:43,061][DL_COMM][OUTPUT] - [TIMERS][LOGGING RANK - 0] Group Creation (Across)             = 0.001103 s
+[2025-08-20 11:14:43,061][DL_COMM][OUTPUT] - [TIMERS - SETUP] ---------------------------------------------------------
+[2025-08-20 11:14:43,061][DL_COMM][OUTPUT] - 
+[2025-08-20 11:14:43,061][DL_COMM][OUTPUT] - [MPI] Launching profiling job
+[2025-08-20 11:14:43,371][DL_COMM][OUTPUT] - 
+[2025-08-20 11:14:43,371][DL_COMM][OUTPUT] - [TIMERS] ---------------------------------------------------------
+[2025-08-20 11:14:43,371][DL_COMM][OUTPUT] - 
+[2025-08-20 11:14:43,371][DL_COMM][INFO] -   [TIMERS] [BARRIER ENABLED] Timing measurements used MPI barriers for synchronization
+[2025-08-20 11:14:43,371][DL_COMM][OUTPUT] - 
+[2025-08-20 11:14:43,371][DL_COMM][OUTPUT] - [TIMERS] ITERATION TABLE FOR SCATTER (seconds):
+[2025-08-20 11:14:43,371][DL_COMM][OUTPUT] - Iteration     (Across-Group-0)    (Across-Group-1)    (Across-Group-2)    (Across-Group-3)    (Across-Group-4)    (Across-Group-5)    (Across-Group-6)    (Across-Group-7)  
+[2025-08-20 11:14:43,372][DL_COMM][OUTPUT] -               LOGGING RANK - 0    LOGGING RANK - 1    LOGGING RANK - 2    LOGGING RANK - 3    LOGGING RANK - 4    LOGGING RANK - 5    LOGGING RANK - 6    LOGGING RANK - 7  
+[2025-08-20 11:14:43,372][DL_COMM][OUTPUT] - ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+[2025-08-20 11:14:43,372][DL_COMM][OUTPUT] - 0                 0.038568            0.032187            0.044724            0.036161            0.032481            0.036456            0.040748            0.034654      
+[2025-08-20 11:14:43,372][DL_COMM][OUTPUT] - 1                 0.000515            0.000490            0.000525            0.000525            0.007142            0.000489            0.008256            0.011230      
+[2025-08-20 11:14:43,372][DL_COMM][OUTPUT] - 2                 0.000484            0.000455            0.000471            0.000484            0.000505            0.000479            0.000516            0.000479      
+[2025-08-20 11:14:43,372][DL_COMM][OUTPUT] - 3                 0.000480            0.000450            0.000468            0.000466            0.000498            0.000473            0.000500            0.000460      
+[2025-08-20 11:14:43,372][DL_COMM][OUTPUT] - 4                 0.000481            0.000457            0.000471            0.000482            0.000476            0.000464            0.000496            0.000484      
+[2025-08-20 11:14:43,372][DL_COMM][OUTPUT] - 5                 0.000537            0.000456            0.000524            0.000449            0.000541            0.000450            0.000490            0.000478      
+[2025-08-20 11:14:43,372][DL_COMM][OUTPUT] - 6                 0.000478            0.000449            0.000479            0.000466            0.000546            0.000456            0.000484            0.000467      
+[2025-08-20 11:14:43,372][DL_COMM][OUTPUT] - 7                 0.000483            0.000456            0.000474            0.000453            0.000492            0.000469            0.000510            0.000511      
+[2025-08-20 11:14:43,372][DL_COMM][OUTPUT] - 8                 0.000475            0.000457            0.000466            0.000453            0.000477            0.000456            0.000476            0.000471      
+[2025-08-20 11:14:43,372][DL_COMM][OUTPUT] - 9                 0.000485            0.000446            0.000473            0.000455            0.000467            0.000459            0.000476            0.000475      
+[2025-08-20 11:14:43,372][DL_COMM][OUTPUT] - ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+[2025-08-20 11:14:43,372][DL_COMM][OUTPUT] - 
+[2025-08-20 11:14:43,372][DL_COMM][OUTPUT] - [TIMERS] ---------------------------------------------------------
+[2025-08-20 11:14:43,373][DL_COMM][OUTPUT] - 
+[2025-08-20 11:14:43,373][DL_COMM][OUTPUT] - [BANDWIDTH] -------------------------------------------
+[2025-08-20 11:14:43,374][DL_COMM][OUTPUT] - 
+[2025-08-20 11:14:43,374][DL_COMM][OUTPUT] - [BANDWIDTH] BANDWIDTH TABLE FOR SCATTER (bytes/seconds):
+[2025-08-20 11:14:43,374][DL_COMM][OUTPUT] - Iteration     (Across-Group-0)    (Across-Group-1)    (Across-Group-2)    (Across-Group-3)    (Across-Group-4)    (Across-Group-5)    (Across-Group-6)    (Across-Group-7)  
+[2025-08-20 11:14:43,375][DL_COMM][OUTPUT] -               LOGGING RANK - 0    LOGGING RANK - 1    LOGGING RANK - 2    LOGGING RANK - 3    LOGGING RANK - 4    LOGGING RANK - 5    LOGGING RANK - 6    LOGGING RANK - 7  
+[2025-08-20 11:14:43,375][DL_COMM][OUTPUT] - ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+[2025-08-20 11:14:43,375][DL_COMM][OUTPUT] - 0                 21240339            25451485            18316628            22654117            25220723            22470660            20103868            23639497      
+[2025-08-20 11:14:43,375][DL_COMM][OUTPUT] - 1                1589173827          1670949843          1560990733          1560066035          114705008           1674718186           99229961            72948879      
+[2025-08-20 11:14:43,375][DL_COMM][OUTPUT] - 2                1690923067          1799514227          1739706061          1692429416          1620769253          1709412313          1586553939          1709376601     
+[2025-08-20 11:14:43,375][DL_COMM][OUTPUT] - 3                1705774969          1821120305          1748898355          1756868792          1646255822          1732411272          1639193573          1781287871     
+[2025-08-20 11:14:43,375][DL_COMM][OUTPUT] - 4                1704528798          1791983226          1740042466          1699359515          1721937790          1764794473          1652642189          1693481872     
+[2025-08-20 11:14:43,375][DL_COMM][OUTPUT] - 5                1524776581          1795365598          1564484135          1824942068          1514104080          1821769045          1672420006          1715041703     
+[2025-08-20 11:14:43,375][DL_COMM][OUTPUT] - 6                1713423923          1825140867          1709020403          1759245873          1499303796          1795723875          1693234117          1754607496     
+[2025-08-20 11:14:43,375][DL_COMM][OUTPUT] - 7                1695168363          1796747265          1728897205          1809394935          1663979097          1746546536          1606000533          1602914413     
+[2025-08-20 11:14:43,375][DL_COMM][OUTPUT] - 8                1724773160          1792375764          1756375910          1810310081          1718499615          1795762369          1719837759          1737751294     
+[2025-08-20 11:14:43,375][DL_COMM][OUTPUT] - 9                1687920019          1838519465          1731382305          1802091256          1754904173          1783731535          1719440215          1725099585     
+[2025-08-20 11:14:43,375][DL_COMM][OUTPUT] - ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+[2025-08-20 11:14:43,375][DL_COMM][OUTPUT] - 
+[2025-08-20 11:14:43,375][DL_COMM][OUTPUT] - [BANDWIDTH] -------------------------------------------
+[2025-08-20 11:14:43,375][DL_COMM][INFO] - -------------------------------------------------------------------------
+[2025-08-20 11:14:43,375][DL_COMM][INFO] - [MPI] Job complete
+[2025-08-20 11:14:43,376][DL_COMM][INFO] - -------------------------------------------------------------------------
+[2025-08-20 11:14:43,376][DL_COMM][INFO] - -------------------------------------------------------------------------
+[2025-08-20 11:14:43,376][DL_COMM][INFO] - [EXIT] All Done.
+[2025-08-20 11:14:43,376][DL_COMM][INFO] - -------------------------------------------------------------------------
+[2025-08-20 11:14:43,376][DL_COMM][INFO] - 
+[2025-08-20 11:14:43,376][DL_COMM][INFO] - ================================================================================
+[2025-08-20 11:14:43,376][DL_COMM][INFO] - [TASK 10/10] ==================== BARRIER-SCALE ====================
+[2025-08-20 11:14:43,376][DL_COMM][INFO] - ================================================================================
+[2025-08-20 11:14:43,376][DL_COMM][INFO] - 
+[2025-08-20 11:14:43,377][DL_COMM][INFO] - 
+[2025-08-20 11:14:43,377][DL_COMM][INFO] - [CONFIG] Setup
+[2025-08-20 11:14:43,377][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-08-20 11:14:43,377][DL_COMM][INFO] - [CONFIG] Task Name            : barrier-scale
+[2025-08-20 11:14:43,377][DL_COMM][INFO] - [CONFIG] Framework            : pytorch
+[2025-08-20 11:14:43,377][DL_COMM][INFO] - [CONFIG] Backend              : nccl
+[2025-08-20 11:14:43,377][DL_COMM][INFO] - [CONFIG] Extended Logging     : False
+[2025-08-20 11:14:43,377][DL_COMM][INFO] - [CONFIG] Barrier Enabled      : True
+[2025-08-20 11:14:43,377][DL_COMM][INFO] - [CONFIG] World Size           : 16
+[2025-08-20 11:14:43,377][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-08-20 11:14:43,377][DL_COMM][INFO] - 
+[2025-08-20 11:14:43,377][DL_COMM][INFO] - [CONFIG] Communication Group
+[2025-08-20 11:14:43,377][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-08-20 11:14:43,377][DL_COMM][INFO] - [CONFIG] Mode                 : across_node
+[2025-08-20 11:14:43,378][DL_COMM][INFO] - [CONFIG] Topology             : 2 nodes x 8 devices
+[2025-08-20 11:14:43,378][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-08-20 11:14:43,378][DL_COMM][INFO] - 
+[2025-08-20 11:14:43,378][DL_COMM][INFO] - [CONFIG] Communication Group Details
+[2025-08-20 11:14:43,378][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-08-20 11:14:43,378][DL_COMM][INFO] - [CONFIG] Collective Name      : barrier
+[2025-08-20 11:14:43,378][DL_COMM][INFO] - [CONFIG] Operation            : N/A
+[2025-08-20 11:14:43,378][DL_COMM][INFO] - [CONFIG] Scale Up Algorithm   : default
+[2025-08-20 11:14:43,378][DL_COMM][INFO] - [CONFIG] Scale Out Algorithm  : default
+[2025-08-20 11:14:43,378][DL_COMM][INFO] - [CONFIG] Data Type            : float32
+[2025-08-20 11:14:43,378][DL_COMM][INFO] - [CONFIG] Element Count        : 25600
+[2025-08-20 11:14:43,378][DL_COMM][INFO] - [CONFIG] Buffer Size          : 100KB (102400 bytes)
+[2025-08-20 11:14:43,378][DL_COMM][INFO] - [CONFIG] Iterations           : 10
+[2025-08-20 11:14:43,378][DL_COMM][INFO] - [CONFIG] Verify Correctness   : True
+[2025-08-20 11:14:43,378][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-08-20 11:14:43,379][DL_COMM][INFO] - 
+[2025-08-20 11:14:43,379][DL_COMM][INFO] - 
+[2025-08-20 11:14:43,379][DL_COMM][INFO] - [COMM][CONFIG] Setting up communication groups for mode: Across
+[2025-08-20 11:14:43,379][DL_COMM][INFO] - [COMM][CONFIG] Across-node: 2 nodes, 8 devices per node, Device IDs: [0, 1, 2, 3, 4, 5, 6, 7]
+[2025-08-20 11:14:43,379][DL_COMM][INFO] - [COMM][GROUP CREATION] Across-node groups:
+[2025-08-20 11:14:43,379][DL_COMM][INFO] - [COMM][GROUP CREATION][Across Group-0] Ranks: [0, 8], Device ID: 0, Logging: rank 0
+[2025-08-20 11:14:43,379][DL_COMM][INFO] - [COMM][GROUP CREATION][Across Group-1] Ranks: [1, 9], Device ID: 1, Logging: rank 1
+[2025-08-20 11:14:43,379][DL_COMM][INFO] - [COMM][GROUP CREATION][Across Group-2] Ranks: [2, 10], Device ID: 2, Logging: rank 2
+[2025-08-20 11:14:43,379][DL_COMM][INFO] - [COMM][GROUP CREATION][Across Group-3] Ranks: [3, 11], Device ID: 3, Logging: rank 3
+[2025-08-20 11:14:43,380][DL_COMM][INFO] - [COMM][GROUP CREATION][Across Group-4] Ranks: [4, 12], Device ID: 4, Logging: rank 4
+[2025-08-20 11:14:43,380][DL_COMM][INFO] - [COMM][GROUP CREATION][Across Group-5] Ranks: [5, 13], Device ID: 5, Logging: rank 5
+[2025-08-20 11:14:43,380][DL_COMM][INFO] - [COMM][GROUP CREATION][Across Group-6] Ranks: [6, 14], Device ID: 6, Logging: rank 6
+[2025-08-20 11:14:43,380][DL_COMM][INFO] - [COMM][GROUP CREATION][Across Group-7] Ranks: [7, 15], Device ID: 7, Logging: rank 7
+[2025-08-20 11:14:43,380][DL_COMM][INFO] - [COMM][GROUP CREATION] Created 8 across-node groups
+[2025-08-20 11:14:43,380][DL_COMM][INFO] - 
+[2025-08-20 11:14:43,380][DL_COMM][OUTPUT] - 
+[2025-08-20 11:14:43,380][DL_COMM][OUTPUT] - [TIMERS - SETUP] ---------------------------------------------------------
+[2025-08-20 11:14:43,381][DL_COMM][OUTPUT] - [TIMERS][LOGGING RANK - 0] Group Creation (Across)             = 0.001080 s
+[2025-08-20 11:14:43,381][DL_COMM][OUTPUT] - [TIMERS - SETUP] ---------------------------------------------------------
+[2025-08-20 11:14:43,381][DL_COMM][OUTPUT] - 
+[2025-08-20 11:14:43,381][DL_COMM][OUTPUT] - [MPI] Launching profiling job
+[2025-08-20 11:14:43,584][DL_COMM][OUTPUT] - 
+[2025-08-20 11:14:43,584][DL_COMM][OUTPUT] - [TIMERS] ---------------------------------------------------------
+[2025-08-20 11:14:43,584][DL_COMM][OUTPUT] - 
+[2025-08-20 11:14:43,584][DL_COMM][INFO] -   [TIMERS] [BARRIER ENABLED] Timing measurements used MPI barriers for synchronization
+[2025-08-20 11:14:43,584][DL_COMM][OUTPUT] - 
+[2025-08-20 11:14:43,584][DL_COMM][OUTPUT] - [TIMERS] ITERATION TABLE FOR BARRIER (seconds):
+[2025-08-20 11:14:43,584][DL_COMM][OUTPUT] - Iteration     (Across-Group-0)    (Across-Group-1)    (Across-Group-2)    (Across-Group-3)    (Across-Group-4)    (Across-Group-5)    (Across-Group-6)    (Across-Group-7)  
+[2025-08-20 11:14:43,584][DL_COMM][OUTPUT] -               LOGGING RANK - 0    LOGGING RANK - 1    LOGGING RANK - 2    LOGGING RANK - 3    LOGGING RANK - 4    LOGGING RANK - 5    LOGGING RANK - 6    LOGGING RANK - 7  
+[2025-08-20 11:14:43,584][DL_COMM][OUTPUT] - ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+[2025-08-20 11:14:43,584][DL_COMM][OUTPUT] - 0                 0.009797            0.008227            0.000421            0.010338            0.009976            0.008955            0.023857            0.015849      
+[2025-08-20 11:14:43,585][DL_COMM][OUTPUT] - 1                 0.000332            0.000377            0.000343            0.000338            0.000329            0.000306            0.000408            0.000387      
+[2025-08-20 11:14:43,585][DL_COMM][OUTPUT] - 2                 0.000324            0.000360            0.000343            0.000316            0.000333            0.000306            0.000356            0.000335      
+[2025-08-20 11:14:43,585][DL_COMM][OUTPUT] - 3                 0.000328            0.000353            0.000341            0.000318            0.000332            0.000298            0.000328            0.000303      
+[2025-08-20 11:14:43,585][DL_COMM][OUTPUT] - 4                 0.000362            0.000337            0.000344            0.000314            0.000318            0.000294            0.000347            0.000339      
+[2025-08-20 11:14:43,585][DL_COMM][OUTPUT] - 5                 0.000332            0.000339            0.000347            0.000312            0.000342            0.000301            0.000348            0.000334      
+[2025-08-20 11:14:43,585][DL_COMM][OUTPUT] - 6                 0.000329            0.000352            0.000352            0.000307            0.000333            0.000299            0.000358            0.000329      
+[2025-08-20 11:14:43,585][DL_COMM][OUTPUT] - 7                 0.000344            0.000327            0.000329            0.000284            0.000328            0.000302            0.000359            0.000332      
+[2025-08-20 11:14:43,585][DL_COMM][OUTPUT] - 8                 0.000331            0.000345            0.000334            0.000314            0.000328            0.000298            0.000336            0.000340      
+[2025-08-20 11:14:43,585][DL_COMM][OUTPUT] - 9                 0.000339            0.000339            0.000341            0.000301            0.000324            0.000304            0.000317            0.000317      
+[2025-08-20 11:14:43,585][DL_COMM][OUTPUT] - ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+[2025-08-20 11:14:43,585][DL_COMM][OUTPUT] - 
+[2025-08-20 11:14:43,585][DL_COMM][OUTPUT] - [TIMERS] ---------------------------------------------------------
+[2025-08-20 11:14:43,585][DL_COMM][OUTPUT] - 
+[2025-08-20 11:14:43,585][DL_COMM][OUTPUT] - [BANDWIDTH] -------------------------------------------
+[2025-08-20 11:14:43,587][DL_COMM][OUTPUT] - 
+[2025-08-20 11:14:43,587][DL_COMM][OUTPUT] - [BANDWIDTH] BANDWIDTH TABLE FOR BARRIER (bytes/seconds):
+[2025-08-20 11:14:43,587][DL_COMM][OUTPUT] - Iteration     (Across-Group-0)    (Across-Group-1)    (Across-Group-2)    (Across-Group-3)    (Across-Group-4)    (Across-Group-5)    (Across-Group-6)    (Across-Group-7)  
+[2025-08-20 11:14:43,587][DL_COMM][OUTPUT] -               LOGGING RANK - 0    LOGGING RANK - 1    LOGGING RANK - 2    LOGGING RANK - 3    LOGGING RANK - 4    LOGGING RANK - 5    LOGGING RANK - 6    LOGGING RANK - 7  
+[2025-08-20 11:14:43,587][DL_COMM][OUTPUT] - ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+[2025-08-20 11:14:43,588][DL_COMM][OUTPUT] - 0                 83615599            99573410           1947796467           79241932            82120678            91481081            34338339            51688146      
+[2025-08-20 11:14:43,588][DL_COMM][OUTPUT] - 1                2465903352          2171700548          2387078817          2421861786          2488805804          2678611991          2010193241          2118416195     
+[2025-08-20 11:14:43,588][DL_COMM][OUTPUT] - 2                2527740051          2275473476          2390002370          2590354601          2460939509          2679664656          2303355167          2444452386     
+[2025-08-20 11:14:43,588][DL_COMM][OUTPUT] - 3                2499527372          2322727360          2399334713          2579077767          2466802361          2749030348          2493889885          2706273659     
+[2025-08-20 11:14:43,588][DL_COMM][OUTPUT] - 4                2264259399          2431077168          2384015401          2606037441          2573317045          2790027888          2363824680          2414139700     
+[2025-08-20 11:14:43,588][DL_COMM][OUTPUT] - 5                2470006079          2415571711          2361630362          2627813427          2394775172          2725214480          2354157843          2451343061     
+[2025-08-20 11:14:43,588][DL_COMM][OUTPUT] - 6                2493130012          2329276391          2327351990          2665513024          2457240877          2736064918          2286869042          2486454260     
+[2025-08-20 11:14:43,588][DL_COMM][OUTPUT] - 7                2380821281          2501823665          2490241426          2883513490          2497157306          2713725370          2283796349          2468517480     
+[2025-08-20 11:14:43,588][DL_COMM][OUTPUT] - 8                2475537725          2373633683          2452665676          2608533701          2499603728          2747379623          2435717110          2411221277     
+[2025-08-20 11:14:43,588][DL_COMM][OUTPUT] - 9                2413856482          2418289571          2399053323          2717785696          2527574806          2695924212          2583158263          2587655087     
+[2025-08-20 11:14:43,588][DL_COMM][OUTPUT] - ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+[2025-08-20 11:14:43,588][DL_COMM][OUTPUT] - 
+[2025-08-20 11:14:43,588][DL_COMM][OUTPUT] - [BANDWIDTH] -------------------------------------------
+[2025-08-20 11:14:43,588][DL_COMM][INFO] - -------------------------------------------------------------------------
+[2025-08-20 11:14:43,588][DL_COMM][INFO] - [MPI] Job complete
+[2025-08-20 11:14:43,589][DL_COMM][INFO] - -------------------------------------------------------------------------
+[2025-08-20 11:14:43,589][DL_COMM][INFO] - -------------------------------------------------------------------------
+[2025-08-20 11:14:43,589][DL_COMM][INFO] - [EXIT] All Done.
+[2025-08-20 11:14:43,589][DL_COMM][INFO] - -------------------------------------------------------------------------
+[2025-08-20 11:14:43,589][DL_COMM][INFO] - 
+[2025-08-20 11:14:43,589][DL_COMM][INFO] - ================================================================================
+[2025-08-20 11:14:43,589][DL_COMM][INFO] - [FINAL] All 10 tasks completed successfully!
+[2025-08-20 11:14:43,589][DL_COMM][INFO] - ================================================================================
