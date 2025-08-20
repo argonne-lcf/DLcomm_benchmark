@@ -5,9 +5,7 @@ barrier          : on
 device_type      : gpu
 memory_source    : gpu
 
-order_of_run: [allreduce-scale, allgather-scale, reducescatter-scale]
-# broadcast-scale, reduce-scale, alltoall-scale, alltoallsingle-scale, gather-scale, scatter-scale, barrier-scale]
-
+order_of_run: [allreduce-scale , allgather-scale, reducescatter-scale, broadcast-scale, reduce-scale, alltoall-scale, alltoallsingle-scale, gather-scale, scatter-scale, barrier-scale]
 allreduce-scale:
   comm_group: across_node
   num_compute_nodes: 2
@@ -26,6 +24,7 @@ allreduce-scale:
       dtype: float32
       count: 
       buffer_size: 100KB
+ 
 
 allgather-scale:
   comm_group: within_node

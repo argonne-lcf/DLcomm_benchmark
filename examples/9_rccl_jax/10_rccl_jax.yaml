@@ -5,7 +5,7 @@ barrier          : off
 device_type      : gpu
 memory_source    : gpu
 
-order_of_run: [alltoall-jax]
+order_of_run: [allreduce-jax,allgather-jax]
 
 #, allgather-scale, reducescatter-scale, broadcast-scale, reduce-scale, alltoall-scale, alltoallsingle-scale, gather-scale, scatter-scale, barrier-scale]
 
@@ -28,25 +28,7 @@ allreduce-jax:
       count: 
       buffer_size: 100KB 
 
-alltoall-jax:
-  comm_group: flatview
-  num_compute_nodes: 2
-  num_devices_per_node: 8
-  device_ids_per_node: [0,1,2,3,4,5,6,7 ]
-  verify_correctness: off
-  collective:
-    collective_name: alltoall 
-    collective_op: sum
-    scale_up_algorithm: default
-    scale_out_algorithm: default
-    iterations: 5
-    warmup_iterations: 0
-    add_mxm_compute: off
-    payload:
-      dtype: float32
-      count: 
-      buffer_size: 100KB 
-
+ 
 allgather-jax:
   comm_group: flatview
   num_compute_nodes: 2

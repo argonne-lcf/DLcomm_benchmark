@@ -49,7 +49,7 @@ module load miniforge3/23.11.0-0
 module load cray-python
 module load rocm/6.2.4
 module load cray-python
-export PYTHONPATH=/opt/cray/pe/python/3.11.7/:/lustre/orion/gen008/proj-shared/kaushik/dlcomm-test/packs:/lustre/orion/gen008/proj-shared/kaushik/dlcomm-test/dlcomm-pip
+export PYTHONPATH=/opt/cray/pe/python/3.11.7/:/lustre/orion/gen008/proj-shared/kaushik/dlcomm-test/packs:/lustre/orion/gen008/proj-shared/kaushik/dlcomm-test/dlcomm-pip:/lustre/orion/gen008/proj-shared/kaushik/dlcomm-test/DLcomm_benchmark
  
 
 
