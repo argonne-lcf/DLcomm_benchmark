@@ -1,0 +1,75 @@
+framework: pytorch
+ccl_backend: ccl
+extended_logging: false
+barrier: true
+device_type: cpu
+memory_source: host
+order_of_run:
+- fsdp
+- sp
+fsdp:
+  comm_group: within_node
+  num_compute_nodes: 2
+  num_devices_per_node: 4
+  device_ids_per_node:
+  - 4
+  - 9
+  - 14
+  - 19
+  verify_correctness: true
+  collective:
+    collective_name: allreduce
+    collective_op: sum
+    scale_up_algorithm: default
+    scale_out_algorithm: default
+    iterations: 10
+    warmup_iterations: 0
+    add_mxm_compute: false
+    payload:
+      dtype: float32
+      count: null
+      buffer_size: 1KB
+sp:
+  comm_group: across_node
+  num_compute_nodes: 2
+  num_devices_per_node: 4
+  device_ids_per_node:
+  - 4
+  - 9
+  - 14
+  - 19
+  verify_correctness: true
+  collective:
+    collective_name: allgather
+    collective_op: sum
+    scale_up_algorithm: default
+    scale_out_algorithm: default
+    iterations: 10
+    warmup_iterations: 0
+    add_mxm_compute: false
+    payload:
+      dtype: float32
+      count: null
+      buffer_size: 1KB
+flat:
+  comm_group: flatview
+  num_compute_nodes: 2
+  num_devices_per_node: 4
+  device_ids_per_node:
+  - 4
+  - 9
+  - 14
+  - 19
+  verify_correctness: true
+  collective:
+    collective_name: allgather
+    collective_op: sum
+    scale_up_algorithm: default
+    scale_out_algorithm: default
+    iterations: 10
+    warmup_iterations: 0
+    add_mxm_compute: false
+    payload:
+      dtype: float32
+      count: null
+      buffer_size: 1KB

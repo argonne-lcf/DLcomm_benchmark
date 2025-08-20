@@ -1,0 +1,367 @@
+[2025-08-20 16:34:04,718][DL_COMM][INFO] - -------------------------------------------------------------------------
+[2025-08-20 16:34:04,735][DL_COMM][INFO] - [CONFIG] Loading schema and validating user YAML
+[2025-08-20 16:34:04,735][DL_COMM][INFO] - [DEBUG] Current working directory: /lus/flare/projects/datascience_collab/mcim/workspace/gpu-comm/DLcomm_benchmark/examples
+[2025-08-20 16:34:04,735][DL_COMM][INFO] - [DEBUG] Script location: /lus/flare/projects/datascience_collab/mcim/workspace/gpu-comm/DLcomm_benchmark/dl_comm
+[2025-08-20 16:34:04,735][DL_COMM][INFO] - [DEBUG] Tasks to run: ['fsdp', 'sp']
+[2025-08-20 16:34:04,735][DL_COMM][INFO] - [DEBUG] Config loaded successfully
+[2025-08-20 16:34:08,365][DL_COMM][INFO] - 
+[2025-08-20 16:34:08,365][DL_COMM][INFO] - [SYSTEM] Collecting environment information...
+[2025-08-20 16:34:08,365][DL_COMM][INFO] - [SYSTEM] ======================================================
+[2025-08-20 16:34:08,365][DL_COMM][INFO] - [SYSTEM] PyTorch version: 2.5.1+cxx11.abi
+[2025-08-20 16:34:08,365][DL_COMM][INFO] - [SYSTEM] Is CUDA available: False
+[2025-08-20 16:34:08,365][DL_COMM][INFO] - [SYSTEM] CUDA runtime version: N/A
+[2025-08-20 16:34:08,365][DL_COMM][INFO] - [SYSTEM] GPU models and configuration: N/A
+[2025-08-20 16:34:08,379][DL_COMM][INFO] - [SYSTEM] Is XPU available: True
+[2025-08-20 16:34:08,379][DL_COMM][INFO] - [SYSTEM] XPU device count: 12
+[2025-08-20 16:34:08,379][DL_COMM][INFO] - 
+[2025-08-20 16:34:08,384][DL_COMM][INFO] - [SYSTEM] OS: Linux-5.14.21-150400.24.55-default-x86_64-with-glibc2.31
+[2025-08-20 16:34:08,390][DL_COMM][INFO] - [SYSTEM] GCC version: gcc (Spack GCC) 13.3.0
+[2025-08-20 16:34:08,390][DL_COMM][INFO] - 
+[2025-08-20 16:34:08,390][DL_COMM][INFO] - [SYSTEM] Python version: 3.10.14 | packaged by conda-forge | (main, Mar 20 2024, 12:45:18) [GCC 12.3.0]
+[2025-08-20 16:34:08,390][DL_COMM][INFO] - [SYSTEM] Python platform: Linux-5.14.21-150400.24.55-default-x86_64-with-glibc2.31
+[2025-08-20 16:34:08,390][DL_COMM][INFO] - 
+[2025-08-20 16:34:08,390][DL_COMM][INFO] - [SYSTEM] Distributed Backend Availability:
+[2025-08-20 16:34:08,390][DL_COMM][INFO] - [SYSTEM] NCCL backend available: False
+[2025-08-20 16:34:08,390][DL_COMM][INFO] - [SYSTEM] MPI backend available: False
+[2025-08-20 16:34:08,390][DL_COMM][INFO] - [SYSTEM] XCCL backend available: Unknown/Error
+[2025-08-20 16:34:08,390][DL_COMM][INFO] - 
+[2025-08-20 16:34:08,390][DL_COMM][INFO] - [SYSTEM] Versions of relevant libraries:
+[2025-08-20 16:34:08,390][DL_COMM][INFO] - [SYSTEM] numpy: 1.26.4
+[2025-08-20 16:34:08,390][DL_COMM][INFO] - [SYSTEM] mpi4py: 3.1.6
+[2025-08-20 16:34:08,390][DL_COMM][INFO] - [SYSTEM] hydra-core: 1.3.2
+[2025-08-20 16:34:08,391][DL_COMM][INFO] - [SYSTEM] omegaconf: 2.3.0
+[2025-08-20 16:34:08,391][DL_COMM][INFO] - [SYSTEM] oneccl_bindings_for_pytorch: 2.5.0+xpu
+[2025-08-20 16:34:08,391][DL_COMM][INFO] - [SYSTEM] intel_extension_for_pytorch: 2.5.10+xpu
+[2025-08-20 16:34:08,391][DL_COMM][INFO] - [SYSTEM] NCCL version: Not available
+[2025-08-20 16:34:08,391][DL_COMM][INFO] - 
+[2025-08-20 16:34:08,391][DL_COMM][INFO] - [SYSTEM] Relevant Environment Variables:
+[2025-08-20 16:34:08,391][DL_COMM][INFO] - [SYSTEM] CCL_ATL_SHM                    = 0
+[2025-08-20 16:34:08,391][DL_COMM][INFO] - [SYSTEM] CCL_ATL_TRANSPORT              = mpi
+[2025-08-20 16:34:08,391][DL_COMM][INFO] - [SYSTEM] CCL_CONFIGURATION              = cpu_gpu_dpcpp
+[2025-08-20 16:34:08,391][DL_COMM][INFO] - [SYSTEM] CCL_CONFIGURATION_PATH         = 
+[2025-08-20 16:34:08,391][DL_COMM][INFO] - [SYSTEM] CCL_ENABLE_AUTO_CACHE          = 0
+[2025-08-20 16:34:08,392][DL_COMM][INFO] - [SYSTEM] CCL_KVS_CONNECTION_TIMEOUT     = 600
+[2025-08-20 16:34:08,392][DL_COMM][INFO] - [SYSTEM] CCL_KVS_MODE                   = mpi
+[2025-08-20 16:34:08,392][DL_COMM][INFO] - [SYSTEM] CCL_OP_SYNC                    = 1
+[2025-08-20 16:34:08,392][DL_COMM][INFO] - [SYSTEM] CCL_PROCESS_LAUNCHER           = pmix
+[2025-08-20 16:34:08,392][DL_COMM][INFO] - [SYSTEM] CCL_ROOT                       = /opt/aurora/24.347.0/oneapi/ccl/latest
+[2025-08-20 16:34:08,392][DL_COMM][INFO] - [SYSTEM] FI_CXI_CQ_FILL_PERCENT         = 30
+[2025-08-20 16:34:08,392][DL_COMM][INFO] - [SYSTEM] FI_CXI_DEFAULT_CQ_SIZE         = 1048576
+[2025-08-20 16:34:08,392][DL_COMM][INFO] - [SYSTEM] FI_CXI_OFLOW_BUF_SIZE          = 8388608
+[2025-08-20 16:34:08,392][DL_COMM][INFO] - [SYSTEM] FI_CXI_RX_MATCH_MODE           = hybrid
+[2025-08-20 16:34:08,392][DL_COMM][INFO] - [SYSTEM] FI_MR_CACHE_MONITOR            = userfaultfd
+[2025-08-20 16:34:08,392][DL_COMM][INFO] - [SYSTEM] FI_PROVIDER                    = cxi,tcp;ofi_rxm
+[2025-08-20 16:34:08,392][DL_COMM][INFO] - [SYSTEM] MASTER_ADDR                    = x4304c0s1b0n0
+[2025-08-20 16:34:08,392][DL_COMM][INFO] - [SYSTEM] MASTER_PORT                    = 2268
+[2025-08-20 16:34:08,392][DL_COMM][INFO] - [SYSTEM] MPIR_CVAR_CH4_OFI_MAX_NICS     = 1
+[2025-08-20 16:34:08,392][DL_COMM][INFO] - [SYSTEM] PALS_LOCAL_RANKID              = 0
+[2025-08-20 16:34:08,392][DL_COMM][INFO] - [SYSTEM] PALS_RANKID                    = 0
+[2025-08-20 16:34:08,392][DL_COMM][INFO] - [SYSTEM] PMIX_RANK                      = 0
+[2025-08-20 16:34:08,392][DL_COMM][INFO] - [SYSTEM] __LMOD_STACK_FI_PROVIDER       = Y3hpLHRjcDtvZmlfcnht
+[2025-08-20 16:34:08,392][DL_COMM][INFO] - [SYSTEM] __LMOD_STACK_MPIR_CVAR_CH4_OFI_MAX_NICS = MQ==
+[2025-08-20 16:34:08,392][DL_COMM][INFO] - [SYSTEM] ======================================================
+[2025-08-20 16:34:08,392][DL_COMM][INFO] - 
+[2025-08-20 16:34:08,432][DL_COMM][INFO] - 
+[2025-08-20 16:34:08,432][DL_COMM][INFO] - ================================================================================
+[2025-08-20 16:34:08,432][DL_COMM][INFO] - [TASK 1/2] ==================== FSDP ====================
+[2025-08-20 16:34:08,432][DL_COMM][INFO] - ================================================================================
+[2025-08-20 16:34:08,432][DL_COMM][INFO] - 
+[2025-08-20 16:34:08,433][DL_COMM][WARNING] - [VALIDATION] Cannot check CCL/XCCL availability (API not available)
+[2025-08-20 16:34:08,433][DL_COMM][INFO] - 
+[2025-08-20 16:34:08,433][DL_COMM][INFO] - [CONFIG] Setup
+[2025-08-20 16:34:08,433][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-08-20 16:34:08,433][DL_COMM][INFO] - [CONFIG] Task Name            : fsdp
+[2025-08-20 16:34:08,433][DL_COMM][INFO] - [CONFIG] Framework            : pytorch
+[2025-08-20 16:34:08,433][DL_COMM][INFO] - [CONFIG] Backend              : ccl
+[2025-08-20 16:34:08,433][DL_COMM][INFO] - [CONFIG] Extended Logging     : False
+[2025-08-20 16:34:08,433][DL_COMM][INFO] - [CONFIG] Barrier Enabled      : True
+[2025-08-20 16:34:08,433][DL_COMM][INFO] - [CONFIG] World Size           : 8
+[2025-08-20 16:34:08,433][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-08-20 16:34:08,433][DL_COMM][INFO] - 
+[2025-08-20 16:34:08,433][DL_COMM][INFO] - [CONFIG] Communication Group
+[2025-08-20 16:34:08,433][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-08-20 16:34:08,433][DL_COMM][INFO] - [CONFIG] Mode                 : within_node
+[2025-08-20 16:34:08,433][DL_COMM][INFO] - [CONFIG] Topology             : 2 nodes x 4 devices
+[2025-08-20 16:34:08,433][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-08-20 16:34:08,433][DL_COMM][INFO] - 
+[2025-08-20 16:34:08,433][DL_COMM][INFO] - [CONFIG] Communication Group Details
+[2025-08-20 16:34:08,433][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-08-20 16:34:08,433][DL_COMM][INFO] - [CONFIG] Collective Name      : allreduce
+[2025-08-20 16:34:08,433][DL_COMM][INFO] - [CONFIG] Operation            : sum
+[2025-08-20 16:34:08,433][DL_COMM][INFO] - [CONFIG] Scale Up Algorithm   : default
+[2025-08-20 16:34:08,433][DL_COMM][INFO] - [CONFIG] Scale Out Algorithm  : default
+[2025-08-20 16:34:08,433][DL_COMM][INFO] - [CONFIG] Data Type            : float32
+[2025-08-20 16:34:08,433][DL_COMM][INFO] - [CONFIG] Element Count        : 256
+[2025-08-20 16:34:08,434][DL_COMM][INFO] - [CONFIG] Buffer Size          : 1KB (1024 bytes)
+[2025-08-20 16:34:08,434][DL_COMM][INFO] - [CONFIG] Iterations           : 10
+[2025-08-20 16:34:08,434][DL_COMM][INFO] - [CONFIG] Verify Correctness   : True
+[2025-08-20 16:34:08,434][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-08-20 16:34:08,434][DL_COMM][INFO] - 
+[2025-08-20 16:34:08,434][DL_COMM][INFO] - [COMM][CONFIG] Setting up communication groups for mode: Within
+[2025-08-20 16:34:08,434][DL_COMM][INFO] - [COMM][CONFIG] Within-node: 4 devices per node, Device IDs: [4, 9, 14, 19]
+[2025-08-20 16:34:08,434][DL_COMM][INFO] - [COMM][GROUP CREATION] Within-node groups:
+[2025-08-20 16:34:08,434][DL_COMM][INFO] - 
+[2025-08-20 16:34:08,434][DL_COMM][INFO] - [COMM][GROUP CREATION][Within Group-0] Ranks: [0, 1, 2, 3], Required Devices: [4, 9, 14, 19], Logging: rank 0
+[2025-08-20 16:34:08,434][DL_COMM][INFO] - [COMM][GROUP CREATION][Within Group-1] Ranks: [4, 5, 6, 7], Required Devices: [4, 9, 14, 19], Logging: rank 4
+[2025-08-20 16:34:08,434][DL_COMM][INFO] - [COMM][GROUP CREATION] Created 2 within-node groups
+[2025-08-20 16:34:08,434][DL_COMM][INFO] - 
+[2025-08-20 16:34:08,453][DL_COMM][OUTPUT] - 
+[2025-08-20 16:34:08,453][DL_COMM][OUTPUT] - [TIMERS - SETUP] ---------------------------------------------------------
+[2025-08-20 16:34:08,453][DL_COMM][OUTPUT] - [TIMERS][LOGGING RANK - 0] import time                         = 3.629546 s
+[2025-08-20 16:34:08,453][DL_COMM][OUTPUT] - [TIMERS][LOGGING RANK - 0] init time                           = 0.012194 s
+[2025-08-20 16:34:08,453][DL_COMM][OUTPUT] - [TIMERS][LOGGING RANK - 0] Group Creation (Within)             = 0.000390 s
+[2025-08-20 16:34:08,453][DL_COMM][OUTPUT] - [TIMERS - SETUP] ---------------------------------------------------------
+[2025-08-20 16:34:08,453][DL_COMM][OUTPUT] - 
+[2025-08-20 16:34:08,453][DL_COMM][OUTPUT] - [MPI] Launching profiling job
+2025:08:20-16:34:08:(79708) |CCL_WARN| value of CCL_KVS_MODE changed to be mpi (default:pmi)
+2025:08:20-16:34:08:(79708) |CCL_WARN| value of CCL_KVS_CONNECTION_TIMEOUT changed to be 600 (default:120)
+2025:08:20-16:34:08:(79708) |CCL_WARN| value of CCL_ENABLE_AUTO_CACHE changed to be 0 (default:1)
+2025:08:20-16:34:08:(79708) |CCL_WARN| value of CCL_OP_SYNC changed to be 1 (default:0)
+2025:08:20-16:34:08:(79708) |CCL_WARN| value of CCL_PROCESS_LAUNCHER changed to be pmix (default:hydra)
+2025:08:20-16:34:08:(79708) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:08:20-16:34:08:(79708) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:08:20-16:34:08:(79708) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:08:20-16:34:08:(79708) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:08:20-16:34:08:(79708) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:08:20-16:34:08:(79708) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:08:20-16:34:08:(79708) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:08:20-16:34:08:(79708) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:08:20-16:34:08:(79708) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:08:20-16:34:08:(79708) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:08:20-16:34:08:(79708) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:08:20-16:34:08:(79708) |CCL_WARN| topology recogni2025:08:20-16:34:08:(79709) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:08:20-16:34:08:(79709) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:08:20-16:34:08:(79709) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:08:20-16:34:08:(79709) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:08:20-16:34:08:(79709) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:08:20-16:34:08:(79709) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:08:20-16:34:08:(79709) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:08:20-16:34:08:(79709) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:08:20-16:34:08:(79709) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+tion shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:08:20-16:34:08:(79709) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:08:20-16:34:08:(79709) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:08:20-16:34:08:(79709) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:08:20-16:34:08:(79711) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:08:20-16:34:08:(79711) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:08:20-16:34:08:(79711) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:08:20-16:34:08:(79711) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:08:20-16:34:08:(79711) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:08:20-16:34:08:(79711) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:08:20-16:34:08:(79711) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:08:20-16:34:08:(79711) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:08:20-16:34:08:(79711) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:08:20-16:34:08:(79711) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:08:20-16:34:08:(79711) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:08:20-16:34:08:(79711) |CCL_WARN| topology recogni2025:08:20-16:34:08:(79710) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:08:20-16:34:08:(79710) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:08:20-16:34:08:(79710) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:08:20-16:34:08:(79710) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:08:20-16:34:08:(79710) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:08:20-16:34:08:(79710) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:08:20-16:34:08:(79710) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:08:20-16:34:08:(79710) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:08:20-16:34:08:(79710) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+tion shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:08:20-16:34:08:(79710) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:08:20-16:34:08:(79710) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:08:20-16:34:08:(79710) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:08:20-16:34:08:(191007) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:08:20-16:34:08:(191007) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:08:20-16:34:08:(191007) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:08:20-16:34:08:(191007) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:08:20-16:34:08:(191007) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:08:20-16:34:08:(191007) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:08:20-16:34:08:(191007) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:08:20-16:34:08:(191007) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:08:20-16:34:08:(191007) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:08:20-16:34:08:(191007) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:08:20-16:34:08:(191007) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:08:20-16:34:08:(191007) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:08:20-16:34:08:(191008) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:08:20-16:34:08:(191008) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:08:20-16:34:08:(191008) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:08:20-16:34:08:(191008) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:08:20-16:34:08:(191008) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:08:20-16:34:08:(191008) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:08:20-16:34:08:(191008) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:08:20-16:34:08:(191008) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:08:20-16:34:08:(191008) |CCL_WARN| topolog2025:08:20-16:34:08:(191009) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:08:20-16:34:08:(191009) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:08:20-16:34:08:(191009) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:08:20-16:34:08:(191009) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:08:20-16:34:08:(191009) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:08:20-16:34:08:(191009) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:08:20-16:34:08:(191009) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:08:20-16:34:08:(191009) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:08:20-16:34:08:(191009) |CCL_WARN| topolog2025:08:20-16:34:08:(191010) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:08:20-16:34:08:(191010) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:08:20-16:34:08:(191010) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:08:20-16:34:08:(191010) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:08:20-16:34:08:(191010) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:08:20-16:34:08:(191010) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:08:20-16:34:08:(191010) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:08:20-16:34:08:(191010) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:08:20-16:34:08:(191010) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:08:20-16:34:08:(191008) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:08:20-16:34:08:(191008) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:08:20-16:34:08:(191008) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+y recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:08:20-16:34:08:(191009) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:08:20-16:34:08:(191009) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:08:20-16:34:08:(191009) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+y recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:08:20-16:34:08:(191010) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:08:20-16:34:08:(191010) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+2025:08:20-16:34:08:(191010) |CCL_WARN| topology recognition shows PCIe connection between devices. If this is not correct, you can disable topology recognition, with CCL_TOPO_FABRIC_VERTEX_CONNECTION_CHECK=0. This will assume XeLinks across devices
+[2025-08-20 16:34:08,549][DL_COMM][OUTPUT] - 
+[2025-08-20 16:34:08,550][DL_COMM][OUTPUT] - [TIMERS] ---------------------------------------------------------
+[2025-08-20 16:34:08,550][DL_COMM][OUTPUT] - 
+[2025-08-20 16:34:08,550][DL_COMM][INFO] -   [TIMERS] [BARRIER ENABLED] Timing measurements used MPI barriers for synchronization
+[2025-08-20 16:34:08,550][DL_COMM][OUTPUT] - 
+[2025-08-20 16:34:08,550][DL_COMM][OUTPUT] - [TIMERS] ITERATION TABLE FOR ALLREDUCE (seconds):
+[2025-08-20 16:34:08,550][DL_COMM][OUTPUT] - Iteration     (Within-Group-0)    (Within-Group-1)  
+[2025-08-20 16:34:08,550][DL_COMM][OUTPUT] -               LOGGING RANK - 0    LOGGING RANK - 4  
+[2025-08-20 16:34:08,550][DL_COMM][OUTPUT] - ----------------------------------------------------
+[2025-08-20 16:34:08,550][DL_COMM][OUTPUT] - 0                 0.001045            0.001015      
+[2025-08-20 16:34:08,550][DL_COMM][OUTPUT] - 1                 0.000198            0.000192      
+[2025-08-20 16:34:08,550][DL_COMM][OUTPUT] - 2                 0.000184            0.000182      
+[2025-08-20 16:34:08,550][DL_COMM][OUTPUT] - 3                 0.000183            0.000200      
+[2025-08-20 16:34:08,550][DL_COMM][OUTPUT] - 4                 0.000177            0.000178      
+[2025-08-20 16:34:08,550][DL_COMM][OUTPUT] - 5                 0.000166            0.000162      
+[2025-08-20 16:34:08,550][DL_COMM][OUTPUT] - 6                 0.000168            0.000163      
+[2025-08-20 16:34:08,550][DL_COMM][OUTPUT] - 7                 0.000179            0.000175      
+[2025-08-20 16:34:08,550][DL_COMM][OUTPUT] - 8                 0.000177            0.000169      
+[2025-08-20 16:34:08,550][DL_COMM][OUTPUT] - 9                 0.000174            0.000172      
+[2025-08-20 16:34:08,550][DL_COMM][OUTPUT] - ----------------------------------------------------
+[2025-08-20 16:34:08,550][DL_COMM][OUTPUT] - 
+[2025-08-20 16:34:08,550][DL_COMM][OUTPUT] - [TIMERS] ---------------------------------------------------------
+[2025-08-20 16:34:08,550][DL_COMM][OUTPUT] - 
+[2025-08-20 16:34:08,550][DL_COMM][OUTPUT] - [BANDWIDTH] -------------------------------------------
+[2025-08-20 16:34:08,551][DL_COMM][OUTPUT] - 
+[2025-08-20 16:34:08,551][DL_COMM][OUTPUT] - [BANDWIDTH] BANDWIDTH TABLE FOR ALLREDUCE (bytes/seconds):
+[2025-08-20 16:34:08,551][DL_COMM][OUTPUT] - Iteration     (Within-Group-0)    (Within-Group-1)  
+[2025-08-20 16:34:08,551][DL_COMM][OUTPUT] -               LOGGING RANK - 0    LOGGING RANK - 4  
+[2025-08-20 16:34:08,551][DL_COMM][OUTPUT] - ----------------------------------------------------
+[2025-08-20 16:34:08,551][DL_COMM][OUTPUT] - 0                 3919613             4035488       
+[2025-08-20 16:34:08,551][DL_COMM][OUTPUT] - 1                 20694918            21289206      
+[2025-08-20 16:34:08,551][DL_COMM][OUTPUT] - 2                 22238266            22451950      
+[2025-08-20 16:34:08,551][DL_COMM][OUTPUT] - 3                 22429457            20528243      
+[2025-08-20 16:34:08,551][DL_COMM][OUTPUT] - 4                 23107297            23005674      
+[2025-08-20 16:34:08,551][DL_COMM][OUTPUT] - 5                 24601936            25210188      
+[2025-08-20 16:34:08,551][DL_COMM][OUTPUT] - 6                 24349350            25080825      
+[2025-08-20 16:34:08,552][DL_COMM][OUTPUT] - 7                 22927001            23433830      
+[2025-08-20 16:34:08,552][DL_COMM][OUTPUT] - 8                 23097915            24227365      
+[2025-08-20 16:34:08,552][DL_COMM][OUTPUT] - 9                 23559588            23761873      
+[2025-08-20 16:34:08,552][DL_COMM][OUTPUT] - ----------------------------------------------------
+[2025-08-20 16:34:08,552][DL_COMM][OUTPUT] - 
+[2025-08-20 16:34:08,552][DL_COMM][OUTPUT] - [BANDWIDTH] -------------------------------------------
+[2025-08-20 16:34:08,552][DL_COMM][INFO] - -------------------------------------------------------------------------
+[2025-08-20 16:34:08,552][DL_COMM][INFO] - [MPI] Job complete
+[2025-08-20 16:34:08,552][DL_COMM][INFO] - -------------------------------------------------------------------------
+[2025-08-20 16:34:08,552][DL_COMM][INFO] - -------------------------------------------------------------------------
+[2025-08-20 16:34:08,552][DL_COMM][INFO] - [EXIT] All Done.
+[2025-08-20 16:34:08,552][DL_COMM][INFO] - -------------------------------------------------------------------------
+[2025-08-20 16:34:08,552][DL_COMM][INFO] - 
+[2025-08-20 16:34:08,552][DL_COMM][INFO] - ================================================================================
+[2025-08-20 16:34:08,552][DL_COMM][INFO] - [TASK 2/2] ==================== SP ====================
+[2025-08-20 16:34:08,552][DL_COMM][INFO] - ================================================================================
+[2025-08-20 16:34:08,552][DL_COMM][INFO] - 
+[2025-08-20 16:34:08,552][DL_COMM][INFO] - 
+[2025-08-20 16:34:08,552][DL_COMM][INFO] - [CONFIG] Setup
+[2025-08-20 16:34:08,553][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-08-20 16:34:08,553][DL_COMM][INFO] - [CONFIG] Task Name            : sp
+[2025-08-20 16:34:08,553][DL_COMM][INFO] - [CONFIG] Framework            : pytorch
+[2025-08-20 16:34:08,553][DL_COMM][INFO] - [CONFIG] Backend              : ccl
+[2025-08-20 16:34:08,553][DL_COMM][INFO] - [CONFIG] Extended Logging     : False
+[2025-08-20 16:34:08,553][DL_COMM][INFO] - [CONFIG] Barrier Enabled      : True
+[2025-08-20 16:34:08,553][DL_COMM][INFO] - [CONFIG] World Size           : 8
+[2025-08-20 16:34:08,553][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-08-20 16:34:08,553][DL_COMM][INFO] - 
+[2025-08-20 16:34:08,553][DL_COMM][INFO] - [CONFIG] Communication Group
+[2025-08-20 16:34:08,553][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-08-20 16:34:08,553][DL_COMM][INFO] - [CONFIG] Mode                 : across_node
+[2025-08-20 16:34:08,553][DL_COMM][INFO] - [CONFIG] Topology             : 2 nodes x 4 devices
+[2025-08-20 16:34:08,553][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-08-20 16:34:08,553][DL_COMM][INFO] - 
+[2025-08-20 16:34:08,553][DL_COMM][INFO] - [CONFIG] Communication Group Details
+[2025-08-20 16:34:08,553][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-08-20 16:34:08,553][DL_COMM][INFO] - [CONFIG] Collective Name      : allgather
+[2025-08-20 16:34:08,553][DL_COMM][INFO] - [CONFIG] Operation            : N/A
+[2025-08-20 16:34:08,553][DL_COMM][INFO] - [CONFIG] Scale Up Algorithm   : default
+[2025-08-20 16:34:08,553][DL_COMM][INFO] - [CONFIG] Scale Out Algorithm  : default
+[2025-08-20 16:34:08,553][DL_COMM][INFO] - [CONFIG] Data Type            : float32
+[2025-08-20 16:34:08,553][DL_COMM][INFO] - [CONFIG] Element Count        : 256
+[2025-08-20 16:34:08,553][DL_COMM][INFO] - [CONFIG] Buffer Size          : 1KB (1024 bytes)
+[2025-08-20 16:34:08,553][DL_COMM][INFO] - [CONFIG] Iterations           : 10
+[2025-08-20 16:34:08,553][DL_COMM][INFO] - [CONFIG] Verify Correctness   : True
+[2025-08-20 16:34:08,553][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-08-20 16:34:08,553][DL_COMM][INFO] - 
+[2025-08-20 16:34:08,553][DL_COMM][INFO] - 
+[2025-08-20 16:34:08,553][DL_COMM][INFO] - [COMM][CONFIG] Setting up communication groups for mode: Across
+[2025-08-20 16:34:08,554][DL_COMM][INFO] - [COMM][CONFIG] Across-node: 2 nodes, 4 devices per node, Device IDs: [4, 9, 14, 19]
+[2025-08-20 16:34:08,554][DL_COMM][INFO] - [COMM][GROUP CREATION] Across-node groups:
+[2025-08-20 16:34:08,554][DL_COMM][INFO] - [COMM][GROUP CREATION][Across Group-0] Ranks: [0, 4], Device ID: 4, Logging: rank 0
+[2025-08-20 16:34:08,554][DL_COMM][INFO] - [COMM][GROUP CREATION][Across Group-1] Ranks: [1, 5], Device ID: 9, Logging: rank 1
+[2025-08-20 16:34:08,554][DL_COMM][INFO] - [COMM][GROUP CREATION][Across Group-2] Ranks: [2, 6], Device ID: 14, Logging: rank 2
+[2025-08-20 16:34:08,554][DL_COMM][INFO] - [COMM][GROUP CREATION][Across Group-3] Ranks: [3, 7], Device ID: 19, Logging: rank 3
+[2025-08-20 16:34:08,554][DL_COMM][INFO] - [COMM][GROUP CREATION] Created 4 across-node groups
+[2025-08-20 16:34:08,554][DL_COMM][INFO] - 
+[2025-08-20 16:34:08,554][DL_COMM][OUTPUT] - 
+[2025-08-20 16:34:08,554][DL_COMM][OUTPUT] - [TIMERS - SETUP] ---------------------------------------------------------
+[2025-08-20 16:34:08,554][DL_COMM][OUTPUT] - [TIMERS][LOGGING RANK - 0] Group Creation (Across)             = 0.000402 s
+[2025-08-20 16:34:08,554][DL_COMM][OUTPUT] - [TIMERS - SETUP] ---------------------------------------------------------
+[2025-08-20 16:34:08,554][DL_COMM][OUTPUT] - 
+[2025-08-20 16:34:08,554][DL_COMM][OUTPUT] - [MPI] Launching profiling job
+[2025-08-20 16:34:08,615][DL_COMM][OUTPUT] - 
+[2025-08-20 16:34:08,615][DL_COMM][OUTPUT] - [TIMERS] ---------------------------------------------------------
+[2025-08-20 16:34:08,616][DL_COMM][OUTPUT] - 
+[2025-08-20 16:34:08,616][DL_COMM][INFO] -   [TIMERS] [BARRIER ENABLED] Timing measurements used MPI barriers for synchronization
+[2025-08-20 16:34:08,616][DL_COMM][OUTPUT] - 
+[2025-08-20 16:34:08,616][DL_COMM][OUTPUT] - [TIMERS] ITERATION TABLE FOR ALLGATHER (seconds):
+[2025-08-20 16:34:08,616][DL_COMM][OUTPUT] - Iteration     (Across-Group-0)    (Across-Group-1)    (Across-Group-2)    (Across-Group-3)  
+[2025-08-20 16:34:08,616][DL_COMM][OUTPUT] -               LOGGING RANK - 0    LOGGING RANK - 1    LOGGING RANK - 2    LOGGING RANK - 3  
+[2025-08-20 16:34:08,616][DL_COMM][OUTPUT] - --------------------------------------------------------------------------------------------
+[2025-08-20 16:34:08,616][DL_COMM][OUTPUT] - 0                 0.001259            0.001280            0.001736            0.001761      
+[2025-08-20 16:34:08,616][DL_COMM][OUTPUT] - 1                 0.000185            0.000186            0.000184            0.000185      
+[2025-08-20 16:34:08,616][DL_COMM][OUTPUT] - 2                 0.000173            0.000171            0.000171            0.000196      
+[2025-08-20 16:34:08,616][DL_COMM][OUTPUT] - 3                 0.000174            0.000172            0.000170            0.000164      
+[2025-08-20 16:34:08,616][DL_COMM][OUTPUT] - 4                 0.000166            0.000170            0.000180            0.000334      
+[2025-08-20 16:34:08,616][DL_COMM][OUTPUT] - 5                 0.000186            0.000450            0.000171            0.000194      
+[2025-08-20 16:34:08,616][DL_COMM][OUTPUT] - 6                 0.000178            0.000177            0.000172            0.000165      
+[2025-08-20 16:34:08,616][DL_COMM][OUTPUT] - 7                 0.000159            0.000162            0.000181            0.000158      
+[2025-08-20 16:34:08,616][DL_COMM][OUTPUT] - 8                 0.000159            0.000157            0.000159            0.000178      
+[2025-08-20 16:34:08,616][DL_COMM][OUTPUT] - 9                 0.000180            0.000173            0.000161            0.000158      
+[2025-08-20 16:34:08,616][DL_COMM][OUTPUT] - --------------------------------------------------------------------------------------------
+[2025-08-20 16:34:08,616][DL_COMM][OUTPUT] - 
+[2025-08-20 16:34:08,616][DL_COMM][OUTPUT] - [TIMERS] ---------------------------------------------------------
+[2025-08-20 16:34:08,616][DL_COMM][OUTPUT] - 
+[2025-08-20 16:34:08,616][DL_COMM][OUTPUT] - [BANDWIDTH] -------------------------------------------
+[2025-08-20 16:34:08,617][DL_COMM][OUTPUT] - 
+[2025-08-20 16:34:08,617][DL_COMM][OUTPUT] - [BANDWIDTH] BANDWIDTH TABLE FOR ALLGATHER (bytes/seconds):
+[2025-08-20 16:34:08,617][DL_COMM][OUTPUT] - Iteration     (Across-Group-0)    (Across-Group-1)    (Across-Group-2)    (Across-Group-3)  
+[2025-08-20 16:34:08,617][DL_COMM][OUTPUT] -               LOGGING RANK - 0    LOGGING RANK - 1    LOGGING RANK - 2    LOGGING RANK - 3  
+[2025-08-20 16:34:08,617][DL_COMM][OUTPUT] - --------------------------------------------------------------------------------------------
+[2025-08-20 16:34:08,617][DL_COMM][OUTPUT] - 0                 3252278             3199210             2359855             2326070       
+[2025-08-20 16:34:08,617][DL_COMM][OUTPUT] - 1                 22182143            22038690            22225960            22163545      
+[2025-08-20 16:34:08,617][DL_COMM][OUTPUT] - 2                 23645960            23981548            23979439            20881658      
+[2025-08-20 16:34:08,617][DL_COMM][OUTPUT] - 3                 23549433            23846399            24130602            25013283      
+[2025-08-20 16:34:08,617][DL_COMM][OUTPUT] - 4                 24600749            24039527            22734085            12246973      
+[2025-08-20 16:34:08,617][DL_COMM][OUTPUT] - 5                 21981323            9108618             23975093            21164455      
+[2025-08-20 16:34:08,617][DL_COMM][OUTPUT] - 6                 23027017            23193925            23794728            24774848      
+[2025-08-20 16:34:08,617][DL_COMM][OUTPUT] - 7                 25704905            25357046            22674302            25932423      
+[2025-08-20 16:34:08,617][DL_COMM][OUTPUT] - 8                 25826302            26015275            25686533            22986053      
+[2025-08-20 16:34:08,617][DL_COMM][OUTPUT] - 9                 22708246            23658250            25380303            25954278      
+[2025-08-20 16:34:08,617][DL_COMM][OUTPUT] - --------------------------------------------------------------------------------------------
+[2025-08-20 16:34:08,617][DL_COMM][OUTPUT] - 
+[2025-08-20 16:34:08,617][DL_COMM][OUTPUT] - [BANDWIDTH] -------------------------------------------
+[2025-08-20 16:34:08,617][DL_COMM][INFO] - -------------------------------------------------------------------------
+[2025-08-20 16:34:08,617][DL_COMM][INFO] - [MPI] Job complete
+[2025-08-20 16:34:08,618][DL_COMM][INFO] - -------------------------------------------------------------------------
+[2025-08-20 16:34:08,618][DL_COMM][INFO] - -------------------------------------------------------------------------
+[2025-08-20 16:34:08,618][DL_COMM][INFO] - [EXIT] All Done.
+[2025-08-20 16:34:08,618][DL_COMM][INFO] - -------------------------------------------------------------------------
+[2025-08-20 16:34:08,618][DL_COMM][INFO] - 
+[2025-08-20 16:34:08,618][DL_COMM][INFO] - ================================================================================
+[2025-08-20 16:34:08,618][DL_COMM][INFO] - [FINAL] All 2 tasks completed successfully!
+[2025-08-20 16:34:08,618][DL_COMM][INFO] - ================================================================================

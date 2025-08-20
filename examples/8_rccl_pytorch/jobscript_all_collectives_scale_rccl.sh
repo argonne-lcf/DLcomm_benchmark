@@ -78,7 +78,7 @@ export no_proxy='localhost,127.0.0.0/8,*.ccs.ornl.gov'
 srun --ntasks=16 --export=ALL --cpu-bind=threads \
   python3 -m dl_comm.dl_comm_main \
   --config-path="$SCRIPT_DIR" \
-  --config-name=8_rccl_simple \
+  --config-name=8_rccl_pytorch \
   -- \
   hydra.run.dir="$RUN_LOG_DIR" \
   hydra.output_subdir=null \

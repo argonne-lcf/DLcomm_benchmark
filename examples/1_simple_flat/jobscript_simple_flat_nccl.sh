@@ -7,19 +7,16 @@
 #PBS -j oe
 #PBS -o /dev/null
 
+# ============================================================================
+# ENVIRONMENT SETUP
+# ============================================================================
 module use /soft/modulefiles
 module load conda/2024-04-29
 conda activate base
 
-export CCL_ATL_TRANSPORT=ofi
-export CCL_ATL_SHM=1
-export CCL_PROCESS_LAUNCHER=pmix
-export CCL_KVS_MODE=mpi
-export CCL_KVS_CONNECTION_TIMEOUT=600
-export CCL_OP_SYNC=1
-export CCL_ENABLE_AUTO_CACHE=1
-
-# Use PBS_O_WORKDIR if available (when using qsub), otherwise use script directory
+# ============================================================================
+# DIRECTORY SETUP
+# ============================================================================
 if [ -n "$PBS_O_WORKDIR" ]; then
     cd "$PBS_O_WORKDIR"
     SCRIPT_DIR="$PBS_O_WORKDIR"
@@ -30,7 +27,38 @@ EXAMPLES_DIR="$SCRIPT_DIR/../.."
 WORKDIR="$EXAMPLES_DIR"
 cd "$WORKDIR"
 
+# ============================================================================
+# ENVIRONMENT VARIABLES
+# ============================================================================
 export PYTHONPATH="$WORKDIR/..:$PYTHONPATH"
+export CCL_ATL_TRANSPORT=ofi
+export CCL_ATL_SHM=1
+export CCL_PROCESS_LAUNCHER=pmix
+export CCL_KVS_MODE=mpi
+export CCL_KVS_CONNECTION_TIMEOUT=600
+export CCL_OP_SYNC=1
+export CCL_ENABLE_AUTO_CACHE=1
+export MPICH_GPU_SUPPORT_ENABLED=0
+export TORCH_CUDA_ARCH_LIST="8.0"
+export CCL_LOG_LEVEL=info
+export CCL_ENABLE_PROFILING=1
+export TORCH_CPP_LOG_LEVEL=ERROR
+
+# ============================================================================
+# LOG DIRECTORY SETUP
+# ============================================================================
+RUN_TIMESTAMP=$(date '+%Y%m%d_%H%M%S')
+RUN_LOG_DIR="$SCRIPT_DIR/logs/run_${RUN_TIMESTAMP}"
+export RUN_LOG_DIR
+export TERMINAL_LOG_FILE="$RUN_LOG_DIR/terminal_output.log"
+export DL_COMM_LOG_DIR="$RUN_LOG_DIR"
+mkdir -p "$RUN_LOG_DIR"
+
+# ============================================================================
+# JOB EXECUTION
+# ============================================================================
+CONFIG_FILE=$(find "$SCRIPT_DIR" -name "*.yaml" -type f | head -1)
+CONFIG_NAME=$(basename "$CONFIG_FILE" .yaml)
 
 if [ -n "$PBS_NODEFILE" ]; then
     NNODES=`wc -l < $PBS_NODEFILE`
@@ -40,22 +68,6 @@ fi
 
 RANKS_PER_NODE=4
 NRANKS=$(( NNODES * RANKS_PER_NODE ))
-
-export MPICH_GPU_SUPPORT_ENABLED=0
-export TORCH_CUDA_ARCH_LIST="8.0"
-export CCL_LOG_LEVEL=info
-export CCL_ENABLE_PROFILING=1
-export TORCH_CPP_LOG_LEVEL=ERROR
-
-RUN_TIMESTAMP=$(date '+%Y%m%d_%H%M%S')
-RUN_LOG_DIR="$SCRIPT_DIR/logs/run_${RUN_TIMESTAMP}"
-mkdir -p "$RUN_LOG_DIR"
-
-export TERMINAL_LOG_FILE="$RUN_LOG_DIR/terminal_output.log"
-export DL_COMM_LOG_DIR="$RUN_LOG_DIR"
-
-CONFIG_FILE=$(find "$SCRIPT_DIR" -name "*.yaml" -type f | head -1)
-CONFIG_NAME=$(basename "$CONFIG_FILE" .yaml)
 
 mpiexec --np ${NRANKS} \
         -ppn ${RANKS_PER_NODE} \

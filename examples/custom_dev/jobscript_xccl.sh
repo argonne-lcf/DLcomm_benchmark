@@ -8,79 +8,61 @@
 #PBS -j oe
 #PBS -o /dev/null
 
-
-# Activate PyTorch 2.8 environment
-source /opt/aurora/24.347.0/oneapi/intel-conda-miniforge/etc/profile.d/conda.sh
-conda activate /lus/flare/projects/datascience_collab/mcim/for-musa/sam_build/conda_pt2.8
-
-# Load frameworks after conda to ensure missing modules are available
+# ============================================================================
+# ENVIRONMENT SETUP
+# ============================================================================
 module load frameworks
 
-# Always use the actual script directory for examples
+# ============================================================================
+# DIRECTORY SETUP
+# ============================================================================
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 EXAMPLES_DIR="$SCRIPT_DIR/.."
 WORKDIR="$EXAMPLES_DIR"
 cd "$WORKDIR"
 
-# Clear any pre-existing PYTHONPATH that might conflict
+# ============================================================================
+# ENVIRONMENT VARIABLES
+# ============================================================================
 unset PYTHONPATH
-# Set PYTHONPATH to use the current directory's parent (where dl_comm module is)
 export PYTHONPATH="$WORKDIR/.."
-
-
-
-NNODES=`wc -l < $PBS_NODEFILE`
-
-
- 
-RANKS_PER_NODE=4
-NRANKS=$(( NNODES * RANKS_PER_NODE ))
-
- 
 export CPU_BINDING="list:4:9:14:19"
- 
-# Critical CCL environment variables 
- 
 export CCL_ATL_TRANSPORT=mpi
 export CCL_ATL_SHM=0
 export CCL_PROCESS_LAUNCHER=pmix
 export TORCH_CPP_LOG_LEVEL=error
 export FI_MR_CACHE_MONITOR=userfaultfd
-
-#export CCL_LOG_LEVEL=debug
-
 export CCL_KVS_MODE=mpi
 export CCL_KVS_CONNECTION_TIMEOUT=600 
-export PALS_PMI=pmix # Required by Aurora mpich
- 
-
+export PALS_PMI=pmix
 export CCL_OP_SYNC=1
 export CCL_ENABLE_AUTO_CACHE=0
-
 export FI_CXI_DEFAULT_CQ_SIZE=1048576
 export FI_CXI_RX_MATCH_MODE=hybrid
- 
 export FI_CXI_OFLOW_BUF_SIZE=8388608
 export FI_CXI_CQ_FILL_PERCENT=30
 
-
-# Create timestamped directory for this run
+# ============================================================================
+# LOG DIRECTORY SETUP
+# ============================================================================
 RUN_TIMESTAMP=$(date '+%Y%m%d_%H%M%S')
 RUN_LOG_DIR="$SCRIPT_DIR/logs/run_${RUN_TIMESTAMP}"
-mkdir -p "$RUN_LOG_DIR"
-
- 
+export RUN_LOG_DIR
 export TERMINAL_LOG_FILE="$RUN_LOG_DIR/terminal_output.log"
 export DL_COMM_LOG_DIR="$RUN_LOG_DIR"
+mkdir -p "$RUN_LOG_DIR"
 
- 
+# ============================================================================
+# JOB EXECUTION
+# ============================================================================
+NNODES=`wc -l < $PBS_NODEFILE`
+RANKS_PER_NODE=4
+NRANKS=$(( NNODES * RANKS_PER_NODE ))
+
 mpiexec --np ${NRANKS} \
         -ppn ${RANKS_PER_NODE} \
         --cpu-bind ${CPU_BINDING} \
         python3 -m dl_comm.dl_comm_main --config-path="$SCRIPT_DIR" --config-name=config 2>&1 | tee "$TERMINAL_LOG_FILE"
 
 EXIT_STATUS=${PIPESTATUS[0]}
-
-
- 
 exit $EXIT_STATUS

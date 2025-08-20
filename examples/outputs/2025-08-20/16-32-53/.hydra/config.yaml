@@ -1,0 +1,76 @@
+framework: pytorch
+ccl_backend: ccl
+extended_logging: false
+barrier: true
+device_type: gpu
+memory_source: host
+order_of_run:
+- SP-allgather
+- SP-reducescatter
+- grad-sync
+SP-allgather:
+  comm_group: within_node
+  num_compute_nodes: 2
+  num_devices_per_node: 4
+  device_ids_per_node:
+  - 0
+  - 1
+  - 2
+  - 3
+  verify_correctness: true
+  collective:
+    collective_name: allgather
+    collective_op: sum
+    scale_up_algorithm: topo
+    scale_out_algorithm: topo
+    iterations: 5
+    warmup_iterations: 2
+    add_mxm_compute: true
+    payload:
+      dtype: bfloat16
+      count: 1024
+      buffer_size: null
+SP-reducescatter:
+  comm_group: within_node
+  num_compute_nodes: 2
+  num_devices_per_node: 4
+  device_ids_per_node:
+  - 0
+  - 1
+  - 2
+  - 3
+  verify_correctness: true
+  collective:
+    collective_name: reducescatter
+    collective_op: min
+    scale_up_algorithm: topo
+    scale_out_algorithm: topo
+    iterations: 5
+    warmup_iterations: 2
+    add_mxm_compute: true
+    payload:
+      dtype: bfloat16
+      count: 1024
+      buffer_size: null
+grad-sync:
+  comm_group: across_node
+  num_compute_nodes: 2
+  num_devices_per_node: 4
+  device_ids_per_node:
+  - 0
+  - 1
+  - 2
+  - 3
+  verify_correctness: true
+  collective:
+    collective_name: allreduce
+    collective_op: min
+    scale_up_algorithm: topo
+    scale_out_algorithm: topo
+    iterations: 5
+    warmup_iterations: 2
+    add_mxm_compute: true
+    payload:
+      dtype: bfloat16
+      count: null
+      buffer_size: 1KB

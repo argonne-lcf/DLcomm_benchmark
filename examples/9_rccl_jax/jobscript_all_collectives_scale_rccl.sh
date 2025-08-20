@@ -90,7 +90,7 @@ export COORDINATOR_PORT=1234
 srun --ntasks=16 --gpus-per-task=1 --cpus-per-task=1 --export=ALL   \
   python3 -m dl_comm.dl_comm_main \
   --config-path="$SCRIPT_DIR" \
-  --config-name=10_rccl_jax \
+  --config-name=9_rccl_jax \
   -- \
   hydra.run.dir="$RUN_LOG_DIR" \
   hydra.output_subdir=null \

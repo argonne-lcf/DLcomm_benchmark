@@ -25,4 +25,9 @@ simple-allreduce:
     payload:
       dtype: float32
       count: 
-      buffer_size: 1GB
+      buffer_size: 100KB
+
+
+
+
+      

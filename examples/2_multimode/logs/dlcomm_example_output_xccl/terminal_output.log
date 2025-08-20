@@ -1,0 +1,277 @@
+[2025-08-20 16:27:29,123][DL_COMM][INFO] - -------------------------------------------------------------------------
+[2025-08-20 16:27:29,449][DL_COMM][INFO] - [CONFIG] Loading schema and validating user YAML
+[2025-08-20 16:27:29,449][DL_COMM][INFO] - [DEBUG] Current working directory: /lus/flare/projects/datascience_collab/mcim/workspace/gpu-comm/DLcomm_benchmark/examples
+[2025-08-20 16:27:29,449][DL_COMM][INFO] - [DEBUG] Script location: /lus/flare/projects/datascience_collab/mcim/workspace/gpu-comm/DLcomm_benchmark/dl_comm
+[2025-08-20 16:27:29,450][DL_COMM][INFO] - [DEBUG] Tasks to run: ['within-node-allgather', 'across-node-allreduce']
+[2025-08-20 16:27:29,450][DL_COMM][INFO] - [DEBUG] Config loaded successfully
+[2025-08-20 16:27:33,943][DL_COMM][INFO] - 
+[2025-08-20 16:27:33,955][DL_COMM][INFO] - [SYSTEM] Collecting environment information...
+[2025-08-20 16:27:33,955][DL_COMM][INFO] - [SYSTEM] ======================================================
+[2025-08-20 16:27:33,955][DL_COMM][INFO] - [SYSTEM] PyTorch version: 2.5.1+cxx11.abi
+[2025-08-20 16:27:33,955][DL_COMM][INFO] - [SYSTEM] Is CUDA available: False
+[2025-08-20 16:27:33,955][DL_COMM][INFO] - [SYSTEM] CUDA runtime version: N/A
+[2025-08-20 16:27:33,955][DL_COMM][INFO] - [SYSTEM] GPU models and configuration: N/A
+[2025-08-20 16:27:33,972][DL_COMM][INFO] - [SYSTEM] Is XPU available: True
+[2025-08-20 16:27:33,972][DL_COMM][INFO] - [SYSTEM] XPU device count: 12
+[2025-08-20 16:27:33,972][DL_COMM][INFO] - 
+[2025-08-20 16:27:33,978][DL_COMM][INFO] - [SYSTEM] OS: Linux-5.14.21-150400.24.55-default-x86_64-with-glibc2.31
+[2025-08-20 16:27:33,984][DL_COMM][INFO] - [SYSTEM] GCC version: gcc (Spack GCC) 13.3.0
+[2025-08-20 16:27:33,984][DL_COMM][INFO] - 
+[2025-08-20 16:27:33,984][DL_COMM][INFO] - [SYSTEM] Python version: 3.10.14 | packaged by conda-forge | (main, Mar 20 2024, 12:45:18) [GCC 12.3.0]
+[2025-08-20 16:27:33,984][DL_COMM][INFO] - [SYSTEM] Python platform: Linux-5.14.21-150400.24.55-default-x86_64-with-glibc2.31
+[2025-08-20 16:27:33,984][DL_COMM][INFO] - 
+[2025-08-20 16:27:33,984][DL_COMM][INFO] - [SYSTEM] Distributed Backend Availability:
+[2025-08-20 16:27:33,984][DL_COMM][INFO] - [SYSTEM] NCCL backend available: False
+[2025-08-20 16:27:33,984][DL_COMM][INFO] - [SYSTEM] MPI backend available: False
+[2025-08-20 16:27:33,985][DL_COMM][INFO] - [SYSTEM] XCCL backend available: Unknown/Error
+[2025-08-20 16:27:33,985][DL_COMM][INFO] - 
+[2025-08-20 16:27:33,985][DL_COMM][INFO] - [SYSTEM] Versions of relevant libraries:
+[2025-08-20 16:27:33,985][DL_COMM][INFO] - [SYSTEM] numpy: 1.26.4
+[2025-08-20 16:27:33,985][DL_COMM][INFO] - [SYSTEM] mpi4py: 3.1.6
+[2025-08-20 16:27:33,985][DL_COMM][INFO] - [SYSTEM] hydra-core: 1.3.2
+[2025-08-20 16:27:33,985][DL_COMM][INFO] - [SYSTEM] omegaconf: 2.3.0
+[2025-08-20 16:27:33,985][DL_COMM][INFO] - [SYSTEM] oneccl_bindings_for_pytorch: 2.5.0+xpu
+[2025-08-20 16:27:33,985][DL_COMM][INFO] - [SYSTEM] intel_extension_for_pytorch: 2.5.10+xpu
+[2025-08-20 16:27:33,985][DL_COMM][INFO] - [SYSTEM] NCCL version: Not available
+[2025-08-20 16:27:33,985][DL_COMM][INFO] - 
+[2025-08-20 16:27:33,985][DL_COMM][INFO] - [SYSTEM] Relevant Environment Variables:
+[2025-08-20 16:27:33,986][DL_COMM][INFO] - [SYSTEM] CCL_ATL_SHM                    = 0
+[2025-08-20 16:27:33,986][DL_COMM][INFO] - [SYSTEM] CCL_ATL_TRANSPORT              = mpi
+[2025-08-20 16:27:33,986][DL_COMM][INFO] - [SYSTEM] CCL_CONFIGURATION              = cpu_gpu_dpcpp
+[2025-08-20 16:27:33,986][DL_COMM][INFO] - [SYSTEM] CCL_CONFIGURATION_PATH         = 
+[2025-08-20 16:27:33,986][DL_COMM][INFO] - [SYSTEM] CCL_ENABLE_AUTO_CACHE          = 0
+[2025-08-20 16:27:33,986][DL_COMM][INFO] - [SYSTEM] CCL_KVS_CONNECTION_TIMEOUT     = 600
+[2025-08-20 16:27:33,986][DL_COMM][INFO] - [SYSTEM] CCL_KVS_MODE                   = mpi
+[2025-08-20 16:27:33,986][DL_COMM][INFO] - [SYSTEM] CCL_OP_SYNC                    = 1
+[2025-08-20 16:27:33,986][DL_COMM][INFO] - [SYSTEM] CCL_PROCESS_LAUNCHER           = pmix
+[2025-08-20 16:27:33,986][DL_COMM][INFO] - [SYSTEM] CCL_ROOT                       = /opt/aurora/24.347.0/oneapi/ccl/latest
+[2025-08-20 16:27:33,986][DL_COMM][INFO] - [SYSTEM] FI_CXI_CQ_FILL_PERCENT         = 30
+[2025-08-20 16:27:33,986][DL_COMM][INFO] - [SYSTEM] FI_CXI_DEFAULT_CQ_SIZE         = 1048576
+[2025-08-20 16:27:33,986][DL_COMM][INFO] - [SYSTEM] FI_CXI_OFLOW_BUF_SIZE          = 8388608
+[2025-08-20 16:27:33,986][DL_COMM][INFO] - [SYSTEM] FI_CXI_RX_MATCH_MODE           = hybrid
+[2025-08-20 16:27:33,986][DL_COMM][INFO] - [SYSTEM] FI_MR_CACHE_MONITOR            = userfaultfd
+[2025-08-20 16:27:33,986][DL_COMM][INFO] - [SYSTEM] FI_PROVIDER                    = cxi,tcp;ofi_rxm
+[2025-08-20 16:27:33,986][DL_COMM][INFO] - [SYSTEM] MASTER_ADDR                    = x4304c0s1b0n0
+[2025-08-20 16:27:33,986][DL_COMM][INFO] - [SYSTEM] MASTER_PORT                    = 2268
+[2025-08-20 16:27:33,986][DL_COMM][INFO] - [SYSTEM] MPIR_CVAR_CH4_OFI_MAX_NICS     = 1
+[2025-08-20 16:27:33,986][DL_COMM][INFO] - [SYSTEM] PALS_LOCAL_RANKID              = 0
+[2025-08-20 16:27:33,986][DL_COMM][INFO] - [SYSTEM] PALS_RANKID                    = 0
+[2025-08-20 16:27:33,986][DL_COMM][INFO] - [SYSTEM] PMIX_RANK                      = 0
+[2025-08-20 16:27:33,986][DL_COMM][INFO] - [SYSTEM] __LMOD_STACK_FI_PROVIDER       = Y3hpLHRjcDtvZmlfcnht
+[2025-08-20 16:27:33,986][DL_COMM][INFO] - [SYSTEM] __LMOD_STACK_MPIR_CVAR_CH4_OFI_MAX_NICS = MQ==
+[2025-08-20 16:27:33,986][DL_COMM][INFO] - [SYSTEM] ======================================================
+[2025-08-20 16:27:33,987][DL_COMM][INFO] - 
+[2025-08-20 16:27:34,258][DL_COMM][INFO] - 
+[2025-08-20 16:27:34,258][DL_COMM][INFO] - ================================================================================
+[2025-08-20 16:27:34,258][DL_COMM][INFO] - [TASK 1/2] ==================== WITHIN-NODE-ALLGATHER ====================
+[2025-08-20 16:27:34,258][DL_COMM][INFO] - ================================================================================
+[2025-08-20 16:27:34,258][DL_COMM][INFO] - 
+[2025-08-20 16:27:34,259][DL_COMM][WARNING] - [VALIDATION] Cannot check CCL/XCCL availability (API not available)
+[2025-08-20 16:27:34,259][DL_COMM][INFO] - 
+[2025-08-20 16:27:34,259][DL_COMM][INFO] - [CONFIG] Setup
+[2025-08-20 16:27:34,259][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-08-20 16:27:34,259][DL_COMM][INFO] - [CONFIG] Task Name            : within-node-allgather
+[2025-08-20 16:27:34,259][DL_COMM][INFO] - [CONFIG] Framework            : pytorch
+[2025-08-20 16:27:34,260][DL_COMM][INFO] - [CONFIG] Backend              : ccl
+[2025-08-20 16:27:34,260][DL_COMM][INFO] - [CONFIG] Extended Logging     : False
+[2025-08-20 16:27:34,260][DL_COMM][INFO] - [CONFIG] Barrier Enabled      : True
+[2025-08-20 16:27:34,260][DL_COMM][INFO] - [CONFIG] World Size           : 24
+[2025-08-20 16:27:34,260][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-08-20 16:27:34,260][DL_COMM][INFO] - 
+[2025-08-20 16:27:34,260][DL_COMM][INFO] - [CONFIG] Communication Group
+[2025-08-20 16:27:34,260][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-08-20 16:27:34,260][DL_COMM][INFO] - [CONFIG] Mode                 : within_node
+[2025-08-20 16:27:34,260][DL_COMM][INFO] - [CONFIG] Topology             : 2 nodes x 12 devices
+[2025-08-20 16:27:34,260][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-08-20 16:27:34,260][DL_COMM][INFO] - 
+[2025-08-20 16:27:34,260][DL_COMM][INFO] - [CONFIG] Communication Group Details
+[2025-08-20 16:27:34,260][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-08-20 16:27:34,260][DL_COMM][INFO] - [CONFIG] Collective Name      : allgather
+[2025-08-20 16:27:34,260][DL_COMM][INFO] - [CONFIG] Operation            : N/A
+[2025-08-20 16:27:34,260][DL_COMM][INFO] - [CONFIG] Scale Up Algorithm   : default
+[2025-08-20 16:27:34,260][DL_COMM][INFO] - [CONFIG] Scale Out Algorithm  : default
+[2025-08-20 16:27:34,260][DL_COMM][INFO] - [CONFIG] Data Type            : float32
+[2025-08-20 16:27:34,260][DL_COMM][INFO] - [CONFIG] Element Count        : 131072
+[2025-08-20 16:27:34,260][DL_COMM][INFO] - [CONFIG] Buffer Size          : 512KB (524288 bytes)
+[2025-08-20 16:27:34,261][DL_COMM][INFO] - [CONFIG] Iterations           : 5
+[2025-08-20 16:27:34,261][DL_COMM][INFO] - [CONFIG] Verify Correctness   : True
+[2025-08-20 16:27:34,261][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-08-20 16:27:34,261][DL_COMM][INFO] - 
+[2025-08-20 16:27:34,261][DL_COMM][INFO] - [COMM][CONFIG] Setting up communication groups for mode: Within
+[2025-08-20 16:27:34,261][DL_COMM][INFO] - [COMM][CONFIG] Within-node: 12 devices per node, Device IDs: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+[2025-08-20 16:27:34,261][DL_COMM][INFO] - [COMM][GROUP CREATION] Within-node groups:
+[2025-08-20 16:27:34,261][DL_COMM][INFO] - 
+[2025-08-20 16:27:34,261][DL_COMM][INFO] - [COMM][GROUP CREATION][Within Group-0] Ranks: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11], Required Devices: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11], Logging: rank 0
+[2025-08-20 16:27:34,262][DL_COMM][INFO] - [COMM][GROUP CREATION][Within Group-1] Ranks: [12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23], Required Devices: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11], Logging: rank 12
+[2025-08-20 16:27:34,262][DL_COMM][INFO] - [COMM][GROUP CREATION] Created 2 within-node groups
+[2025-08-20 16:27:34,262][DL_COMM][INFO] - 
+[2025-08-20 16:27:34,776][DL_COMM][OUTPUT] - 
+[2025-08-20 16:27:34,776][DL_COMM][OUTPUT] - [MxM COMPUTE] Matrix multiplication compute completed.
+[2025-08-20 16:27:34,776][DL_COMM][OUTPUT] - 
+[2025-08-20 16:27:34,835][DL_COMM][OUTPUT] - 
+[2025-08-20 16:27:34,835][DL_COMM][OUTPUT] - [TIMERS - SETUP] ---------------------------------------------------------
+[2025-08-20 16:27:34,835][DL_COMM][OUTPUT] - [TIMERS][LOGGING RANK - 0] import time                         = 4.493790 s
+[2025-08-20 16:27:34,835][DL_COMM][OUTPUT] - [TIMERS][LOGGING RANK - 0] init time                           = 0.059145 s
+[2025-08-20 16:27:34,835][DL_COMM][OUTPUT] - [TIMERS][LOGGING RANK - 0] Group Creation (Within)             = 0.000623 s
+[2025-08-20 16:27:34,835][DL_COMM][OUTPUT] - [TIMERS][LOGGING RANK - 0] Host to Device Transfer Time        = 0.003727 s
+[2025-08-20 16:27:34,835][DL_COMM][OUTPUT] - [TIMERS][LOGGING RANK - 0] MxM Compute Time, m=1024            = 0.352576 s
+[2025-08-20 16:27:34,835][DL_COMM][OUTPUT] - [TIMERS - SETUP] ---------------------------------------------------------
+[2025-08-20 16:27:34,835][DL_COMM][OUTPUT] - 
+[2025-08-20 16:27:34,835][DL_COMM][OUTPUT] - [MPI] Launching profiling job
+[2025-08-20 16:27:34,835][DL_COMM][INFO] - 
+[2025-08-20 16:27:34,835][DL_COMM][INFO] -   [WARMUP] Running 2 warmup iterations...
+2025:08:20-16:27:34:(70837) |CCL_WARN| value of CCL_KVS_MODE changed to be mpi (default:pmi)
+2025:08:20-16:27:34:(70837) |CCL_WARN| value of CCL_KVS_CONNECTION_TIMEOUT changed to be 600 (default:120)
+2025:08:20-16:27:34:(70837) |CCL_WARN| value of CCL_ENABLE_AUTO_CACHE changed to be 0 (default:1)
+2025:08:20-16:27:34:(70837) |CCL_WARN| value of CCL_OP_SYNC changed to be 1 (default:0)
+2025:08:20-16:27:34:(70837) |CCL_WARN| value of CCL_PROCESS_LAUNCHER changed to be pmix (default:hydra)
+[2025-08-20 16:27:47,677][DL_COMM][INFO] -   [WARMUP] Warmup completed, starting timed iterations...
+[2025-08-20 16:27:47,701][DL_COMM][INFO] - 
+[2025-08-20 16:27:47,914][DL_COMM][OUTPUT] - 
+[2025-08-20 16:27:47,916][DL_COMM][OUTPUT] - [TIMERS] ---------------------------------------------------------
+[2025-08-20 16:27:47,917][DL_COMM][OUTPUT] - 
+[2025-08-20 16:27:47,917][DL_COMM][INFO] -   [TIMERS] [BARRIER ENABLED] Timing measurements used MPI barriers for synchronization
+[2025-08-20 16:27:47,917][DL_COMM][OUTPUT] - 
+[2025-08-20 16:27:47,917][DL_COMM][OUTPUT] - [TIMERS] ITERATION TABLE FOR ALLGATHER (seconds):
+[2025-08-20 16:27:47,917][DL_COMM][OUTPUT] - Iteration     (Within-Group-0)    (Within-Group-1)  
+[2025-08-20 16:27:47,917][DL_COMM][OUTPUT] -               LOGGING RANK - 0   LOGGING RANK - 12  
+[2025-08-20 16:27:47,917][DL_COMM][OUTPUT] - ----------------------------------------------------
+[2025-08-20 16:27:47,917][DL_COMM][OUTPUT] - 0                 0.001142            0.001015      
+[2025-08-20 16:27:47,917][DL_COMM][OUTPUT] - 1                 0.000909            0.001000      
+[2025-08-20 16:27:47,917][DL_COMM][OUTPUT] - 2                 0.000892            0.000646      
+[2025-08-20 16:27:47,917][DL_COMM][OUTPUT] - 3                 0.000676            0.000710      
+[2025-08-20 16:27:47,917][DL_COMM][OUTPUT] - 4                 0.000821            0.000915      
+[2025-08-20 16:27:47,917][DL_COMM][OUTPUT] - ----------------------------------------------------
+[2025-08-20 16:27:47,917][DL_COMM][OUTPUT] - 
+[2025-08-20 16:27:47,917][DL_COMM][OUTPUT] - [TIMERS] ---------------------------------------------------------
+[2025-08-20 16:27:47,917][DL_COMM][OUTPUT] - 
+[2025-08-20 16:27:47,918][DL_COMM][OUTPUT] - [BANDWIDTH] -------------------------------------------
+[2025-08-20 16:27:47,918][DL_COMM][OUTPUT] - 
+[2025-08-20 16:27:47,918][DL_COMM][OUTPUT] - [BANDWIDTH] BANDWIDTH TABLE FOR ALLGATHER (bytes/seconds):
+[2025-08-20 16:27:47,918][DL_COMM][OUTPUT] - Iteration     (Within-Group-0)    (Within-Group-1)  
+[2025-08-20 16:27:47,918][DL_COMM][OUTPUT] -               LOGGING RANK - 0   LOGGING RANK - 12  
+[2025-08-20 16:27:47,918][DL_COMM][OUTPUT] - ----------------------------------------------------
+[2025-08-20 16:27:47,918][DL_COMM][OUTPUT] - 0                5510724198          6200390832     
+[2025-08-20 16:27:47,918][DL_COMM][OUTPUT] - 1                6924401579          6293583373     
+[2025-08-20 16:27:47,918][DL_COMM][OUTPUT] - 2                7054024055          9735991788     
+[2025-08-20 16:27:47,918][DL_COMM][OUTPUT] - 3                9312232288          8860157557     
+[2025-08-20 16:27:47,918][DL_COMM][OUTPUT] - 4                7661809186          6878298733     
+[2025-08-20 16:27:47,918][DL_COMM][OUTPUT] - ----------------------------------------------------
+[2025-08-20 16:27:47,918][DL_COMM][OUTPUT] - 
+[2025-08-20 16:27:47,918][DL_COMM][OUTPUT] - [BANDWIDTH] -------------------------------------------
+[2025-08-20 16:27:47,918][DL_COMM][INFO] - -------------------------------------------------------------------------
+[2025-08-20 16:27:47,918][DL_COMM][INFO] - [MPI] Job complete
+[2025-08-20 16:27:47,918][DL_COMM][INFO] - -------------------------------------------------------------------------
+[2025-08-20 16:27:47,919][DL_COMM][INFO] - -------------------------------------------------------------------------
+[2025-08-20 16:27:47,919][DL_COMM][INFO] - [EXIT] All Done.
+[2025-08-20 16:27:47,919][DL_COMM][INFO] - -------------------------------------------------------------------------
+[2025-08-20 16:27:47,919][DL_COMM][INFO] - 
+[2025-08-20 16:27:47,919][DL_COMM][INFO] - ================================================================================
+[2025-08-20 16:27:47,919][DL_COMM][INFO] - [TASK 2/2] ==================== ACROSS-NODE-ALLREDUCE ====================
+[2025-08-20 16:27:47,919][DL_COMM][INFO] - ================================================================================
+[2025-08-20 16:27:47,919][DL_COMM][INFO] - 
+[2025-08-20 16:27:47,919][DL_COMM][INFO] - 
+[2025-08-20 16:27:47,920][DL_COMM][INFO] - [CONFIG] Setup
+[2025-08-20 16:27:47,920][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-08-20 16:27:47,920][DL_COMM][INFO] - [CONFIG] Task Name            : across-node-allreduce
+[2025-08-20 16:27:47,920][DL_COMM][INFO] - [CONFIG] Framework            : pytorch
+[2025-08-20 16:27:47,920][DL_COMM][INFO] - [CONFIG] Backend              : ccl
+[2025-08-20 16:27:47,920][DL_COMM][INFO] - [CONFIG] Extended Logging     : False
+[2025-08-20 16:27:47,920][DL_COMM][INFO] - [CONFIG] Barrier Enabled      : True
+[2025-08-20 16:27:47,920][DL_COMM][INFO] - [CONFIG] World Size           : 24
+[2025-08-20 16:27:47,920][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-08-20 16:27:47,920][DL_COMM][INFO] - 
+[2025-08-20 16:27:47,920][DL_COMM][INFO] - [CONFIG] Communication Group
+[2025-08-20 16:27:47,920][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-08-20 16:27:47,920][DL_COMM][INFO] - [CONFIG] Mode                 : across_node
+[2025-08-20 16:27:47,920][DL_COMM][INFO] - [CONFIG] Topology             : 2 nodes x 12 devices
+[2025-08-20 16:27:47,920][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-08-20 16:27:47,920][DL_COMM][INFO] - 
+[2025-08-20 16:27:47,920][DL_COMM][INFO] - [CONFIG] Communication Group Details
+[2025-08-20 16:27:47,920][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-08-20 16:27:47,920][DL_COMM][INFO] - [CONFIG] Collective Name      : allreduce
+[2025-08-20 16:27:47,920][DL_COMM][INFO] - [CONFIG] Operation            : sum
+[2025-08-20 16:27:47,920][DL_COMM][INFO] - [CONFIG] Scale Up Algorithm   : default
+[2025-08-20 16:27:47,920][DL_COMM][INFO] - [CONFIG] Scale Out Algorithm  : default
+[2025-08-20 16:27:47,921][DL_COMM][INFO] - [CONFIG] Data Type            : float32
+[2025-08-20 16:27:47,921][DL_COMM][INFO] - [CONFIG] Element Count        : 131072
+[2025-08-20 16:27:47,921][DL_COMM][INFO] - [CONFIG] Buffer Size          : 512KB (524288 bytes)
+[2025-08-20 16:27:47,921][DL_COMM][INFO] - [CONFIG] Iterations           : 5
+[2025-08-20 16:27:47,921][DL_COMM][INFO] - [CONFIG] Verify Correctness   : True
+[2025-08-20 16:27:47,921][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-08-20 16:27:47,921][DL_COMM][INFO] - 
+[2025-08-20 16:27:47,921][DL_COMM][INFO] - 
+[2025-08-20 16:27:47,921][DL_COMM][INFO] - [COMM][CONFIG] Setting up communication groups for mode: Across
+[2025-08-20 16:27:47,921][DL_COMM][INFO] - [COMM][CONFIG] Across-node: 2 nodes, 12 devices per node, Device IDs: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+[2025-08-20 16:27:47,921][DL_COMM][INFO] - [COMM][GROUP CREATION] Across-node groups:
+[2025-08-20 16:27:47,921][DL_COMM][INFO] - [COMM][GROUP CREATION][Across Group-0] Ranks: [0, 12], Device ID: 0, Logging: rank 0
+[2025-08-20 16:27:47,921][DL_COMM][INFO] - [COMM][GROUP CREATION][Across Group-1] Ranks: [1, 13], Device ID: 1, Logging: rank 1
+[2025-08-20 16:27:47,922][DL_COMM][INFO] - [COMM][GROUP CREATION][Across Group-2] Ranks: [2, 14], Device ID: 2, Logging: rank 2
+[2025-08-20 16:27:47,922][DL_COMM][INFO] - [COMM][GROUP CREATION][Across Group-3] Ranks: [3, 15], Device ID: 3, Logging: rank 3
+[2025-08-20 16:27:47,922][DL_COMM][INFO] - [COMM][GROUP CREATION][Across Group-4] Ranks: [4, 16], Device ID: 4, Logging: rank 4
+[2025-08-20 16:27:47,922][DL_COMM][INFO] - [COMM][GROUP CREATION][Across Group-5] Ranks: [5, 17], Device ID: 5, Logging: rank 5
+[2025-08-20 16:27:47,922][DL_COMM][INFO] - [COMM][GROUP CREATION][Across Group-6] Ranks: [6, 18], Device ID: 6, Logging: rank 6
+[2025-08-20 16:27:47,922][DL_COMM][INFO] - [COMM][GROUP CREATION][Across Group-7] Ranks: [7, 19], Device ID: 7, Logging: rank 7
+[2025-08-20 16:27:47,922][DL_COMM][INFO] - [COMM][GROUP CREATION][Across Group-8] Ranks: [8, 20], Device ID: 8, Logging: rank 8
+[2025-08-20 16:27:47,922][DL_COMM][INFO] - [COMM][GROUP CREATION][Across Group-9] Ranks: [9, 21], Device ID: 9, Logging: rank 9
+[2025-08-20 16:27:47,922][DL_COMM][INFO] - [COMM][GROUP CREATION][Across Group-10] Ranks: [10, 22], Device ID: 10, Logging: rank 10
+[2025-08-20 16:27:47,922][DL_COMM][INFO] - [COMM][GROUP CREATION][Across Group-11] Ranks: [11, 23], Device ID: 11, Logging: rank 11
+[2025-08-20 16:27:47,922][DL_COMM][INFO] - [COMM][GROUP CREATION] Created 12 across-node groups
+[2025-08-20 16:27:47,922][DL_COMM][INFO] - 
+[2025-08-20 16:27:47,923][DL_COMM][OUTPUT] - 
+[2025-08-20 16:27:47,924][DL_COMM][OUTPUT] - [MxM COMPUTE] Matrix multiplication compute completed.
+[2025-08-20 16:27:47,924][DL_COMM][OUTPUT] - 
+[2025-08-20 16:27:47,993][DL_COMM][OUTPUT] - 
+[2025-08-20 16:27:47,994][DL_COMM][OUTPUT] - [TIMERS - SETUP] ---------------------------------------------------------
+[2025-08-20 16:27:47,994][DL_COMM][OUTPUT] - [TIMERS][LOGGING RANK - 0] Group Creation (Across)             = 0.001222 s
+[2025-08-20 16:27:47,994][DL_COMM][OUTPUT] - [TIMERS][LOGGING RANK - 0] Host to Device Transfer Time        = 0.000229 s
+[2025-08-20 16:27:47,994][DL_COMM][OUTPUT] - [TIMERS][LOGGING RANK - 0] MxM Compute Time, m=1024            = 0.000447 s
+[2025-08-20 16:27:47,994][DL_COMM][OUTPUT] - [TIMERS - SETUP] ---------------------------------------------------------
+[2025-08-20 16:27:47,994][DL_COMM][OUTPUT] - 
+[2025-08-20 16:27:47,994][DL_COMM][OUTPUT] - [MPI] Launching profiling job
+[2025-08-20 16:27:47,994][DL_COMM][INFO] - 
+[2025-08-20 16:27:47,994][DL_COMM][INFO] -   [WARMUP] Running 2 warmup iterations...
+[2025-08-20 16:27:48,010][DL_COMM][INFO] -   [WARMUP] Warmup completed, starting timed iterations...
+[2025-08-20 16:27:48,011][DL_COMM][INFO] - 
+[2025-08-20 16:27:48,034][DL_COMM][OUTPUT] - 
+[2025-08-20 16:27:48,034][DL_COMM][OUTPUT] - [TIMERS] ---------------------------------------------------------
+[2025-08-20 16:27:48,034][DL_COMM][OUTPUT] - 
+[2025-08-20 16:27:48,034][DL_COMM][INFO] -   [TIMERS] [BARRIER ENABLED] Timing measurements used MPI barriers for synchronization
+[2025-08-20 16:27:48,034][DL_COMM][OUTPUT] - 
+[2025-08-20 16:27:48,035][DL_COMM][OUTPUT] - [TIMERS] ITERATION TABLE FOR ALLREDUCE (seconds):
+[2025-08-20 16:27:48,035][DL_COMM][OUTPUT] - Iteration     (Across-Group-0)    (Across-Group-1)    (Across-Group-2)    (Across-Group-3)    (Across-Group-4)    (Across-Group-5)    (Across-Group-6)    (Across-Group-7)    (Across-Group-8)    (Across-Group-9)   (Across-Group-10)   (Across-Group-11)  
+[2025-08-20 16:27:48,035][DL_COMM][OUTPUT] -               LOGGING RANK - 0    LOGGING RANK - 1    LOGGING RANK - 2    LOGGING RANK - 3    LOGGING RANK - 4    LOGGING RANK - 5    LOGGING RANK - 6    LOGGING RANK - 7    LOGGING RANK - 8    LOGGING RANK - 9   LOGGING RANK - 10   LOGGING RANK - 11  
+[2025-08-20 16:27:48,035][DL_COMM][OUTPUT] - ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+[2025-08-20 16:27:48,035][DL_COMM][OUTPUT] - 0                 0.000423            0.000506            0.000437            0.000610            0.000404            0.000399            0.000417            0.000487            0.000398            0.000459            0.000353            0.000380      
+[2025-08-20 16:27:48,035][DL_COMM][OUTPUT] - 1                 0.000402            0.000712            0.000440            0.000554            0.000580            0.000587            0.000477            0.000599            0.000419            0.000439            0.000371            0.000568      
+[2025-08-20 16:27:48,035][DL_COMM][OUTPUT] - 2                 0.000385            0.000518            0.000426            0.000527            0.000360            0.000357            0.000381            0.000545            0.000457            0.000451            0.000332            0.000380      
+[2025-08-20 16:27:48,035][DL_COMM][OUTPUT] - 3                 0.000391            0.000498            0.000414            0.000488            0.000354            0.000320            0.000379            0.000531            0.000371            0.000381            0.000321            0.000311      
+[2025-08-20 16:27:48,035][DL_COMM][OUTPUT] - 4                 0.000371            0.001509            0.000438            0.001060            0.000851            0.000833            0.000858            0.000996            0.000864            0.000893            0.000804            0.000805      
+[2025-08-20 16:27:48,035][DL_COMM][OUTPUT] - ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+[2025-08-20 16:27:48,035][DL_COMM][OUTPUT] - 
+[2025-08-20 16:27:48,035][DL_COMM][OUTPUT] - [TIMERS] ---------------------------------------------------------
+[2025-08-20 16:27:48,035][DL_COMM][OUTPUT] - 
+[2025-08-20 16:27:48,035][DL_COMM][OUTPUT] - [BANDWIDTH] -------------------------------------------
+[2025-08-20 16:27:48,037][DL_COMM][OUTPUT] - 
+[2025-08-20 16:27:48,037][DL_COMM][OUTPUT] - [BANDWIDTH] BANDWIDTH TABLE FOR ALLREDUCE (bytes/seconds):
+[2025-08-20 16:27:48,037][DL_COMM][OUTPUT] - Iteration     (Across-Group-0)    (Across-Group-1)    (Across-Group-2)    (Across-Group-3)    (Across-Group-4)    (Across-Group-5)    (Across-Group-6)    (Across-Group-7)    (Across-Group-8)    (Across-Group-9)   (Across-Group-10)   (Across-Group-11)  
+[2025-08-20 16:27:48,037][DL_COMM][OUTPUT] -               LOGGING RANK - 0    LOGGING RANK - 1    LOGGING RANK - 2    LOGGING RANK - 3    LOGGING RANK - 4    LOGGING RANK - 5    LOGGING RANK - 6    LOGGING RANK - 7    LOGGING RANK - 8    LOGGING RANK - 9   LOGGING RANK - 10   LOGGING RANK - 11  
+[2025-08-20 16:27:48,037][DL_COMM][OUTPUT] - ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+[2025-08-20 16:27:48,037][DL_COMM][OUTPUT] - 0               14875528183         12432282808         14393367811         10321950865         15564282179         15756764097         15105356153         12931998205         15822506662         13715212118         17824334658         16573122441     
+[2025-08-20 16:27:48,037][DL_COMM][OUTPUT] - 1               15637163883          8836364350         14306728696         11361278982         10851135407         10711249214         13201952407         10505476274         14999405507         14331923128         16977505830         11078769417     
+[2025-08-20 16:27:48,037][DL_COMM][OUTPUT] - 2               16324186770         12141190626         14779153199         11936254700         17466805426         17630434100         16514570031         11546032227         13757500093         13956728572         18955763858         16567145170     
+[2025-08-20 16:27:48,037][DL_COMM][OUTPUT] - 3               16081302642         12643397047         15197964855         12888102171         17752816673         19644716834         16599009287         11856756197         16966837673         16520855362         19624557472         20258295056     
+[2025-08-20 16:27:48,037][DL_COMM][OUTPUT] - 4               16937875155          4169252342         14364218394          5934121153          7397317882          7550837194          7334400386          6316101551          7277725924          7046550120          7825690238          7811523807     
+[2025-08-20 16:27:48,037][DL_COMM][OUTPUT] - ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+[2025-08-20 16:27:48,037][DL_COMM][OUTPUT] - 
+[2025-08-20 16:27:48,037][DL_COMM][OUTPUT] - [BANDWIDTH] -------------------------------------------
+[2025-08-20 16:27:48,037][DL_COMM][INFO] - -------------------------------------------------------------------------
+[2025-08-20 16:27:48,037][DL_COMM][INFO] - [MPI] Job complete
+[2025-08-20 16:27:48,037][DL_COMM][INFO] - -------------------------------------------------------------------------
+[2025-08-20 16:27:48,037][DL_COMM][INFO] - -------------------------------------------------------------------------
+[2025-08-20 16:27:48,037][DL_COMM][INFO] - [EXIT] All Done.
+[2025-08-20 16:27:48,038][DL_COMM][INFO] - -------------------------------------------------------------------------
+[2025-08-20 16:27:48,038][DL_COMM][INFO] - 
+[2025-08-20 16:27:48,038][DL_COMM][INFO] - ================================================================================
+[2025-08-20 16:27:48,038][DL_COMM][INFO] - [FINAL] All 2 tasks completed successfully!
+[2025-08-20 16:27:48,038][DL_COMM][INFO] - ================================================================================
