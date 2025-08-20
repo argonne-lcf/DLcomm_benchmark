@@ -1,9 +1,9 @@
 #!/bin/bash -l
 #PBS -A datascience_collab
-#PBS -l select=2:ncpus=256
+#PBS -l select=2:ncpus=208
 #PBS -l walltime=00:05:00
 #PBS -l filesystems=home:eagle
-#PBS -q prod
+#PBS -q debug
 #PBS -j oe
 #PBS -o /dev/null
 
@@ -17,11 +17,9 @@ conda activate base
 # ============================================================================
 # DIRECTORY SETUP
 # ============================================================================
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 if [ -n "$PBS_O_WORKDIR" ]; then
     cd "$PBS_O_WORKDIR"
-    SCRIPT_DIR="$PBS_O_WORKDIR"
-else
-    SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 fi
 EXAMPLES_DIR="$SCRIPT_DIR"
 WORKDIR="$EXAMPLES_DIR"
@@ -39,14 +37,7 @@ export NCCL_SOCKET_IFNAME=^lo,docker0
 export NCCL_ALGO=Ring
 export TORCH_CPP_LOG_LEVEL=ERROR
 export CUDA_LAUNCH_BLOCKING=1
-unset CCL_ATL_TRANSPORT
-unset CCL_ATL_SHM
-unset CCL_PROCESS_LAUNCHER
-unset CCL_KVS_MODE
-unset CCL_KVS_CONNECTION_TIMEOUT
-unset CCL_OP_SYNC
-unset CCL_ENABLE_AUTO_CACHE
-unset PALS_PMI
+ 
 
 # ============================================================================
 # LOG DIRECTORY SETUP
@@ -61,6 +52,9 @@ mkdir -p "$RUN_LOG_DIR"
 # ============================================================================
 # JOB EXECUTION
 # ============================================================================
+CONFIG_NAME="config_nccl"
+
+ 
 if [ -n "$PBS_NODEFILE" ]; then
     NNODES=`wc -l < $PBS_NODEFILE`
 else
@@ -74,7 +68,7 @@ mpiexec --np ${NRANKS} \
         -ppn ${RANKS_PER_NODE} \
         --depth 16 \
         --cpu-bind depth \
-        python3 -m dl_comm.dl_comm_main --config-path="$EXAMPLES_DIR" --config-name=config 2>&1 | tee "$TERMINAL_LOG_FILE"
+        python3 -m dl_comm.dl_comm_main --config-path="$EXAMPLES_DIR" --config-name="$CONFIG_NAME" 2>&1 | tee "$TERMINAL_LOG_FILE"
 
 EXIT_STATUS=${PIPESTATUS[0]}
 exit $EXIT_STATUS

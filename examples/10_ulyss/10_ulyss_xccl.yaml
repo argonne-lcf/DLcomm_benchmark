@@ -1,0 +1,46 @@
+framework        : pytorch
+ccl_backend      : ccl
+extended_logging : off
+barrier          : on
+device_type      : gpu
+memory_source    : gpu
+
+order_of_run: [ULYSS, grad-sync]
+
+ULYSS:
+  comm_group: within_node
+  num_compute_nodes: 2
+  num_devices_per_node: 12
+  device_ids_per_node: [0,1,2,3,4,5,6,7,8,9,10,11]
+  verify_correctness: on
+  collective:
+    collective_name: allreduce
+    collective_op: min
+    scale_up_algorithm: topo
+    scale_out_algorithm: topo
+    iterations: 5
+    warmup_iterations: 2
+    add_mxm_compute: on
+    payload:
+      dtype: bfloat16
+      count: 
+      buffer_size: 1KB
+
+grad-sync:
+  comm_group: across_node
+  num_compute_nodes: 2
+  num_devices_per_node: 12
+  device_ids_per_node: [0,1,2,3,4,5,6,7,8,9,10,11]
+  verify_correctness: on
+  collective:
+    collective_name: allreduce
+    collective_op: min
+    scale_up_algorithm: topo
+    scale_out_algorithm: topo
+    iterations: 5
+    warmup_iterations: 2
+    add_mxm_compute: on
+    payload:
+      dtype: bfloat16
+      count: 
+      buffer_size: 1KB

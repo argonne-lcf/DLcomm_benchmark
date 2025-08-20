@@ -60,7 +60,7 @@ mkdir -p "$RUN_LOG_DIR"
 # ============================================================================
 # JOB EXECUTION
 # ============================================================================
-CONFIG_NAME="2_multimode"
+CONFIG_NAME="2_multimode_xccl"
 
 NNODES=`wc -l < $PBS_NODEFILE`
 RANKS_PER_NODE=12

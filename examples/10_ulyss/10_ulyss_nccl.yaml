@@ -1,9 +1,9 @@
 framework        : pytorch
-ccl_backend      : ccl
+ccl_backend      : nccl
 extended_logging : off
 barrier          : on
 device_type      : gpu
-memory_source    : host
+memory_source    : gpu
 
 order_of_run: [ULYSS, grad-sync]
 

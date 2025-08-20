@@ -59,7 +59,7 @@ mkdir -p "$RUN_LOG_DIR"
 # ============================================================================
 # JOB EXECUTION
 # ============================================================================
-CONFIG_NAME="5_all_collectives"
+CONFIG_NAME="5_all_collectives_xccl"
 
 NNODES=`wc -l < $PBS_NODEFILE`
 RANKS_PER_NODE=12

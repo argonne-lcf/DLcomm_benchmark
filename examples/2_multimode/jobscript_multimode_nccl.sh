@@ -17,20 +17,18 @@ conda activate base
 # ============================================================================
 # DIRECTORY SETUP
 # ============================================================================
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 if [ -n "$PBS_O_WORKDIR" ]; then
     cd "$PBS_O_WORKDIR"
-    SCRIPT_DIR="$PBS_O_WORKDIR"
-else
-    SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 fi
-EXAMPLES_DIR="$SCRIPT_DIR/../.."
+EXAMPLES_DIR="$SCRIPT_DIR/.."
 WORKDIR="$EXAMPLES_DIR"
 cd "$WORKDIR"
 
 # ============================================================================
 # ENVIRONMENT VARIABLES
 # ============================================================================
-export PYTHONPATH="$WORKDIR/..:$PYTHONPATH"
+export PYTHONPATH="$WORKDIR:$PYTHONPATH"
 export CCL_ATL_TRANSPORT=ofi
 export CCL_ATL_SHM=1
 export CCL_PROCESS_LAUNCHER=pmix
@@ -57,8 +55,9 @@ mkdir -p "$RUN_LOG_DIR"
 # ============================================================================
 # JOB EXECUTION
 # ============================================================================
-CONFIG_FILE=$(find "$SCRIPT_DIR" -name "*.yaml" -type f | head -1)
-CONFIG_NAME=$(basename "$CONFIG_FILE" .yaml)
+CONFIG_NAME="2_multimode_nccl"
+
+ 
 
 if [ -n "$PBS_NODEFILE" ]; then
     NNODES=`wc -l < $PBS_NODEFILE`

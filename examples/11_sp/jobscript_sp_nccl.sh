@@ -1,9 +1,9 @@
 #!/bin/bash -l
 #PBS -A datascience_collab
-#PBS -l select=2:ncpus=256
+#PBS -l select=2:ncpus=208
 #PBS -l walltime=00:05:00
 #PBS -l filesystems=home:eagle
-#PBS -q prod
+#PBS -q debug
 #PBS -j oe
 #PBS -o /dev/null
 
@@ -17,11 +17,9 @@ conda activate base
 # ============================================================================
 # DIRECTORY SETUP
 # ============================================================================
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 if [ -n "$PBS_O_WORKDIR" ]; then
     cd "$PBS_O_WORKDIR"
-    SCRIPT_DIR="$PBS_O_WORKDIR"
-else
-    SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 fi
 EXAMPLES_DIR="$SCRIPT_DIR/../.."
 WORKDIR="$EXAMPLES_DIR"
@@ -57,8 +55,8 @@ mkdir -p "$RUN_LOG_DIR"
 # ============================================================================
 # JOB EXECUTION
 # ============================================================================
-CONFIG_FILE=$(find "$SCRIPT_DIR" -name "*.yaml" -type f | head -1)
-CONFIG_NAME=$(basename "$CONFIG_FILE" .yaml)
+CONFIG_NAME="11_sp_nccl"
+ 
 
 if [ -n "$PBS_NODEFILE" ]; then
     NNODES=`wc -l < $PBS_NODEFILE`

@@ -1,0 +1,46 @@
+framework        : pytorch
+ccl_backend      : nccl
+extended_logging : off
+barrier          : on
+device_type      : gpu
+memory_source    : host
+
+order_of_run: [within-node-allgather, across-node-allreduce]
+
+within-node-allgather:
+  comm_group: within_node
+  num_compute_nodes: 2
+  num_devices_per_node: 4
+  device_ids_per_node: [0,1,2,3]
+  verify_correctness: on
+  collective:
+    collective_name: allgather
+    collective_op: sum
+    scale_up_algorithm: default
+    scale_out_algorithm: default
+    iterations: 5
+    warmup_iterations: 2
+    add_mxm_compute: on
+    payload:
+      dtype: float32
+      count: 
+      buffer_size: 512KB
+
+across-node-allreduce:
+  comm_group: across_node
+  num_compute_nodes: 2
+  num_devices_per_node: 4
+  device_ids_per_node: [0,1,2,3 ]
+  verify_correctness: on
+  collective:
+    collective_name: allreduce
+    collective_op: sum
+    scale_up_algorithm: default
+    scale_out_algorithm: default
+    iterations: 5
+    warmup_iterations: 2
+    add_mxm_compute: on
+    payload:
+      dtype: float32
+      count: 
+      buffer_size: 512KB

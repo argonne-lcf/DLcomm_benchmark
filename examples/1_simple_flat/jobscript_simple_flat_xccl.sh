@@ -61,7 +61,7 @@ mkdir -p "$RUN_LOG_DIR"
 # ============================================================================
 # JOB EXECUTION
 # ============================================================================
-CONFIG_NAME="1_simple_flat"
+CONFIG_NAME="1_simple_flat_xccl"
 
 NNODES=`wc -l < $PBS_NODEFILE`
 RANKS_PER_NODE=12

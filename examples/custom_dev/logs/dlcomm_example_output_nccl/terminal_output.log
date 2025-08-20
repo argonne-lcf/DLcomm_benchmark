@@ -1,0 +1,1127 @@
+[2025-08-20 18:52:35,237][DL_COMM][INFO] - -------------------------------------------------------------------------
+[2025-08-20 18:52:35,239][DL_COMM][INFO] - [CONFIG] Loading schema and validating user YAML
+[2025-08-20 18:52:35,239][DL_COMM][INFO] - [DEBUG] Current working directory: /lus/eagle/projects/datascience_collab/mcim/workspace/DLcomm_benchmark/examples/custom_dev
+[2025-08-20 18:52:35,239][DL_COMM][INFO] - [DEBUG] Script location: /lus/eagle/projects/datascience_collab/mcim/workspace/DLcomm_benchmark/dl_comm
+[2025-08-20 18:52:35,239][DL_COMM][INFO] - [DEBUG] Tasks to run: ['fsdp', 'sp']
+[2025-08-20 18:52:35,239][DL_COMM][INFO] - [DEBUG] Config loaded successfully
+[2025-08-20 18:52:36,711][DL_COMM][INFO] - 
+[2025-08-20 18:52:36,711][DL_COMM][INFO] - [SYSTEM] Collecting environment information...
+[2025-08-20 18:52:36,711][DL_COMM][INFO] - [SYSTEM] ======================================================
+[2025-08-20 18:52:36,711][DL_COMM][INFO] - [SYSTEM] PyTorch version: 2.3.0
+[2025-08-20 18:52:36,712][DL_COMM][INFO] - [SYSTEM] Is CUDA available: True
+[2025-08-20 18:52:36,712][DL_COMM][INFO] - [SYSTEM] CUDA used to build PyTorch: 12.4
+[2025-08-20 18:52:36,712][DL_COMM][INFO] - [SYSTEM] GPU models and configuration:
+[2025-08-20 18:52:36,779][DL_COMM][INFO] - [SYSTEM] GPU 0: NVIDIA A100-SXM4-40GB (39.4 GB)
+[2025-08-20 18:52:36,779][DL_COMM][INFO] - [SYSTEM] GPU 1: NVIDIA A100-SXM4-40GB (39.4 GB)
+[2025-08-20 18:52:36,779][DL_COMM][INFO] - [SYSTEM] GPU 2: NVIDIA A100-SXM4-40GB (39.4 GB)
+[2025-08-20 18:52:36,780][DL_COMM][INFO] - [SYSTEM] GPU 3: NVIDIA A100-SXM4-40GB (39.4 GB)
+[2025-08-20 18:52:36,780][DL_COMM][INFO] - 
+[2025-08-20 18:52:36,785][DL_COMM][INFO] - [SYSTEM] OS: Linux-5.14.21-150500.55.49-default-x86_64-with-glibc2.31
+[2025-08-20 18:52:36,790][DL_COMM][INFO] - [SYSTEM] GCC version: gcc (SUSE Linux) 7.5.0
+[2025-08-20 18:52:36,790][DL_COMM][INFO] - 
+[2025-08-20 18:52:36,790][DL_COMM][INFO] - [SYSTEM] Python version: 3.11.8 | packaged by conda-forge | (main, Feb 16 2024, 20:53:32) [GCC 12.3.0]
+[2025-08-20 18:52:36,790][DL_COMM][INFO] - [SYSTEM] Python platform: Linux-5.14.21-150500.55.49-default-x86_64-with-glibc2.31
+[2025-08-20 18:52:36,791][DL_COMM][INFO] - 
+[2025-08-20 18:52:36,791][DL_COMM][INFO] - [SYSTEM] Distributed Backend Availability:
+[2025-08-20 18:52:36,791][DL_COMM][INFO] - [SYSTEM] NCCL backend available: True
+[2025-08-20 18:52:36,791][DL_COMM][INFO] - [SYSTEM] MPI backend available: True
+[2025-08-20 18:52:36,791][DL_COMM][INFO] - [SYSTEM] XCCL backend available: Unknown/Error
+[2025-08-20 18:52:36,791][DL_COMM][INFO] - 
+[2025-08-20 18:52:36,791][DL_COMM][INFO] - [SYSTEM] Versions of relevant libraries:
+[2025-08-20 18:52:36,791][DL_COMM][INFO] - [SYSTEM] numpy: 1.26.4
+[2025-08-20 18:52:36,791][DL_COMM][INFO] - [SYSTEM] mpi4py: 3.1.6
+[2025-08-20 18:52:36,791][DL_COMM][INFO] - [SYSTEM] hydra-core: 1.3.2
+[2025-08-20 18:52:36,791][DL_COMM][INFO] - [SYSTEM] omegaconf: 2.3.0
+[2025-08-20 18:52:36,792][DL_COMM][INFO] - [SYSTEM] oneccl_bindings_for_pytorch: Not available
+[2025-08-20 18:52:36,792][DL_COMM][INFO] - [SYSTEM] intel_extension_for_pytorch: Not available
+[2025-08-20 18:52:36,792][DL_COMM][INFO] - [SYSTEM] NCCL version: 2.20.5
+[2025-08-20 18:52:36,792][DL_COMM][INFO] - 
+[2025-08-20 18:52:36,792][DL_COMM][INFO] - [SYSTEM] Relevant Environment Variables:
+[2025-08-20 18:52:36,793][DL_COMM][INFO] - [SYSTEM] CUDA_HOME                      = /soft/compilers/cudatoolkit/cuda-12.4.1/
+[2025-08-20 18:52:36,793][DL_COMM][INFO] - [SYSTEM] CUDA_LAUNCH_BLOCKING           = 1
+[2025-08-20 18:52:36,793][DL_COMM][INFO] - [SYSTEM] CUDA_MODULE_LOADING            = LAZY
+[2025-08-20 18:52:36,793][DL_COMM][INFO] - [SYSTEM] CUDA_PATH                      = /soft/compilers/cudatoolkit/cuda-12.4.1/
+[2025-08-20 18:52:36,793][DL_COMM][INFO] - [SYSTEM] CUDA_TOOLKIT_BASE              = /soft/compilers/cudatoolkit/cuda-12.4.1/
+[2025-08-20 18:52:36,793][DL_COMM][INFO] - [SYSTEM] MASTER_ADDR                    = x3006c0s1b0n0
+[2025-08-20 18:52:36,793][DL_COMM][INFO] - [SYSTEM] MASTER_PORT                    = 2268
+[2025-08-20 18:52:36,793][DL_COMM][INFO] - [SYSTEM] MPI4JAX_USE_CUDA_MPI           = 1
+[2025-08-20 18:52:36,793][DL_COMM][INFO] - [SYSTEM] NCCL_ALGO                      = Ring
+[2025-08-20 18:52:36,793][DL_COMM][INFO] - [SYSTEM] NCCL_DEBUG                     = INFO
+[2025-08-20 18:52:36,793][DL_COMM][INFO] - [SYSTEM] NCCL_IB_DISABLE                = 1
+[2025-08-20 18:52:36,793][DL_COMM][INFO] - [SYSTEM] NCCL_SOCKET_IFNAME             = ^lo,docker0
+[2025-08-20 18:52:36,793][DL_COMM][INFO] - [SYSTEM] PALS_LOCAL_RANKID              = 0
+[2025-08-20 18:52:36,793][DL_COMM][INFO] - [SYSTEM] PALS_RANKID                    = 0
+[2025-08-20 18:52:36,794][DL_COMM][INFO] - [SYSTEM] PMI_LOCAL_RANK                 = 0
+[2025-08-20 18:52:36,794][DL_COMM][INFO] - [SYSTEM] PMI_RANK                       = 0
+[2025-08-20 18:52:36,794][DL_COMM][INFO] - [SYSTEM] TORCH_CUDA_ARCH_LIST           = 8.0
+[2025-08-20 18:52:36,794][DL_COMM][INFO] - [SYSTEM] XLA_FLAGS                      = --xla_gpu_force_compilation_parallelism=1 --xla_gpu_cuda_data_dir=/soft/compilers/cudatoolkit/cuda-12.4.1/
+[2025-08-20 18:52:36,794][DL_COMM][INFO] - [SYSTEM] XLA_PYTHON_CLIENT_PREALLOCATE  = false
+[2025-08-20 18:52:36,794][DL_COMM][INFO] - [SYSTEM] ======================================================
+[2025-08-20 18:52:36,794][DL_COMM][INFO] - 
+[2025-08-20 18:52:36,815][DL_COMM][INFO] - 
+[2025-08-20 18:52:36,815][DL_COMM][INFO] - ================================================================================
+[2025-08-20 18:52:36,815][DL_COMM][INFO] - [TASK 1/2] ==================== FSDP ====================
+[2025-08-20 18:52:36,815][DL_COMM][INFO] - ================================================================================
+[2025-08-20 18:52:36,815][DL_COMM][INFO] - 
+[2025-08-20 18:52:36,816][DL_COMM][INFO] - 
+[2025-08-20 18:52:36,816][DL_COMM][INFO] - [CONFIG] Setup
+[2025-08-20 18:52:36,816][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-08-20 18:52:36,816][DL_COMM][INFO] - [CONFIG] Task Name            : fsdp
+[2025-08-20 18:52:36,816][DL_COMM][INFO] - [CONFIG] Framework            : pytorch
+[2025-08-20 18:52:36,816][DL_COMM][INFO] - [CONFIG] Backend              : nccl
+[2025-08-20 18:52:36,816][DL_COMM][INFO] - [CONFIG] Extended Logging     : False
+[2025-08-20 18:52:36,817][DL_COMM][INFO] - [CONFIG] Barrier Enabled      : True
+[2025-08-20 18:52:36,817][DL_COMM][INFO] - [CONFIG] World Size           : 8
+[2025-08-20 18:52:36,817][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-08-20 18:52:36,817][DL_COMM][INFO] - 
+[2025-08-20 18:52:36,817][DL_COMM][INFO] - [CONFIG] Communication Group
+[2025-08-20 18:52:36,817][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-08-20 18:52:36,817][DL_COMM][INFO] - [CONFIG] Mode                 : within_node
+[2025-08-20 18:52:36,817][DL_COMM][INFO] - [CONFIG] Topology             : 2 nodes x 4 devices
+[2025-08-20 18:52:36,817][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-08-20 18:52:36,817][DL_COMM][INFO] - 
+[2025-08-20 18:52:36,817][DL_COMM][INFO] - [CONFIG] Communication Group Details
+[2025-08-20 18:52:36,817][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-08-20 18:52:36,817][DL_COMM][INFO] - [CONFIG] Collective Name      : allreduce
+[2025-08-20 18:52:36,817][DL_COMM][INFO] - [CONFIG] Operation            : sum
+[2025-08-20 18:52:36,818][DL_COMM][INFO] - [CONFIG] Scale Up Algorithm   : default
+[2025-08-20 18:52:36,818][DL_COMM][INFO] - [CONFIG] Scale Out Algorithm  : default
+[2025-08-20 18:52:36,818][DL_COMM][INFO] - [CONFIG] Data Type            : float32
+[2025-08-20 18:52:36,818][DL_COMM][INFO] - [CONFIG] Element Count        : 256
+[2025-08-20 18:52:36,818][DL_COMM][INFO] - [CONFIG] Buffer Size          : 1KB (1024 bytes)
+[2025-08-20 18:52:36,818][DL_COMM][INFO] - [CONFIG] Iterations           : 10
+[2025-08-20 18:52:36,818][DL_COMM][INFO] - [CONFIG] Verify Correctness   : True
+[2025-08-20 18:52:36,818][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-08-20 18:52:36,818][DL_COMM][INFO] - 
+[2025-08-20 18:52:36,818][DL_COMM][INFO] - [COMM][CONFIG] Setting up communication groups for mode: Within
+[2025-08-20 18:52:36,818][DL_COMM][INFO] - [COMM][CONFIG] Within-node: 4 devices per node, Device IDs: [0, 1, 2, 3]
+[2025-08-20 18:52:36,818][DL_COMM][INFO] - [COMM][GROUP CREATION] Within-node groups:
+[2025-08-20 18:52:36,819][DL_COMM][INFO] - 
+[2025-08-20 18:52:36,819][DL_COMM][INFO] - [COMM][GROUP CREATION][Within Group-0] Ranks: [0, 1, 2, 3], Required Devices: [0, 1, 2, 3], Logging: rank 0
+[2025-08-20 18:52:36,819][DL_COMM][INFO] - [COMM][GROUP CREATION][Within Group-1] Ranks: [4, 5, 6, 7], Required Devices: [0, 1, 2, 3], Logging: rank 4
+[2025-08-20 18:52:36,819][DL_COMM][INFO] - [COMM][GROUP CREATION] Created 2 within-node groups
+[2025-08-20 18:52:36,819][DL_COMM][INFO] - 
+[2025-08-20 18:52:37,443][DL_COMM][OUTPUT] - 
+[2025-08-20 18:52:37,443][DL_COMM][OUTPUT] - [TIMERS - SETUP] ---------------------------------------------------------
+[2025-08-20 18:52:37,443][DL_COMM][OUTPUT] - [TIMERS][LOGGING RANK - 0] import time                         = 1.471950 s
+[2025-08-20 18:52:37,443][DL_COMM][OUTPUT] - [TIMERS][LOGGING RANK - 0] init time                           = 0.020433 s
+[2025-08-20 18:52:37,443][DL_COMM][OUTPUT] - [TIMERS][LOGGING RANK - 0] Group Creation (Within)             = 0.000712 s
+[2025-08-20 18:52:37,443][DL_COMM][OUTPUT] - [TIMERS - SETUP] ---------------------------------------------------------
+[2025-08-20 18:52:37,443][DL_COMM][OUTPUT] - 
+[2025-08-20 18:52:37,444][DL_COMM][OUTPUT] - [MPI] Launching profiling job
+x3006c0s1b1n0:2099250:2099250 [0] NCCL INFO NCCL_SOCKET_IFNAME set by environment to ^lo,docker0
+x3006c0s1b1n0:2099250:2099250 [0] NCCL INFO Bootstrap : Using bond0:10.140.57.98<0>
+x3006c0s1b1n0:2099250:2099250 [0] NCCL INFO NET/Plugin : dlerror=libnccl-net.so: cannot open shared object file: No such file or directory No plugin found (libnccl-net.so), using internal implementation
+x3006c0s1b1n0:2099250:2099250 [0] NCCL INFO cudaDriverVersion 12020
+NCCL version 2.20.5+cuda12.4
+x3006c0s1b0n0:635326:635326 [0] NCCL INFO NCCL_SOCKET_IFNAME set by environment to ^lo,docker0
+x3006c0s1b0n0:635326:635326 [0] NCCL INFO Bootstrap : Using bond0:10.140.57.95<0>
+x3006c0s1b0n0:635326:635326 [0] NCCL INFO NET/Plugin : dlerror=libnccl-net.so: cannot open shared object file: No such file or directory No plugin found (libnccl-net.so), using internal implementation
+x3006c0s1b0n0:635326:635326 [0] NCCL INFO cudaDriverVersion 12020
+NCCL version 2.20.5+cuda12.4
+x3006c0s1b1n0:2099250:2099352 [0] NCCL INFO NCCL_IB_DISABLE set by environment to 1.
+x3006c0s1b1n0:2099250:2099352 [0] NCCL INFO NCCL_SOCKET_IFNAME set by environment to ^lo,docker0
+x3006c0s1b1n0:2099250:2099352 [0] NCCL INFO NET/Socket : Using [0]bond0:10.140.57.98<0> [1]hsn1:10.201.1.252<0> [2]hsn0:10.201.1.253<0>
+x3006c0s1b1n0:2099250:2099352 [0] NCCL INFO Using non-device net plugin version 0
+x3006c0s1b1n0:2099250:2099352 [0] NCCL INFO Using network Socket
+x3006c0s1b1n0:2099250:2099352 [0] NCCL INFO comm 0x55aaeb7b99a0 rank 0 nranks 4 cudaDev 0 nvmlDev 0 busId 7000 commId 0x82c75f75a8c4f4ce - Init START
+x3006c0s1b1n0:2099250:2099352 [0] NCCL INFO NVLS multicast support is not available on dev 0
+x3006c0s1b1n0:2099250:2099352 [0] NCCL INFO comm 0x55aaeb7b99a0 rank 0 nRanks 4 nNodes 1 localRanks 4 localRank 0 MNNVL 0
+x3006c0s1b1n0:2099250:2099352 [0] NCCL INFO Channel 00/24 :    0   1   2   3
+x3006c0s1b1n0:2099250:2099352 [0] NCCL INFO Channel 01/24 :    0   1   3   2
+x3006c0s1b1n0:2099250:2099352 [0] NCCL INFO Channel 02/24 :    0   2   3   1
+x3006c0s1b1n0:2099250:2099352 [0] NCCL INFO Channel 03/24 :    0   2   1   3
+x3006c0s1b1n0:2099250:2099352 [0] NCCL INFO Channel 04/24 :    0   3   1   2
+x3006c0s1b1n0:2099250:2099352 [0] NCCL INFO Channel 05/24 :    0   3   2   1
+x3006c0s1b1n0:2099250:2099352 [0] NCCL INFO Channel 06/24 :    0   1   2   3
+x3006c0s1b1n0:2099250:2099352 [0] NCCL INFO Channel 07/24 :    0   1   3   2
+x3006c0s1b1n0:2099250:2099352 [0] NCCL INFO Channel 08/24 :    0   2   3   1
+x3006c0s1b1n0:2099250:2099352 [0] NCCL INFO Channel 09/24 :    0   2   1   3
+x3006c0s1b1n0:2099250:2099352 [0] NCCL INFO Channel 10/24 :    0   3   1   2
+x3006c0s1b1n0:2099250:2099352 [0] NCCL INFO Channel 11/24 :    0   3   2   1
+x3006c0s1b1n0:2099250:2099352 [0] NCCL INFO Channel 12/24 :    0   1   2   3
+x3006c0s1b1n0:2099250:2099352 [0] NCCL INFO Channel 13/24 :    0   1   3   2
+x3006c0s1b1n0:2099250:2099352 [0] NCCL INFO Channel 14/24 :    0   2   3   1
+x3006c0s1b1n0:2099250:2099352 [0] NCCL INFO Channel 15/24 :    0   2   1   3
+x3006c0s1b1n0:2099250:2099352 [0] NCCL INFO Channel 16/24 :    0   3   1   2
+x3006c0s1b1n0:2099250:2099352 [0] NCCL INFO Channel 17/24 :    0   3   2   1
+x3006c0s1b1n0:2099250:2099352 [0] NCCL INFO Channel 18/24 :    0   1   2   3
+x3006c0s1b1n0:2099250:2099352 [0] NCCL INFO Channel 19/24 :    0   1   3   2
+x3006c0s1b1n0:2099250:2099352 [0] NCCL INFO Channel 20/24 :    0   2   3   1
+x3006c0s1b1n0:2099250:2099352 [0] NCCL INFO Channel 21/24 :    0   2   1   3
+x3006c0s1b1n0:2099250:2099352 [0] NCCL INFO Channel 22/24 :    0   3   1   2
+x3006c0s1b1n0:2099250:2099352 [0] NCCL INFO Channel 23/24 :    0   3   2   1
+x3006c0s1b1n0:2099250:2099352 [0] NCCL INFO Trees [0] 1/-1/-1->0->-1 [1] 1/-1/-1->0->-1 [2] 1/-1/-1->0->-1 [3] 1/-1/-1->0->-1 [4] 2/-1/-1->0->-1 [5] 2/-1/-1->0->-1 [6] 2/-1/-1->0->-1 [7] 2/-1/-1->0->-1 [8] 3/-1/-1->0->1 [9] 3/-1/-1->0->1 [10] 3/-1/-1->0->1 [11] 3/-1/-1->0->1 [12] 1/-1/-1->0->-1 [13] 1/-1/-1->0->-1 [14] 1/-1/-1->0->-1 [15] 1/-1/-1->0->-1 [16] 2/-1/-1->0->-1 [17] 2/-1/-1->0->-1 [18] 2/-1/-1->0->-1 [19] 2/-1/-1->0->-1 [20] 3/-1/-1->0->1 [21] 3/-1/-1->0->1 [22] 3/-1/-1->0->1 [23] 3/-1/-1->0->1
+x3006c0s1b1n0:2099250:2099352 [0] NCCL INFO P2P Chunksize set to 524288
+x3006c0s1b1n0:2099250:2099352 [0] NCCL INFO Channel 00/0 : 0[0] -> 1[1] via P2P/CUMEM/read
+x3006c0s1b1n0:2099250:2099352 [0] NCCL INFO Channel 01/0 : 0[0] -> 1[1] via P2P/CUMEM/read
+x3006c0s1b1n0:2099250:2099352 [0] NCCL INFO Channel 06/0 : 0[0] -> 1[1] via P2P/CUMEM/read
+x3006c0s1b1n0:2099250:2099352 [0] NCCL INFO Channel 07/0 : 0[0] -> 1[1] via P2P/CUMEM/read
+x3006c0s1b1n0:2099250:2099352 [0] NCCL INFO Channel 12/0 : 0[0] -> 1[1] via P2P/CUMEM/read
+x3006c0s1b1n0:2099250:2099352 [0] NCCL INFO Channel 13/0 : 0[0] -> 1[1] via P2P/CUMEM/read
+x3006c0s1b1n0:2099250:2099352 [0] NCCL INFO Channel 18/0 : 0[0] -> 1[1] via P2P/CUMEM/read
+x3006c0s1b1n0:2099250:2099352 [0] NCCL INFO Channel 19/0 : 0[0] -> 1[1] via P2P/CUMEM/read
+x3006c0s1b1n0:2099250:2099352 [0] NCCL INFO Channel 02/0 : 0[0] -> 2[2] via P2P/CUMEM/read
+x3006c0s1b1n0:2x3006c0s1b1n0:2099252:2099252 [2] NCCL INFO cudaDriverVersion 12020
+x3006c0s1b1n0:2099252:2099252 [2] NCCL INFO NCCL_SOCKET_IFNAME set by environment to ^lo,docker0
+x3006c0s1b1n0:2099252:2099252 [2] NCCL INFO Bootstrap : Using bond0:10.140.57.98<0>
+x3006c0s1b1n0:2099252:2099252 [2] NCCL INFO NET/Plugin : dlerror=libnccl-net.so: cannot open shared object file: No such file or directory No plugin found (libnccl-net.so), using internal implementation
+x3006c0s1b1n0:2099252:2099355 [2] NCCL INFO NCCL_IB_DISABLE set by environment to 1.
+x3006c0s1b1n0:2099252:2099355 [2] NCCL INFO NCCL_SOCKET_IFNAME set by environment to ^lo,docker0
+x3006c0s1b1n0:2099252:2099355 [2] NCCL INFO NET/Socket : Using [0]bond0:10.140.57.98<0> [1]hsn1:10.201.1.252<0> [2]hsn0:10.201.1.253<0>
+x3006c0s1b1n0:2099252:2099355 [2] NCCL INFO Using non-device net plugin version 0
+x3006c0s1b1n0:2099252:2099355 [2] NCCL INFO Using network Socket
+x3006c0s1b1n0:2099252:2099355 [2] NCCL INFO comm 0x55bbacd16f10 rank 2 nranks 4 cudaDev 2 nvmlDev 2 busId 85000 commId 0x82c75f75a8c4f4ce - Init START
+x3006c0s1b1n0:2099252:2099355 [2] NCCL INFO Setting affinity for GPU 2 to ff00,00000000
+x3006c0s1b1n0:2099252:2099355 [2] NCCL INFO NVLS multicast support is not available on dev 2
+x3006c0s1b1n0:2099252:2099355 [2] NCCL INFO comm 0x55bbacd16f10 rank 2 nRanks 4 nNodes 1 localRanks 4 localRank 2 MNNVL 0
+x3006c0s1b1n0:2099252:2099355 [2] NCCL INFO Trees [0] 3/-1/-1->2->1 [1] 3/-1/-1->2->1 [2] 3/-1/-1->2->1 [3] 3/-1/-1->2->1 [4] 1/-1/-1->2->0 [5] 1/-1/-1->2->0 [6] 1/-1/-1->2->0 [7] 1/-1/-1->2->0 [8] -1/-1/-1->2->3 [9] -1/-1/-1->2->3 [10] -1/-1/-1->2->3 [11] -1/-1/-1->2->3 [12] 3/-1/-1->2->1 [13] 3/-1/-1->2->1 [14] 3/-1/-1->2->1 [15] 3/-1/-1->2->1 [16] 1/-1/-1->2->0 [17] 1/-1/-1->2->0 [18] 1/-1/-1->2->0 [19] 1/-1/-1->2->0 [20] -1/-1/-1->2->3 [21] -1/-1/-1->2->3 [22] -1/-1/-1->2->3 [23] -1/-1/-1->2->3
+x3006c0s1b1n0:2099252:2099355 [2] NCCL INFO P2P Chunksize set to 524288
+x3006c0s1b1n0:2099252:2099355 [2] NCCL INFO Channel 00/0 : 2[2] -> 3[3] via P2P/CUMEM/read
+x3006c0s1x3006c0s1b1n0:2099251:2099251 [1] NCCL INFO cudaDriverVersion 12020
+x3006c0s1b1n0:2099251:2099251 [1] NCCL INFO NCCL_SOCKET_IFNAME set by environment to ^lo,docker0
+x3006c0s1b1n0:2099251:2099251 [1] NCCL INFO Bootstrap : Using bond0:10.140.57.98<0>
+x3006c0s1b1n0:2099251:2099251 [1] NCCL INFO NET/Plugin : dlerror=libnccl-net.so: cannot open shared object file: No such file or directory No plugin found (libnccl-net.so), using internal implementation
+x3006c0s1b1n0:2099251:2099353 [1] NCCL INFO NCCL_IB_DISABLE set by environment to 1.
+x3006c0s1b1n0:2099251:2099353 [1] NCCL INFO NCCL_SOCKET_IFNAME set by environment to ^lo,docker0
+x3006c0s1b1n0:2099251:2099353 [1] NCCL INFO NET/Socket : Using [0]bond0:10.140.57.98<0> [1]hsn1:10.201.1.252<0> [2]hsn0:10.201.1.253<0>
+x3006c0s1b1n0:2099251:2099353 [1] NCCL INFO Using non-device net plugin version 0
+x3006c0s1b1n0:2099251:2099353 [1] NCCL INFO Using network Socket
+x3006c0s1b1n0:2099251:2099353 [1] NCCL INFO comm 0x560095b19010 rank 1 nranks 4 cudaDev 1 nvmlDev 1 busId 46000 commId 0x82c75f75a8c4f4ce - Init START
+x3006c0s1b1n0:2099251:2099353 [1] NCCL INFO Setting affinity for GPU 1 to ff0000
+x3006c0s1b1n0:2099251:2099353 [1] NCCL INFO NVLS multicast support is not available on dev 1
+x3006c0s1b1n0:2099251:2099353 [1] NCCL INFO comm 0x560095b19010 rank 1 nRanks 4 nNodes 1 localRanks 4 localRank 1 MNNVL 0
+x3006c0s1b1n0:2099251:2099353 [1] NCCL INFO Trees [0] 2/-1/-1->1->0 [1] 2/-1/-1->1->0 [2] 2/-1/-1->1->0 [3] 2/-1/-1->1->0 [4] 3/-1/-1->1->2 [5] 3/-1/-1->1->2 [6] 3/-1/-1->1->2 [7] 3/-1/-1->1->2 [8] 0/-1/-1->1->-1 [9] 0/-1/-1->1->-1 [10] 0/-1/-1->1->-1 [11] 0/-1/-1->1->-1 [12] 2/-1/-1->1->0 [13] 2/-1/-1->1->0 [14] 2/-1/-1->1->0 [15] 2/-1/-1->1->0 [16] 3/-1/-1->1->2 [17] 3/-1/-1->1->2 [18] 3/-1/-1->1->2 [19] 3/-1/-1->1->2 [20] 0/-1/-1->1->-1 [21] 0/-1/-1->1->-1 [22] 0/-1/-1->1->-1 [23] 0/-1/-1->1->-1
+x3006c0s1b1n0:2099251:2099353 [1] NCCL INFO P2P Chunksize set to 524288
+x3006c0s1b1n0:2099251:2099353 [1] NCCL INFO Channel 00/0 : 1[1] -> 2[2] via P2P/CUMEM/read
+x3006c0s1b1n0:20b1n0:2099252:2099355 [2] NCCL INFO Channel 02/0 : 2[2] -> 3[3] via P2P/CUMEM/read
+x3006c0s1b1n0:2099252:2099355 [2] NCCL INFO Channel 06/0 : 2[2] -> 3[3] via P2P/CUMEM/read
+x3006c0s1b1n0:2099252:2099355 [2] NCCL INFO Channel 08/0 : 2[2] -> 3[3] via P2P/CUMEM/read
+x3006c0s1b1n0:2099252:2099355 [2] NCCL INFO Channel 12/0 : 2[2] -> 3[3] via P2P/CUMEM/read
+x3006c0s1b1n0:2099252:2099355 [2] NCCL INFO Channel 14/0 : 2[2] -> 3[3] via P2P/CUMEM/read
+x3006c0s1b1n0:2099252:2099355 [2] NCCL INFO Channel 18/0 : 2[2] -> 3[3] via P2P/CUMEM/read
+x3006c0s1b1n0:2099252:2099355 [2] NCCL INFO Channel 20/0 : 2[2] -> 3[3] via P2P/CUMEM/read
+x3006c0s1b1n0:2099252:2099355 [2] NCCL INFO Channel 01/0 : 2[2] -> 0[0] via P2P/CUMEM/read
+x3006c0s1b1n0:2099252:2099355 [2] NCCL INFO Channel 04/0 : 2[2] -> 0[0] via P2P/CUMEM/read
+x3006c0s1b1n0:2099252:2099355 [2] NCCL INFO Channel 07/0 : 2[2] -> 0[0] via P2P/CUMEM/read
+x3006c0s1b1n0:2099252:2099355 [2] NCCL INFO Channel 10/0 : 2[2] -> 0[0] via P2P/CUMEM/read
+x3006c0s1b1n0:2099252:2099355 [2] NCCL INFO Channel 13/0 : 2[2] -> 0[0] via P2P/CUMEM/read
+x3006c0s1b1n0:2099252:2099355 [2] NCCL INFO Channel 16/0 : 2[2] -> 0[0] via P2P/CUMEM/read
+x3006c0s1b1n0:2099252:2099355 [2] NCCL INFO Channel 19/0 : 2[2] -> 0[0] via P2P/CUMEM/read
+x3006c0s1b1n0:2099252:2099355 [2] NCCL INFO Channel 22/0 : 2[2] -> 0[0] via P2P/CUMEM/read
+x3006c0s1b1n0:2099252:2099355 [2] NCCL INFO Channel 03/0 : 2[2] -> 1[1] via P2P/CUMEM/read
+x3006c0s1b1n0:2099252:2099355 [2] NCCL INFO Channel 05/0 : 2[2] -> 1[1] via P2P/CUMEM/read
+x3006c0s1b1n0:2099252:2099355 [2] NCCL INFO Channel 09/0 : 2[2] -> 1[1] via P2P/CUMEM/read
+x3006c0s1b1n0:2099252:2099355 [2] NCCL INFO Channel 11/0 : 2[2] -> 1[1] via P2P/CUMEM/read
+x3006c0s1b1n0:2099252:2099355 [2] NCCL INFO Channel 15/0 : 2[2] -> 1[1] via P2P/CUMEM/read
+x3006c0s1b1n0:2099252:2099355 [2] NCCL INFO Channel 17/0 : 2[2] -> 1[1] via P2P/CUMEM/read
+x3006c0s1b1n0:2099252:2099355 [2] NCCL INFO Channel 21/0 : 2[2] -> 1[1] via P2P/CUMEM/read
+x3006c0s1b1n0:2099252:2099355 [2] NCCL INFO Channel 2399251:2099353 [1] NCCL INFO Channel 04/0 : 1[1] -> 2[2] via P2P/CUMEM/read
+x3006c0s1b1n0:2099251:2099353 [1] NCCL INFO Channel 06/0 : 1[1] -> 2[2] via P2P/CUMEM/read
+x3006c0s1b1n0:2099251:2099353 [1] NCCL INFO Channel 10/0 : 1[1] -> 2[2] via P2P/CUMEM/read
+x3006c0s1b1n0:2099251:2099353 [1] NCCL INFO Channel 12/0 : 1[1] -> 2[2] via P2P/CUMEM/read
+x3006c0s1b1n0:2099251:2099353 [1] NCCL INFO Channel 16/0 : 1[1] -> 2[2] via P2P/CUMEM/read
+x3006c0s1b1n0:2099251:2099353 [1] NCCL INFO Channel 18/0 : 1[1] -> 2[2] via P2P/CUMEM/read
+x3006c0s1b1n0:2099251:2099353 [1] NCCL INFO Channel 22/0 : 1[1] -> 2[2] via P2P/CUMEM/read
+x3006c0s1b1n0:2099251:2099353 [1] NCCL INFO Channel 01/0 : 1[1] -> 3[3] via P2P/CUMEM/read
+x3006c0s1b1n0:2099251:2099353 [1] NCCL INFO Channel 03/0 : 1[1] -> 3[3] via P2P/CUMEM/read
+x3006c0s1b1n0:2099251:2099353 [1] NCCL INFO Channel 07/0 : 1[1] -> 3[3] via P2P/CUMEM/read
+x3006c0s1b1n0:2099251:2099353 [1] NCCL INFO Channel 09/0 : 1[1] -> 3[3] via P2P/CUMEM/read
+x3006c0s1b1n0:2099251:2099353 [1] NCCL INFO Channel 13/0 : 1[1] -> 3[3] via P2P/CUMEM/read
+x3006c0s1b1n0:2099251:2099353 [1] NCCL INFO Channel 15/0 : 1[1] -> 3[3] via P2P/CUMEM/read
+x3006c0s1b1n0:2099251:2099353 [1] NCCL INFO Channel 19/0 : 1[1] -> 3[3] via P2P/CUMEM/read
+x3006c0s1b1n0:2099251:2099353 [1] NCCL INFO Channel 21/0 : 1[1] -> 3[3] via P2P/CUMEM/read
+x3006c0s1b1n0:2099251:2099353 [1] NCCL INFO Channel 02/0 : 1[1] -> 0[0] via P2P/CUMEM/read
+x3006c0s1b1n0:2099251:2099353 [1] NCCL INFO Channel 05/0 : 1[1] -> 0[0] via P2P/CUMEM/read
+x3006c0s1b1n0:2099251:2099353 [1] NCCL INFO Channel 08/0 : 1[1] -> 0[0] via P2P/CUMEM/read
+x3006c0s1b1n0:2099251:2099353 [1] NCCL INFO Channel 11/0 : 1[1] -> 0[0] via P2P/CUMEM/read
+x3006c0s1b1n0:2099251:2099353 [1] NCCL INFO Channel 14/0 : 1[1] -> 0[0] via P2P/CUMEM/read
+x3006c0s1b1n0:2099251:2099353 [1] NCCL INFO Channel 17/0 : 1[1] -> 0[0] via P2P/CUMEM/read
+x3006c0s1b1n0:2099251:2099353 [1] NCCL INFO Channel 20/0 : 1[1] -> 0[0] via P2P/CUMEM/read
+x3006c0s1b1n0:2099251:2099353 [1] NCCL INFO Channel 23/0 : 1[/01]x3006c0s1b0n0:635326:635433 [0] NCCL INFO NCCL_IB_DISABLE set by environment to 1.
+x3006c0s1b0n0:635326:635433 [0] NCCL INFO NCCL_SOCKET_IFNAME set by environment to ^lo,docker0
+x3006c0s1b0n0:635326:635433 [0] NCCL INFO NET/Socket : Using [0]bond0:10.140.57.95<0> [1]hsn1:10.201.1.234<0> [2]hsn0:10.201.1.237<0>
+x3006c0s1b0n0:635326:635433 [0] NCCL INFO Using non-device net plugin version 0
+x3006c0s1b0n0:635326:635433 [0] NCCL INFO Using network Socket
+x3006c0s1b0n0:635326:635433 [0] NCCL INFO comm 0x56251722bd00 rank 0 nranks 4 cudaDev 0 nvmlDev 0 busId 7000 commId 0xdbd2811570941f7f - Init START
+x3006c0s1b0n0:635326:635433 [0] NCCL INFO NVLS multicast support is not available on dev 0
+x3006c0s1b0n0:635326:635433 [0] NCCL INFO comm 0x56251722bd00 rank 0 nRanks 4 nNodes 1 localRanks 4 localRank 0 MNNVL 0
+x3006c0s1b0n0:635326:635433 [0] NCCL INFO Channel 00/24 :    0   1   2   3
+x3006c0s1b0n0:635326:635433 [0] NCCL INFO Channel 01/24 :    0   1   3   2
+x3006c0s1b0n0:635326:635433 [0] NCCL INFO Channel 02/24 :    0   2   3   1
+x3006c0s1b0n0:635326:635433 [0] NCCL INFO Channel 03/24 :    0   2   1   3
+x3006c0s1b0n0:635326:635433 [0] NCCL INFO Channel 04/24 :    0   3   1   2
+x3006c0s1b0n0:635326:635433 [0] NCCL INFO Channel 05/24 :    0   3   2   1
+x3006c0s1b0n0:635326:635433 [0] NCCL INFO Channel 06/24 :    0   1   2   3
+x3006c0s1b0n0:635326:635433 [0] NCCL INFO Channel 07/24 :    0   1   3   2
+x3006c0s1b0n0:635326:635433 [0] NCCL INFO Channel 08/24 :    0   2   3   1
+x3006c0s1b0n0:635326:635433 [0] NCCL INFO Channel 09/24 :    0   2   1   3
+x3006c0s1b0n0:635326:635433 [0] NCCL INFO Channel 10/24 :    0   3   1   2
+x3006c0s1b0n0:635326:635433 [0] NCCL INFO Channel 11/24 :    0   3   2   1
+x3006c0s1b0n0:635326:635433 [0] NCCL INFO Channel 12/24 :    0   1   2   3
+x3006c0s1b0n0:635326:635433 [0] NCCL INFO Channel 13/24 :    0   1   3   2
+x3006c0s1b0n0:635326:635433 [0] NCCL INFO Channel 14/24 :    0   2   3   1
+x3006c0s1b0n0:635326:635433 [0] NCCL INFO Channel 15/24 :    0   2   1   3
+x3006c0s1b0n0:635326:635433 [0] NCCL INFO Channel 16/24 :    0   3   1   2
+x3006c0s1b0n0:635326:635433 [0] NCCL INFO Channel 17/24 :    0   3   2   1
+x3006c0s1b0n0:635326:635433 [0] NCCL INFO Channel 18/24 :    0   1   2   3
+x3006c0s1b0n0:635326:635433 [0] NCCL INFO Channel 19/24 :    0   1   3   2
+x3006c0s1b0n0:635326:635433 [0] NCCL INFO Channel 20/24 :    0   2   3   1
+x3006c0s1b0n0:635326:635433 [0] NCCL INFO Channel 21/24 :    0   2   1   3
+x3006c0s1b0n0:635326:635433 [0] NCCL INFO Channel 22/24 :    0   3   1   2
+x3006c0s1b0n0:635326:635433 [0] NCCL INFO Channel 23/24 :    0   3   2   1
+x3006c0s1b0n0:635326:635433 [0] NCCL INFO Trees [0] 1/-1/-1->0->-1 [1] 1/-1/-1->0->-1 [2] 1/-1/-1->0->-1 [3] 1/-1/-1->0->-1 [4] 2/-1/-1->0->-1 [5] 2/-1/-1->0->-1 [6] 2/-1/-1->0->-1 [7] 2/-1/-1->0->-1 [8] 3/-1/-1->0->1 [9] 3/-1/-1->0->1 [10] 3/-1/-1->0->1 [11] 3/-1/-1->0->1 [12] 1/-1/-1->0->-1 [13] 1/-1/-1->0->-1 [14] 1/-1/-1->0->-1 [15] 1/-1/-1->0->-1 [16] 2/-1/-1->0->-1 [17] 2/-1/-1->0->-1 [18] 2/-1/-1->0->-1 [19] 2/-1/-1->0->-1 [20] 3/-1/-1->0->1 [21] 3/-1/-1->0->1 [22] 3/-1/-1->0->1 [23] 3/-1/-1->0->1
+x3006c0s1b0n0:635326:635433 [0] NCCL INFO P2P Chunksize set to 524288
+x3006c0s1b0n0:635326:635433 [0] NCCL INFO Channel 00/0 : 0[0] -> 1[1] via P2P/CUMEM/read
+x3006c0s1b0n0:635326:635433 [0] NCCL INFO Channel 01/0 : 0[0] -> 1[1] via P2P/CUMEM/read
+x3006c0s1b0n0:635326:635433 [0] NCCL INFO Channel 06/0 : 0[0] -> 1[1] via P2P/CUMEM/read
+x3006c0s1b0n0:635326:635433 [0] NCCL INFO Channel 07/0 : 0[0] -> 1[1] via P2P/CUMEM/read
+x3006c0s1b0n0:635326:635433 [0] NCCL INFO Channel 12/0 : 0[0] -> 1[1] via P2P/CUMEM/read
+x3006c0s1b0n0:635326:635433 [0] NCCL INFO Channel 13/0 : 0[0] -> 1[1] via P2P/CUMEM/read
+x3006c0s1b0n0:635326:635433 [0] NCCL INFO Channel 18/0 : 0[0] -> 1[1] via P2P/CUMEM/read
+x3006c0s1b0n0:635326:635433 [0] NCCL INFO Channel 19/0 : 0[0] -> 1[1] via P2P/CUMEM/read
+x3006c0s1b0n0:635326:635433 [0] NCCL INFO Channel 02/0 : 0[0] -> 2[2] via P2P/CUMEM/read
+x3006c0s1b0n0:635326:635433 [0] NCCL INFO Channel 03/0 : 0[0] -> 2[2] via P2P/CUMEM/read
+x3006c0s1b0nx3006c0s1b1n0:2099253:2099253 [3] NCCL INFO cudaDriverVersion 12020
+x3006c0s1b1n0:2099253:2099253 [3] NCCL INFO NCCL_SOCKET_IFNAME set by environment to ^lo,docker0
+x3006c0s1b1n0:2099253:2099253 [3] NCCL INFO Bootstrap : Using bond0:10.140.57.98<0>
+x3006c0s1b1n0:2099253:2099253 [3] NCCL INFO NET/Plugin : dlerror=libnccl-net.so: cannot open shared object file: No such file or directory No plugin found (libnccl-net.so), using internal implementation
+x3006c0s1b1n0:2099253:2099354 [3] NCCL INFO NCCL_IB_DISABLE set by environment to 1.
+x3006c0s1b1n0:2099253:2099354 [3] NCCL INFO NCCL_SOCKET_IFNAME set by environment to ^lo,docker0
+x3006c0s1b1n0:2099253:2099354 [3] NCCL INFO NET/Socket : Using [0]bond0:10.140.57.98<0> [1]hsn1:10.201.1.252<0> [2]hsn0:10.201.1.253<0>
+x3006c0s1b1n0:2099253:2099354 [3] NCCL INFO Using non-device net plugin version 0
+x3006c0s1b1n0:2099253:2099354 [3] NCCL INFO Using network Socket
+x3006c0s1b1n0:2099253:2099354 [3] NCCL INFO comm 0x563a0dc74e10 rank 3 nranks 4 cudaDev 3 nvmlDev 3 busId c7000 commId 0x82c75f75a8c4f4ce - Init START
+x3006c0s1b1n0:2099253:2099354 [3] NCCL INFO NVLS multicast support is not available on dev 3
+x3006c0s1b1n0:2099253:2099354 [3] NCCL INFO comm 0x563a0dc74e10 rank 3 nRanks 4 nNodes 1 localRanks 4 localRank 3 MNNVL 0
+x3006c0s1b1n0:2099253:2099354 [3] NCCL INFO Trees [0] -1/-1/-1->3->2 [1] -1/-1/-1->3->2 [2] -1/-1/-1->3->2 [3] -1/-1/-1->3->2 [4] -1/-1/-1->3->1 [5] -1/-1/-1->3->1 [6] -1/-1/-1->3->1 [7] -1/-1/-1->3->1 [8] 2/-1/-1->3->0 [9] 2/-1/-1->3->0 [10] 2/-1/-1->3->0 [11] 2/-1/-1->3->0 [12] -1/-1/-1->3->2 [13] -1/-1/-1->3->2 [14] -1/-1/-1->3->2 [15] -1/-1/-1->3->2 [16] -1/-1/-1->3->1 [17] -1/-1/-1->3->1 [18] -1/-1/-1->3->1 [19] -1/-1/-1->3->1 [20] 2/-1/-1->3->0 [21] 2/-1/-1->3->0 [22] 2/-1/-1->3->0 [23] 2/-1/-1->3->0
+x3006c0s1b1n0:2099253:2099354 [3] NCCL INFO P2P Chunksize set to 524288
+x3006c0s1b1n0:2099253:2099354 [3] NCCL INFO Channel 00/0 : 3[3] -> 0[0] via P2P/CUMEM/read
+x3006c0s1b1n0:2099253:2099354 [3] NCCL INFO Channel 03/0 : 3[3] -> 0[0] via P2P/CUMEM/read
+x3006c0s1b1n0:2099253:2099354 [3] NCCL INFO Channel 06/0 : 3[3] -> 0[0] via P2P/CUMEM/read
+x3006c0s1b1n0:2099253:2099354 [3] NCCL INFO Channel 09/0 : 3[3] -> 0[0] via P2P/CUMEM/read
+x3006c0s1b1n0:2099253:2099354 [3] NCCL INFO Channel 12/0 : 3[3] -> 0[0] via P2P/CUMEM/read
+x3006c0s1b1n0:2099253:2099354 [3] NCCL INFO Channel 15/0 : 3[3] -> 0[0] via P2P/CUMEM/read
+x3006c0s1b1n0:2099253:2099354 [3] NCCL INFO Channel 18/0 : 3[3] -> 0[0] via P2P/CUMEM/read
+x3006c0s1b1n0:2099253:2099354 [3] NCCL INFO Channel 21/0 : 3[3] -> 0[0] via P2P/CUMEM/read
+x3006c0s1b1n0:2099253:2099354 [3] NCCL INFO Channel 02/0 : 3[3] -> 1[1] via P2P/CUMEM/read
+x3006c0s1b1n0:2099253:2099354 [3] NCCL INFO Channel 04/0 : 3[3] -> 1[1] via P2P/CUMEM/read
+x3006c0s1b1n0:2099253:2099354 [3] NCCL INFO Channel 08/0 : 3[3] -> 1[1] via P2P/CUMEM/read
+x3006c0s1b1n0:2099253:2099354 [3] NCCL INFO Channel 10/0 : 3[3] -> 1[1] via P2P/CUMEM/read
+x3006c0s1b1n0:2099253:2099354 [3] NCCL INFO Channel 14/0 : 3[3] -> 1[1] via P2P/CUMEM/read
+x3006c0s1b1n0:2099253:2099354 [3] NCCL INFO Channel 16/0 : 3[3] -> 1[1] via P2P/CUMEM/read
+x3006c0s1b1n0:2099253:2099354 [3] NCCL INFO Channel 20/0 : 3[3] -> 1[1] via P2P/CUMEM/read
+x3006c0s1b1n0:2099253:2099354 [3] NCCL INFO Channel 22/0 : 3[3] -> 1[1] via P2P/CUMEM/read
+x3006c0s1b1n0:2099253:2099354 [3] NCCL INFO Channel 01/0 : 3[3] -> 2[2] via P2P/CUMEM/read
+x3006c0s1b1n0:2099253:2099354 [3] NCCL INFO Channel 05/0 : 3[3] -> 2[2] via P2P/CUMEM/read
+x3006c0s1b1n0:2099253:2099354 [3] NCCL INFO Channel 07/0 : 3[3] -> 2[2] via P2P/CUMEM/read
+x3006c0s1b1n0:2099253:2099354 [3] NCCL INFO Channel 11/0 : 3[3] -> 2[2] via P2P/CUMEM/read
+x3006c0s1b1n0:2099253:2099354 [3] NCCL INFO Channel 13/0 : 3[3] -> 2[2] via P2P/CUMEM/read
+x3006c0s1b1n0:2099253:2099354 [3] NCCL INFO Channel 17/0 : 3[3] -> 2[2] via P2P/CUMEM/read
+x3006c0s1b1n0:2099253:2099354 [3] NCCL INFO Channel 19/0 : 3[3] -> 2[2] via P2P/CUMEM/read
+x3006c0s1b1n0:2099253:2099354 [3] NCCL INFO Channel 23/0 : 3[3] -> 2[2] via P2P/CUMEM/read
+x3006c0s1b1n0:2099253:2099354 [3] NCCL INFO Cx3006c0s1b0n0:635327:635327 [1] NCCL INFO cudaDriverVersion 12020
+x3006c0s1b0n0:635327:635327 [1] NCCL INFO NCCL_SOCKET_IFNAME set by environment to ^lo,docker0
+x3006c0s1b0n0:635327:635327 [1] NCCL INFO Bootstrap : Using bond0:10.140.57.95<0>
+x3006c0s1b0n0:635327:635327 [1] NCCL INFO NET/Plugin : dlerror=libnccl-net.so: cannot open shared object file: No such file or directory No plugin found (libnccl-net.so), using internal implementation
+x3006c0s1b0n0:635327:635436 [1] NCCL INFO NCCL_IB_DISABLE set by environment to 1.
+x3006c0s1b0n0:635327:635436 [1] NCCL INFO NCCL_SOCKET_IFNAME set by environment to ^lo,docker0
+x3006c0s1b0n0:635327:635436 [1] NCCL INFO NET/Socket : Using [0]bond0:10.140.57.95<0> [1]hsn1:10.201.1.234<0> [2]hsn0:10.201.1.237<0>
+x3006c0s1b0n0:635327:635436 [1] NCCL INFO Using non-device net plugin version 0
+x3006c0s1b0n0:635327:635436 [1] NCCL INFO Using network Socket
+x3006c0s1b0n0:635327:635436 [1] NCCL INFO comm 0x55fd51946620 rank 1 nranks 4 cudaDev 1 nvmlDev 1 busId 46000 commId 0xdbd2811570941f7f - Init START
+x3006c0s1b0n0:635327:635436 [1] NCCL INFO Setting affinity for GPU 1 to ff0000
+x3006c0s1b0n0:635327:635436 [1] NCCL INFO NVLS multicast support is not available on dev 1
+x3006c0s1b0n0:635327:635436 [1] NCCL INFO comm 0x55fd51946620 rank 1 nRanks 4 nNodes 1 localRanks 4 localRank 1 MNNVL 0
+x3006c0s1b0n0:635327:635436 [1] NCCL INFO Trees [0] 2/-1/-1->1->0 [1] 2/-1/-1->1->0 [2] 2/-1/-1->1->0 [3] 2/-1/-1->1->0 [4] 3/-1/-1->1->2 [5] 3/-1/-1->1->2 [6] 3/-1/-1->1->2 [7] 3/-1/-1->1->2 [8] 0/-1/-1->1->-1 [9] 0/-1/-1->1->-1 [10] 0/-1/-1->1->-1 [11] 0/-1/-1->1->-1 [12] 2/-1/-1->1->0 [13] 2/-1/-1->1->0 [14] 2/-1/-1->1->0 [15] 2/-1/-1->1->0 [16] 3/-1/-1->1->2 [17] 3/-1/-1->1->2 [18] 3/-1/-1->1->2 [19] 3/-1/-1->1->2 [20] 0/-1/-1->1->-1 [21] 0/-1/-1->1->-1 [22] 0/-1/-1->1->-1 [23] 0/-1/-1->1->-1
+x3006c0s1b0n0:635327:635436 [1] NCCL INFO P2P Chunksize set to 524288
+x3006c0s1b0n0:635327:635436 [1] NCCL INFO Channel 00/0 : 1[1] -> 2[2] via P2P/CUMEM/read
+x3006c0s1b0n0:635327:635436 [1] NCCL INFO Channex3006c0s1b0n0:635328:635328 [2] NCCL INFO cudaDriverVersion 12020
+x3006c0s1b0n0:635328:635328 [2] NCCL INFO NCCL_SOCKET_IFNAME set by environment to ^lo,docker0
+x3006c0s1b0n0:635328:635328 [2] NCCL INFO Bootstrap : Using bond0:10.140.57.95<0>
+x3006c0s1b0n0:635328:635328 [2] NCCL INFO NET/Plugin : dlerror=libnccl-net.so: cannot open shared object file: No such file or directory No plugin found (libnccl-net.so), using internal implementation
+x3006c0s1b0n0:635328:635434 [2] NCCL INFO NCCL_IB_DISABLE set by environment to 1.
+x3006c0s1b0n0:635328:635434 [2] NCCL INFO NCCL_SOCKET_IFNAME set by environment to ^lo,docker0
+x3006c0s1b0n0:635328:635434 [2] NCCL INFO NET/Socket : Using [0]bond0:10.140.57.95<0> [1]hsn1:10.201.1.234<0> [2]hsn0:10.201.1.237<0>
+x3006c0s1b0n0:635328:635434 [2] NCCL INFO Using non-device net plugin version 0
+x3006c0s1b0n0:635328:635434 [2] NCCL INFO Using network Socket
+x3006c0s1b0n0:635328:635434 [2] NCCL INFO comm 0x564ebef8c540 rank 2 nranks 4 cudaDev 2 nvmlDev 2 busId 85000 commId 0xdbd2811570941f7f - Init START
+x3006c0s1b0n0:635328:635434 [2] NCCL INFO Setting affinity for GPU 2 to ff00,00000000
+x3006c0s1b0n0:635328:635434 [2] NCCL INFO NVLS multicast support is not available on dev 2
+x3006c0s1b0n0:635328:635434 [2] NCCL INFO comm 0x564ebef8c540 rank 2 nRanks 4 nNodes 1 localRanks 4 localRank 2 MNNVL 0
+x3006c0s1b0n0:635328:635434 [2] NCCL INFO Trees [0] 3/-1/-1->2->1 [1] 3/-1/-1->2->1 [2] 3/-1/-1->2->1 [3] 3/-1/-1->2->1 [4] 1/-1/-1->2->0 [5] 1/-1/-1->2->0 [6] 1/-1/-1->2->0 [7] 1/-1/-1->2->0 [8] -1/-1/-1->2->3 [9] -1/-1/-1->2->3 [10] -1/-1/-1->2->3 [11] -1/-1/-1->2->3 [12] 3/-1/-1->2->1 [13] 3/-1/-1->2->1 [14] 3/-1/-1->2->1 [15] 3/-1/-1->2->1 [16] 1/-1/-1->2->0 [17] 1/-1/-1->2->0 [18] 1/-1/-1->2->0 [19] 1/-1/-1->2->0 [20] -1/-1/-1->2->3 [21] -1/-1/-1->2->3 [22] -1/-1/-1->2->3 [23] -1/-1/-1->2->3
+x3006c0s1b0n0:635328:635434 [2] NCCL INFO P2P Chunksize set to 524288
+x3006c0s1b0n0:635328:635434 [2] NCCL INFO Channel 00/0 : 2[2] -> 3[3] via P2P/CUMEM/read
+x3006c0s1b0n0:635328:635434 [2] NCCL INFOl 04/0 : 1[1] -> 2[2] via P2P/CUMEM/read
+x3006c0s1b0n0:635327:635436 [1] NCCL INFO Channel 06/0 : 1[1] -> 2[2] via P2P/CUMEM/read
+x3006c0s1b0n0:635327:635436 [1] NCCL INFO Channel 10/0 : 1[1] -> 2[2] via P2P/CUMEM/read
+x3006c0s1b0n0:635327:635436 [1] NCCL INFO Channel 12/0 : 1[1] -> 2[2] via P2P/CUMEM/read
+x3006c0s1b0n0:635327:635436 [1] NCCL INFO Channel 16/0 : 1[1] -> 2[2] via P2P/CUMEM/read
+x3006c0s1b0n0:635327:635436 [1] NCCL INFO Channel 18/0 : 1[1] -> 2[2] via P2P/CUMEM/read
+x3006c0s1b0n0:635327:635436 [1] NCCL INFO Channel 22/0 : 1[1] -> 2[2] via P2P/CUMEM/read
+x3006c0s1b0n0:635327:635436 [1] NCCL INFO Channel 01/0 : 1[1] -> 3[3] via P2P/CUMEM/read
+x3006c0s1b0n0:635327:635436 [1] NCCL INFO Channel 03/0 : 1[1] -> 3[3] via P2P/CUMEM/read
+x3006c0s1b0n0:635327:635436 [1] NCCL INFO Channel 07/0 : 1[1] -> 3[3] via P2P/CUMEM/read
+x3006c0s1b0n0:635327:635436 [1] NCCL INFO Channel 09/0 : 1[1] -> 3[3] via P2P/CUMEM/read
+x3006c0s1b0n0:635327:635436 [1] NCCL INFO Channel 13/0 : 1[1] -> 3[3] via P2P/CUMEM/read
+x3006c0s1b0n0:635327:635436 [1] NCCL INFO Channel 15/0 : 1[1] -> 3[3] via P2P/CUMEM/read
+x3006c0s1b0n0:635327:635436 [1] NCCL INFO Channel 19/0 : 1[1] -> 3[3] via P2P/CUMEM/read
+x3006c0s1b0n0:635327:635436 [1] NCCL INFO Channel 21/0 : 1[1] -> 3[3] via P2P/CUMEM/read
+x3006c0s1b0n0:635327:635436 [1] NCCL INFO Channel 02/0 : 1[1] -> 0[0] via P2P/CUMEM/read
+x3006c0s1b0n0:635327:635436 [1] NCCL INFO Channel 05/0 : 1[1] -> 0[0] via P2P/CUMEM/read
+x3006c0s1b0n0:635327:635436 [1] NCCL INFO Channel 08/0 : 1[1] -> 0[0] via P2P/CUMEM/read
+x3006c0s1b0n0:635327:635436 [1] NCCL INFO Channel 11/0 : 1[1] -> 0[0] via P2P/CUMEM/read
+x3006c0s1b0n0:635327:635436 [1] NCCL INFO Channel 14/0 : 1[1] -> 0[0] via P2P/CUMEM/read
+x3006c0s1b0n0:635327:635436 [1] NCCL INFO Channel 17/0 : 1[1] -> 0[0] via P2P/CUMEM/read
+x3006c0s1b0n0:635327:635436 [1] NCCL INFO Channel 20/0 : 1[1] -> 0[0] via P2P/CUMEM/read
+x3006c0s1b0n0:635327:635436 [1] NCCL INFO Channel 23/0 : 1[1] -> 0[0] via P2P/CUMEM/read
+x3006c0s1b0n0:635327:635436 [1] NCCL INFO Connec Channel 02/0 : 2[2] -> 3[3] via P2P/CUMEM/read
+x3006c0s1b0n0:635328:635434 [2] NCCL INFO Channel 06/0 : 2[2] -> 3[3] via P2P/CUMEM/read
+x3006c0s1b0n0:635328:635434 [2] NCCL INFO Channel 08/0 : 2[2] -> 3[3] via P2P/CUMEM/read
+x3006c0s1b0n0:635328:635434 [2] NCCL INFO Channel 12/0 : 2[2] -> 3[3] via P2P/CUMEM/read
+x3006c0s1b0n0:635328:635434 [2] NCCL INFO Channel 14/0 : 2[2] -> 3[3] via P2P/CUMEM/read
+x3006c0s1b0n0:635328:635434 [2] NCCL INFO Channel 18/0 : 2[2] -> 3[3] via P2P/CUMEM/read
+x3006c0s1b0n0:635328:635434 [2] NCCL INFO Channel 20/0 : 2[2] -> 3[3] via P2P/CUMEM/read
+x3006c0s1b0n0:635328:635434 [2] NCCL INFO Channel 01/0 : 2[2] -> 0[0] via P2P/CUMEM/read
+x3006c0s1b0n0:635328:635434 [2] NCCL INFO Channel 04/0 : 2[2] -> 0[0] via P2P/CUMEM/read
+x3006c0s1b0n0:635328:635434 [2] NCCL INFO Channel 07/0 : 2[2] -> 0[0] via P2P/CUMEM/read
+x3006c0s1b0n0:635328:635434 [2] NCCL INFO Channel 10/0 : 2[2] -> 0[0] via P2P/CUMEM/read
+x3006c0s1b0n0:635328:635434 [2] NCCL INFO Channel 13/0 : 2[2] -> 0[0] via P2P/CUMEM/read
+x3006c0s1b0n0:635328:635434 [2] NCCL INFO Channel 16/0 : 2[2] -> 0[0] via P2P/CUMEM/read
+x3006c0s1b0n0:635328:635434 [2] NCCL INFO Channel 19/0 : 2[2] -> 0[0] via P2P/CUMEM/read
+x3006c0s1b0n0:635328:635434 [2] NCCL INFO Channel 22/0 : 2[2] -> 0[0] via P2P/CUMEM/read
+x3006c0s1b0n0:635328:635434 [2] NCCL INFO Channel 03/0 : 2[2] -> 1[1] via P2P/CUMEM/read
+x3006c0s1b0n0:635328:635434 [2] NCCL INFO Channel 05/0 : 2[2] -> 1[1] via P2P/CUMEM/read
+x3006c0s1b0n0:635328:635434 [2] NCCL INFO Channel 09/0 : 2[2] -> 1[1] via P2P/CUMEM/read
+x3006c0s1b0n0:635328:635434 [2] NCCL INFO Channel 11/0 : 2[2] -> 1[1] via P2P/CUMEM/read
+x3006c0s1b0n0:635328:635434 [2] NCCL INFO Channel 15/0 : 2[2] -> 1[1] via P2P/CUMEM/read
+x3006c0s1b0n0:635328:635434 [2] NCCL INFO Channel 17/0 : 2[2] -> 1[1] via P2P/CUMEM/read
+x3006c0s1b0n0:635328:635434 [2] NCCL INFO Channel 21/0 : 2[2] -> 1[1] via P2P/CUMEM/read
+x3006c0s1b0n0:635328:635434 [2] NCCL INFO Channel 23/0 : 2[2] -> 1[1] via P2P/CUMEM/read
+x3006c0s1b0n0:635328:635434 [2] NCCL INFOte Cx3006c0s1b0n0:635329:635329 [3] NCCL INFO cudaDriverVersion 12020
+x3006c0s1b0n0:635329:635329 [3] NCCL INFO NCCL_SOCKET_IFNAME set by environment to ^lo,docker0
+x3006c0s1b0n0:635329:635329 [3] NCCL INFO Bootstrap : Using bond0:10.140.57.95<0>
+x3006c0s1b0n0:635329:635329 [3] NCCL INFO NET/Plugin : dlerror=libnccl-net.so: cannot open shared object file: No such file or directory No plugin found (libnccl-net.so), using internal implementation
+x3006c0s1b0n0:635329:635435 [3] NCCL INFO NCCL_IB_DISABLE set by environment to 1.
+x3006c0s1b0n0:635329:635435 [3] NCCL INFO NCCL_SOCKET_IFNAME set by environment to ^lo,docker0
+x3006c0s1b0n0:635329:635435 [3] NCCL INFO NET/Socket : Using [0]bond0:10.140.57.95<0> [1]hsn1:10.201.1.234<0> [2]hsn0:10.201.1.237<0>
+x3006c0s1b0n0:635329:635435 [3] NCCL INFO Using non-device net plugin version 0
+x3006c0s1b0n0:635329:635435 [3] NCCL INFO Using network Socket
+x3006c0s1b0n0:635329:635435 [3] NCCL INFO comm 0x5597a4f1f570 rank 3 nranks 4 cudaDev 3 nvmlDev 3 busId c7000 commId 0xdbd2811570941f7f - Init START
+x3006c0s1b0n0:635329:635435 [3] NCCL INFO NVLS multicast support is not available on dev 3
+x3006c0s1b0n0:635329:635435 [3] NCCL INFO comm 0x5597a4f1f570 rank 3 nRanks 4 nNodes 1 localRanks 4 localRank 3 MNNVL 0
+x3006c0s1b0n0:635329:635435 [3] NCCL INFO Trees [0] -1/-1/-1->3->2 [1] -1/-1/-1->3->2 [2] -1/-1/-1->3->2 [3] -1/-1/-1->3->2 [4] -1/-1/-1->3->1 [5] -1/-1/-1->3->1 [6] -1/-1/-1->3->1 [7] -1/-1/-1->3->1 [8] 2/-1/-1->3->0 [9] 2/-1/-1->3->0 [10] 2/-1/-1->3->0 [11] 2/-1/-1->3->0 [12] -1/-1/-1->3->2 [13] -1/-1/-1->3->2 [14] -1/-1/-1->3->2 [15] -1/-1/-1->3->2 [16] -1/-1/-1->3->1 [17] -1/-1/-1->3->1 [18] -1/-1/-1->3->1 [19] -1/-1/-1->3->1 [20] 2/-1/-1->3->0 [21] 2/-1/-1->3->0 [22] 2/-1/-1->3->0 [23] 2/-1/-1->3->0
+x3006c0s1b0n0:635329:635435 [3] NCCL INFO P2P Chunksize set to 524288
+x3006c0s1b0n0:635329:635435 [3] NCCL INFO Channel 00/0 : 3[3] -> 0[0] via P2P/CUMEM/read
+x3006c0s1b0n0:635329:635435 [3] NCCL INFO Channel 03/0 : 3[3] -> 0[0] via P2P/CUMEM/read
+x3006c0s1b0n0:635329:635435 [3] NCCL INFO Channel 06/0 : 3[3] -> 0[0] via P2P/CUMEM/read
+x3006c0s1b0n0:635329:635435 [3] NCCL INFO Channel 09/0 : 3[3] -> 0[0] via P2P/CUMEM/read
+x3006c0s1b0n0:635329:635435 [3] NCCL INFO Channel 12/0 : 3[3] -> 0[0] via P2P/CUMEM/read
+x3006c0s1b0n0:635329:635435 [3] NCCL INFO Channel 15/0 : 3[3] -> 0[0] via P2P/CUMEM/read
+x3006c0s1b0n0:635329:635435 [3] NCCL INFO Channel 18/0 : 3[3] -> 0[0] via P2P/CUMEM/read
+x3006c0s1b0n0:635329:635435 [3] NCCL INFO Channel 21/0 : 3[3] -> 0[0] via P2P/CUMEM/read
+x3006c0s1b0n0:635329:635435 [3] NCCL INFO Channel 02/0 : 3[3] -> 1[1] via P2P/CUMEM/read
+x3006c0s1b0n0:635329:635435 [3] NCCL INFO Channel 04/0 : 3[3] -> 1[1] via P2P/CUMEM/read
+x3006c0s1b0n0:635329:635435 [3] NCCL INFO Channel 08/0 : 3[3] -> 1[1] via P2P/CUMEM/read
+x3006c0s1b0n0:635329:635435 [3] NCCL INFO Channel 10/0 : 3[3] -> 1[1] via P2P/CUMEM/read
+x3006c0s1b0n0:635329:635435 [3] NCCL INFO Channel 14/0 : 3[3] -> 1[1] via P2P/CUMEM/read
+x3006c0s1b0n0:635329:635435 [3] NCCL INFO Channel 16/0 : 3[3] -> 1[1] via P2P/CUMEM/read
+x3006c0s1b0n0:635329:635435 [3] NCCL INFO Channel 20/0 : 3[3] -> 1[1] via P2P/CUMEM/read
+x3006c0s1b0n0:635329:635435 [3] NCCL INFO Channel 22/0 : 3[3] -> 1[1] via P2P/CUMEM/read
+x3006c0s1b0n0:635329:635435 [3] NCCL INFO Channel 01/0 : 3[3] -> 2[2] via P2P/CUMEM/read
+x3006c0s1b0n0:635329:635435 [3] NCCL INFO Channel 05/0 : 3[3] -> 2[2] via P2P/CUMEM/read
+x3006c0s1b0n0:635329:635435 [3] NCCL INFO Channel 07/0 : 3[3] -> 2[2] via P2P/CUMEM/read
+x3006c0s1b0n0:635329:635435 [3] NCCL INFO Channel 11/0 : 3[3] -> 2[2] via P2P/CUMEM/read
+x3006c0s1b0n0:635329:635435 [3] NCCL INFO Channel 13/0 : 3[3] -> 2[2] via P2P/CUMEM/read
+x3006c0s1b0n0:635329:635435 [3] NCCL INFO Channel 17/0 : 3[3] -> 2[2] via P2P/CUMEM/read
+x3006c0s1b0n0:635329:635435 [3] NCCL INFO Channel 19/0 : 3[3] -> 2[2] via P2P/CUMEM/read
+x3006c0s1b0n0:635329:635435 [3] NCCL INFO Channel 23/0 : 3[3] -> 2[2] via P2P/CUMEM/read
+x3006c0s1b0n0:635329:635435 [3] NCCL INFO Connected all rings
+x3006c0s1b0n0:635329:635435 [3] NCCL INFO Channel 08/0 : 3[099250:2099352 [0] NCCL INFO Channel 03/0 : 0[0] -> 2[2] via P2P/CUMEM/read
+x3006c0s1b1n0:2099250:2099352 [0] NCCL INFO Channel 08/0 : 0[0] -> 2[2] via P2P/CUMEM/read
+x3006c0s1b1n0:2099250:2099352 [0] NCCL INFO Channel 09/0 : 0[0] -> 2[2] via P2P/CUMEM/read
+x3006c0s1b1n0:2099250:2099352 [0] NCCL INFO Channel 14/0 : 0[0] -> 2[2] via P2P/CUMEM/read
+x3006c0s1b1n0:2099250:2099352 [0] NCCL INFO Channel 15/0 : 0[0] -> 2[2] via P2P/CUMEM/read
+x3006c0s1b1n0:2099250:2099352 [0] NCCL INFO Channel 20/0 : 0[0] -> 2[2] via P2P/CUMEM/read
+x3006c0s1b1n0:2099250:2099352 [0] NCCL INFO Channel 21/0 : 0[0] -> 2[2] via P2P/CUMEM/read
+x3006c0s1b1n0:2099250:2099352 [0] NCCL INFO Channel 04/0 : 0[0] -> 3[3] via P2P/CUMEM/read
+x3006c0s1b1n0:2099250:2099352 [0] NCCL INFO Channel 05/0 : 0[0] -> 3[3] via P2P/CUMEM/read
+x3006c0s1b1n0:2099250:2099352 [0] NCCL INFO Channel 10/0 : 0[0] -> 3[3] via P2P/CUMEM/read
+x3006c0s1b1n0:2099250:2099352 [0] NCCL INFO Channel 11/0 : 0[0] -> 3[3] via P2P/CUMEM/read
+x3006c0s1b1n0:2099250:2099352 [0] NCCL INFO Channel 16/0 : 0[0] -> 3[3] via P2P/CUMEM/read
+x3006c0s1b1n0:2099250:2099352 [0] NCCL INFO Channel 17/0 : 0[0] -> 3[3] via P2P/CUMEM/read
+x3006c0s1b1n0:2099250:2099352 [0] NCCL INFO Channel 22/0 : 0[0] -> 3[3] via P2P/CUMEM/read
+x3006c0s1b1n0:2099250:2099352 [0] NCCL INFO Channel 23/0 : 0[0] -> 3[3] via P2P/CUMEM/read
+x3006c0s1b1n0:2099250:2099352 [0] NCCL INFO Connected all rings
+x3006c0s1b1n0:2099250:2099352 [0] NCCL INFO Channel 02/0 : 0[0] -> 1[1] via P2P/CUMEM/read
+x3006c0s1b1n0:2099250:2099352 [0] NCCL INFO Channel 03/0 : 0[0] -> 1[1] via P2P/CUMEM/read
+x3006c0s1b1n0:2099250:2099352 [0] NCCL INFO Channel 08/0 : 0[0] -> 1[1] via P2P/CUMEM/read
+x3006c0s1b1n0:2099250:2099352 [0] NCCL INFO Channel 09/0 : 0[0] -> 1[1] via P2P/CUMEM/read
+x3006c0s1b1n0:2099250:2099352 [0] NCCL INFO Channel 10/0 : 0[0] -> 1[1] via P2P/CUMEM/read
+x3006c0s1b1n0:2099250:2099352 [0] NCCL INFO Channel 11/0 : 0[0] -> 1[1] via P2P/CUMEM/read
+x3006c0s1b1n0:2099250:2099352 [0] NCCL INFO Channel 14/0 : 0[0] -> 1[1] via P2P/CUMEM/read
+x3006c0s1b1n0:2099250:2099352 [0] NCCL INFO Channel 15/0 : 0[0] -> 1[1] via P2P/CUMEM/read
+x3006c0s1b1n0:2099250:2099352 [0] NCCL INFO Channel 20/0 : 0[0] -> 1[1] via P2P/CUMEM/read
+x3006c0s1b1n0:2099250:2099352 [0] NCCL INFO Channel 21/0 : 0[0] -> 1[1] via P2P/CUMEM/read
+x3006c0s1b1n0:2099250:2099352 [0] NCCL INFO Channel 22/0 : 0[0] -> 1[1] via P2P/CUMEM/read
+x3006c0s1b1n0:2099250:2099352 [0] NCCL INFO Channel 23/0 : 0[0] -> 1[1] via P2P/CUMEM/read
+x3006c0s1b1n0:2099250:2099352 [0] NCCL INFO Channel 04/0 : 0[0] -> 2[2] via P2P/CUMEM/read
+x3006c0s1b1n0:2099250:2099352 [0] NCCL INFO Channel 05/0 : 0[0] -> 2[2] via P2P/CUMEM/read
+x3006c0s1b1n0:2099250:2099352 [0] NCCL INFO Channel 06/0 : 0[0] -> 2[2] via P2P/CUMEM/read
+x3006c0s1b1n0:2099250:2099352 [0] NCCL INFO Channel 07/0 : 0[0] -> 2[2] via P2P/CUMEM/read
+x3006c0s1b1n0:2099250:2099352 [0] NCCL INFO Channel 16/0 : 0[0] -> 2[2] via P2P/CUMEM/read
+x3006c0s1b1n0:2099250:2099352 [0] NCCL INFO Channel 17/0 : 0[0] -> 2[2] via P2P/CUMEM/read
+x3006c0s1b1n0:2099250:2099352 [0] NCCL INFO Channel 18/0 : 0[0] -> 2[2] via P2P/CUMEM/read
+x3006c0s1b1n0:2099250:2099352 [0] NCCL INFO Channel 19/0 : 0[0] -> 2[2] via P2P/CUMEM/read
+x3006c0s1b1n0:2099250:2099352 [0] NCCL INFO Channel 08/0 : 0[0] -> 3[3] via P2P/CUMEM/read
+x3006c0s1b1n0:2099250:2099352 [0] NCCL INFO Channel 09/0 : 0[0] -> 3[3] via P2P/CUMEM/read
+x3006c0s1b1n0:2099250:2099352 [0] NCCL INFO Channel 20/0 : 0[0] -> 3[3] via P2P/CUMEM/read
+x3006c0s1b1n0:2099250:2099352 [0] NCCL INFO Channel 21/0 : 0[0] -> 3[3] via P2P/CUMEM/read
+x3006c0s1b1n0:2099250:2099352 [0] NCCL INFO Connected all trees
+x3006c0s1b1n0:2099250:2099352 [0] NCCL INFO NCCL_ALGO set by environment to Ring
+x3006c0s1b1n0:2099250:2099352 [0] NCCL INFO threadThresholds 8/8/64 | 32/8/64 | 512 | 512
+x3006c0s1b1n0:2099250:2099352 [0] NCCL INFO 24 coll channels, 0 collnet channels, 0 nvls channels, 32 p2p channels, 8 p2p channels per peer
+x3006c0s1b1n0:2099250:2099352 [0] NCCL INFO comm 0x55aaeb7b99a0 rank 0 nranks 4 cudaDev 0 nvmlDev 0 busId 7000 commId 0x82connected all rings
+x3006c0s1b1n0:2099253:2099354 [3] NCCL INFO Channel 08/0 : 3[3] -> 0[0] via P2P/CUMEM/read
+x3006c0s1b1n0:2099253:2099354 [3] NCCL INFO Channel 10/0 : 3[3] -> 0[0] via P2P/CUMEM/read
+x3006c0s1b1n0:2099253:2099354 [3] NCCL INFO Channel 11/0 : 3[3] -> 0[0] via P2P/CUMEM/read
+x3006c0s1b1n0:2099253:2099354 [3] NCCL INFO Channel 20/0 : 3[3] -> 0[0] via P2P/CUMEM/read
+x3006c0s1b1n0:2099253:2099354 [3] NCCL INFO Channel 22/0 : 3[3] -> 0[0] via P2P/CUMEM/read
+x3006c0s1b1n0:2099253:2099354 [3] NCCL INFO Channel 23/0 : 3[3] -> 0[0] via P2P/CUMEM/read
+x3006c0s1b1n0:2099253:2099354 [3] NCCL INFO Channel 05/0 : 3[3] -> 1[1] via P2P/CUMEM/read
+x3006c0s1b1n0:2099253:2099354 [3] NCCL INFO Channel 06/0 : 3[3] -> 1[1] via P2P/CUMEM/read
+x3006c0s1b1n0:2099253:2099354 [3] NCCL INFO Channel 07/0 : 3[3] -> 1[1] via P2P/CUMEM/read
+x3006c0s1b1n0:2099253:2099354 [3] NCCL INFO Channel 17/0 : 3[3] -> 1[1] via P2P/CUMEM/read
+x3006c0s1b1n0:2099253:2099354 [3] NCCL INFO Channel 18/0 : 3[3] -> 1[1] via P2P/CUMEM/read
+x3006c0s1b1n0:2099253:2099354 [3] NCCL INFO Channel 19/0 : 3[3] -> 1[1] via P2P/CUMEM/read
+x3006c0s1b1n0:2099253:2099354 [3] NCCL INFO Channel 00/0 : 3[3] -> 2[2] via P2P/CUMEM/read
+x3006c0s1b1n0:2099253:2099354 [3] NCCL INFO Channel 02/0 : 3[3] -> 2[2] via P2P/CUMEM/read
+x3006c0s1b1n0:2099253:2099354 [3] NCCL INFO Channel 03/0 : 3[3] -> 2[2] via P2P/CUMEM/read
+x3006c0s1b1n0:2099253:2099354 [3] NCCL INFO Channel 08/0 : 3[3] -> 2[2] via P2P/CUMEM/read
+x3006c0s1b1n0:2099253:2099354 [3] NCCL INFO Channel 09/0 : 3[3] -> 2[2] via P2P/CUMEM/read
+x3006c0s1b1n0:2099253:2099354 [3] NCCL INFO Channel 10/0 : 3[3] -> 2[2] via P2P/CUMEM/read
+x3006c0s1b1n0:2099253:2099354 [3] NCCL INFO Channel 12/0 : 3[3] -> 2[2] via P2P/CUMEM/read
+x3006c0s1b1n0:2099253:2099354 [3] NCCL INFO Channel 14/0 : 3[3] -> 2[2] via P2P/CUMEM/read
+x3006c0s1b1n0:2099253:2099354 [3] NCCL INFO Channel 15/0 : 3[3] -> 2[2] via P2P/CUMEM/read
+x3006c0s1b1n0:2099253:2099354 [3] NCCL INFO Channel 20/0 : 3[3] -> 2[2] via P2P/CUMEM/read
+x3006c0s1b1n0:2099253:2099354 [3] NCCL INFO Channel 21/0 : 3[3] -> 2[2] via P2P/CUMEM/read
+x3006c0s1b1n0:2099253:2099354 [3] NCCL INFO Channel 22/0 : 3[3] -> 2[2] via P2P/CUMEM/read
+x3006c0s1b1n0:2099253:2099354 [3] NCCL INFO Connected all trees
+x3006c0s1b1n0:2099253:2099354 [3] NCCL INFO NCCL_ALGO set by environment to Ring
+x3006c0s1b1n0:2099253:2099354 [3] NCCL INFO threadThresholds 8/8/64 | 32/8/64 | 512 | 512
+x3006c0s1b1n0:2099253:2099354 [3] NCCL INFO 24 coll channels, 0 collnet channels, 0 nvls channels, 32 p2p channels, 8 p2p channels per peer
+x3006c0s1b1n0:2099253:2099354 [3] NCCL INFO comm 0x563a0dc74e10 rank 3 nranks 4 cudaDev 3 nvmlDev 3 busId c7000 commId 0x82c75f75a8c4f4ce - Init COMPLETE
+ -> 0[0] via P2P/CUMEM/read
+x3006c0s1b1n0:2099251:2099353 [1] NCCL INFO Connected all rings
+x3006c0s1b1n0:2099251:2099353 [1] NCCL INFO Channel 01/0 : 1[1] -> 2[2] via P2P/CUMEM/read
+x3006c0s1b1n0:2099251:2099353 [1] NCCL INFO Channel 02/0 : 1[1] -> 2[2] via P2P/CUMEM/read
+x3006c0s1b1n0:2099251:2099353 [1] NCCL INFO Channel 03/0 : 1[1] -> 2[2] via P2P/CUMEM/read
+x3006c0s1b1n0:2099251:2099353 [1] NCCL INFO Channel 05/0 : 1[1] -> 2[2] via P2P/CUMEM/read
+x3006c0s1b1n0:2099251:2099353 [1] NCCL INFO Channel 07/0 : 1[1] -> 2[2] via P2P/CUMEM/read
+x3006c0s1b1n0:2099251:2099353 [1] NCCL INFO Channel 13/0 : 1[1] -> 2[2] via P2P/CUMEM/read
+x3006c0s1b1n0:2099251:2099353 [1] NCCL INFO Channel 14/0 : 1[1] -> 2[2] via P2P/CUMEM/read
+x3006c0s1b1n0:2099251:2099353 [1] NCCL INFO Channel 15/0 : 1[1] -> 2[2] via P2P/CUMEM/read
+x3006c0s1b1n0:2099251:2099353 [1] NCCL INFO Channel 17/0 : 1[1] -> 2[2] via P2P/CUMEM/read
+x3006c0s1b1n0:2099251:2099353 [1] NCCL INFO Channel 19/0 : 1[1] -> 2[2] via P2P/CUMEM/read
+x3006c0s1b1n0:2099251:2099353 [1] NCCL INFO Channel 04/0 : 1[1] -> 3[3] via P2P/CUMEM/read
+x3006c0s1b1n0:2099251:2099353 [1] NCCL INFO Channel 05/0 : 1[1] -> 3[3] via P2P/CUMEM/read
+x3006c0s1b1n0:2099251:2099353 [1] NCCL INFO Channel 06/0 : 1[1] -> 3[3] via P2P/CUMEM/read
+x3006c0s1b1n0:2099251:2099353 [1] NCCL INFO Channel 16/0 : 1[1] -> 3[3] via P2P/CUMEM/read
+x3006c0s1b1n0:2099251:2099353 [1] NCCL INFO Channel 17/0 : 1[1] -> 3[3] via P2P/CUMEM/read
+x3006c0s1b1n0:2099251:2099353 [1] NCCL INFO Channel 18/0 : 1[1] -> 3[3] via P2P/CUMEM/read
+x3006c0s1b1n0:2099251:2099353 [1] NCCL INFO Channel 00/0 : 1[1] -> 0[0] via P2P/CUMEM/read
+x3006c0s1b1n0:2099251:2099353 [1] NCCL INFO Channel 01/0 : 1[1] -> 0[0] via P2P/CUMEM/read
+x3006c0s1b1n0:2099251:2099353 [1] NCCL INFO Channel 03/0 : 1[1] -> 0[0] via P2P/CUMEM/read
+x3006c0s1b1n0:2099251:2099353 [1] NCCL INFO Channel 09/0 : 1[1] -> 0[0] via P2P/CUMEM/read
+x3006c0s1b1n0:2099251:2099353 [1] NCCL INFO Channel 10/0 : 1[1] -> 0[0] via P2P/CUMEM/read
+x3006c0s1b1n0:2099251:2099353 [1] NCCL INFO 75f75a8c4f4ce - Init COMPLETE
+Channel 12/0 : 1[1] -> 0[0] via P2P/CUMEM/read
+x3006c0s1b1n0:2099251:2099353 [1] NCCL INFO Channel 13/0 : 1[1] -> 0[0] via P2P/CUMEM/read
+x3006c0s1b1n0:2099251:2099353 [1] NCCL INFO Channel 15/0 : 1[1] -> 0[0] via P2P/CUMEM/read
+x3006c0s1b1n0:2099251:2099353 [1] NCCL INFO Channel 21/0 : 1[1] -> 0[0] via P2P/CUMEM/read
+x3006c0s1b1n0:2099251:2099353 [1] NCCL INFO Channel 22/0 : 1[1] -> 0[0] via P2P/CUMEM/read
+x3006c0s1b1n0:2099251:2099353 [1] NCCL INFO Connected all trees
+x3006c0s1b1n0:2099251:2099353 [1] NCCL INFO NCCL_ALGO set by environment to Ring
+x3006c0s1b1n0:2099251:2099353 [1] NCCL INFO threadThresholds 8/8/64 | 32/8/64 | 512 | 512
+x3006c0s1b1n0:2099251:2099353 [1] NCCL INFO 24 coll channels, 0 collnet channels, 0 nvls channels, 32 p2p channels, 8 p2p channels per peer
+x3006c0s1b1n0:2099251:2099353 [1] NCCL INFO comm 0x560095b19010 rank 1 nranks 4 cudaDev 1 nvmlDev 1 busId 46000 commId 0x82c75f75a8c4f4ce - Init COMPLETE
+ : 2[2] -> 1[1] via P2P/CUMEM/read
+x3006c0s1b1n0:2099252:2099355 [2] NCCL INFO Connected all rings
+x3006c0s1b1n0:2099252:2099355 [2] NCCL INFO Channel 01/0 : 2[2] -> 3[3] via P2P/CUMEM/read
+x3006c0s1b1n0:2099252:2099355 [2] NCCL INFO Channel 03/0 : 2[2] -> 3[3] via P2P/CUMEM/read
+x3006c0s1b1n0:2099252:2099355 [2] NCCL INFO Channel 09/0 : 2[2] -> 3[3] via P2P/CUMEM/read
+x3006c0s1b1n0:2099252:2099355 [2] NCCL INFO Channel 10/0 : 2[2] -> 3[3] via P2P/CUMEM/read
+x3006c0s1b1n0:2099252:2099355 [2] NCCL INFO Channel 11/0 : 2[2] -> 3[3] via P2P/CUMEM/read
+x3006c0s1b1n0:2099252:2099355 [2] NCCL INFO Channel 13/0 : 2[2] -> 3[3] via P2P/CUMEM/read
+x3006c0s1b1n0:2099252:2099355 [2] NCCL INFO Channel 15/0 : 2[2] -> 3[3] via P2P/CUMEM/read
+x3006c0s1b1n0:2099252:2099355 [2] NCCL INFO Channel 21/0 : 2[2] -> 3[3] via P2P/CUMEM/read
+x3006c0s1b1n0:2099252:2099355 [2] NCCL INFO Channel 22/0 : 2[2] -> 3[3] via P2P/CUMEM/read
+x3006c0s1b1n0:2099252:2099355 [2] NCCL INFO Channel 23/0 : 2[2] -> 3[3] via P2P/CUMEM/read
+x3006c0s1b1n0:2099252:2099355 [2] NCCL INFO Channel 05/0 : 2[2] -> 0[0] via P2P/CUMEM/read
+x3006c0s1b1n0:2099252:2099355 [2] NCCL INFO Channel 06/0 : 2[2] -> 0[0] via P2P/CUMEM/read
+x3006c0s1b1n0:2099252:2099355 [2] NCCL INFO Channel 17/0 : 2[2] -> 0[0] via P2P/CUMEM/read
+x3006c0s1b1n0:2099252:2099355 [2] NCCL INFO Channel 18/0 : 2[2] -> 0[0] via P2P/CUMEM/read
+x3006c0s1b1n0:2099252:2099355 [2] NCCL INFO Channel 00/0 : 2[2] -> 1[1] via P2P/CUMEM/read
+x3006c0s1b1n0:2099252:2099355 [2] NCCL INFO Channel 01/0 : 2[2] -> 1[1] via P2P/CUMEM/read
+x3006c0s1b1n0:2099252:2099355 [2] NCCL INFO Channel 02/0 : 2[2] -> 1[1] via P2P/CUMEM/read
+x3006c0s1b1n0:2099252:2099355 [2] NCCL INFO Channel 04/0 : 2[2] -> 1[1] via P2P/CUMEM/read
+x3006c0s1b1n0:2099252:2099355 [2] NCCL INFO Channel 06/0 : 2[2] -> 1[1] via P2P/CUMEM/read
+x3006c0s1b1n0:2099252:2099355 [2] NCCL INFO Channel 07/0 : 2[2] -> 1[1] via P2P/CUMEM/read
+x3006c0s1b1n0:2099252:2099355 [2] NCCL INFO Channel 12/0 : 2[2] -> 1[1] via P2P/CUMEM/read
+x3006c0s1b1n0:2099252:2099355 [2] NCCL INFO Channel 13/0 : 2[2] -> 1[1] via P2P/CUMEM/read
+x3006c0s1b1n0:2099252:2099355 [2] NCCL INFO Channel 14/0 : 2[2] -> 1[1] via P2P/CUMEM/read
+x3006c0s1b1n0:2099252:2099355 [2] NCCL INFO Channel 16/0 : 2[2] -> 1[1] via P2P/CUMEM/read
+x3006c0s1b1n0:2099252:2099355 [2] NCCL INFO Channel 18/0 : 2[2] -> 1[1] via P2P/CUMEM/read
+x3006c0s1b1n0:2099252:2099355 [2] NCCL INFO Channel 19/0 : 2[2] -> 1[1] via P2P/CUMEM/read
+x3006c0s1b1n0:2099252:2099355 [2] NCCL INFO Connected all trees
+x3006c0s1b1n0:2099252:2099355 [2] NCCL INFO NCCL_ALGO set by environment to Ring
+x3006c0s1b1n0:2099252:2099355 [2] NCCL INFO threadThresholds 8/8/64 | 32/8/64 | 512 | 512
+x3006c0s1b1n0:2099252:2099355 [2] NCCL INFO 24 coll channels, 0 collnet channels, 0 nvls channels, 32 p2p channels, 8 p2p channels per peer
+x3006c0s1b1n0:2099252:2099355 [2] NCCL INFO comm 0x55bbacd16f10 rank 2 nranks 4 cudaDev 2 nvmlDev 2 busId 85000 commId 0x82c75f75a8c4f4ce - Init COMPLETE
+onnected all rings
+x3006c0s1b0n0:635328:635434 [2] NCCL INFO Channel 01/0 : 2[2] -> 3[3] via P2P/CUMEM/read
+x3006c0s1b0n0:635328:635434 [2] NCCL INFO Channel 03/0 : 2[2] -> 3[3] via P2P/CUMEM/read
+x3006c0s1b0n0:635328:635434 [2] NCCL INFO Channel 09/0 : 2[2] -> 3[3] via P2P/CUMEM/read
+x3006c0s1b0n0:635328:635434 [2] NCCL INFO Channel 10/0 : 2[2] -> 3[3] via P2P/CUMEM/read
+x3006c0s1b0n0:635328:635434 [2] NCCL INFO Channel 11/0 : 2[2] -> 3[3] via P2P/CUMEM/read
+x3006c0s1b0n0:635328:635434 [2] NCCL INFO Channel 13/0 : 2[2] -> 3[3] via P2P/CUMEM/read
+x3006c0s1b0n0:635328:635434 [2] NCCL INFO Channel 15/0 : 2[2] -> 3[3] via P2P/CUMEM/read
+x3006c0s1b0n0:635328:635434 [2] NCCL INFO Channel 21/0 : 2[2] -> 3[3] via P2P/CUMEM/read
+x3006c0s1b0n0:635328:635434 [2] NCCL INFO Channel 22/0 : 2[2] -> 3[3] via P2P/CUMEM/read
+x3006c0s1b0n0:635328:635434 [2] NCCL INFO Channel 23/0 : 2[2] -> 3[3] via P2P/CUMEM/read
+x3006c0s1b0n0:635328:635434 [2] NCCL INFO Channel 05/0 : 2[2] -> 0[0] via P2P/CUMEM/read
+x3006c0s1b0n0:635328:635434 [2] NCCL INFO Channel 06/0 : 2[2] -> 0[0] via P2P/CUMEM/read
+x3006c0s1b0n0:635328:635434 [2] NCCL INFO Channel 17/0 : 2[2] -> 0[0] via P2P/CUMEM/read
+x3006c0s1b0n0:635328:635434 [2] NCCL INFO Channel 18/0 : 2[2] -> 0[0] via P2P/CUMEM/read
+x3006c0s1b0n0:635328:635434 [2] NCCL INFO Channel 00/0 : 2[2] -> 1[1] via P2P/CUMEM/read
+x3006c0s1b0n0:635328:635434 [2] NCCL INFO Channel 01/0 : 2[2] -> 1[1] via P2P/CUMEM/read
+x3006c0s1b0n0:635328:635434 [2] NCCL INFO Channel 02/0 : 2[2] -> 1[1] via P2P/CUMEM/read
+x3006c0s1b0n0:635328:635434 [2] NCCL INFO Channel 04/0 : 2[2] -> 1[1] via P2P/CUMEM/read
+x3006c0s1b0n0:635328:635434 [2] NCCL INFO Channel 06/0 : 2[2] -> 1[1] via P2P/CUMEM/read
+x3006c0s1b0n0:635328:635434 [2] NCCL INFO Channel 07/0 : 2[2] -> 1[1] via P2P/CUMEM/read
+x3006c0s1b0n0:635328:635434 [2] NCCL INFO Channel 12/0 : 2[2] -> 1[1] via P2P/CUMEM/read
+x3006c0s1b0n0:635328:635434 [2] NCCL INFO Channel 13/0 : 2[2] -> 1[1] via P2P/CUMEM/read
+x3006c0s1b0n0:635328:635434 [2] NCCL INFO Channel 14/0 : 2[2] -> 1[1] via P2P/CUMEM/read
+x3006c0s1b0n0:635328:635434 [2] NCCL INFO Channel 16/0 : 2[2] -> 1[1] via P2P/CUMEM/read
+x3006c0s1b0n0:635328:635434 [2] NCCL INFO Channel 18/0 : 2[2] -> 1[1] via P2P/CUMEM/read
+x3006c0s1b0n0:635328:635434 [2] NCCL INFO Channel 19/0 : 2[2] -> 1[1] via P2P/CUMEM/read
+x3006c0s1b0n0:635328:635434 [2] NCCL INFO Connected all trees
+x3006c0s1b0n0:635328:635434 [2] NCCL INFO NCCL_ALGO set by environment to Ring
+x3006c0s1b0n0:635328:635434 [2] NCCL INFO threadThresholds 8/8/64 | 32/8/64 | 512 | 512
+x3006c0s1b0n0:635328:635434 [2] NCCL INFO 24 coll channels, 0 collnet channels, 0 nvls channels, 32 p2p channels, 8 p2p channels per peer
+x3006c0s1b0n0:635328:635434 [2] NCCL INFO comm 0x564ebef8c540 rank 2 nranks 4 cudaDev 2 nvmlDev 2 busId 85000 commId 0xdbd2811570941f7f - Init COMPLETE
+3] -> 0[0] via P2P/CUMEM/read
+x3006c0s1b0n0:635329:635435 [3] NCCL INFO Channel 10/0 : 3[3] -> 0[0] via P2P/CUMEM/read
+x3006c0s1b0n0:635329:635435 [3] NCCL INFO Channel 11/0 : 3[3] -> 0[0] via P2P/CUMEM/read
+x3006c0s1b0n0:635329:635435 [3] NCCL INFO Channel 20/0 : 3[3] -> 0[0] via P2P/CUMEM/read
+x3006c0s1b0n0:635329:635435 [3] NCCL INFO Channel 22/0 : 3[3] -> 0[0] via P2P/CUMEM/read
+x3006c0s1b0n0:635329:635435 [3] NCCL INFO Channel 23/0 : 3[3] -> 0[0] via P2P/CUMEM/read
+x3006c0s1b0n0:635329:635435 [3] NCCL INFO Channel 05/0 : 3[3] -> 1[1] via P2P/CUMEM/read
+x3006c0s1b0n0:635329:635435 [3] NCCL INFO Channel 06/0 : 3[3] -> 1[1] via P2P/CUMEM/read
+x3006c0s1b0n0:635329:635435 [3] NCCL INFO Channel 07/0 : 3[3] -> 1[1] via P2P/CUMEM/read
+x3006c0s1b0n0:635329:635435 [3] NCCL INFO Channel 17/0 : 3[3] -> 1[1] via P2P/CUMEM/read
+x3006c0s1b0n0:635329:635435 [3] NCCL INFO Channel 18/0 : 3[3] -> 1[1] via P2P/CUMEM/read
+x3006c0s1b0n0:635329:635435 [3] NCCL INFO Channel 19/0 : 3[3] -> 1[1] via P2P/CUMEM/read
+x3006c0s1b0n0:635329:635435 [3] NCCL INFO Channel 00/0 : 3[3] -> 2[2] via P2P/CUMEM/read
+x3006c0s1b0n0:635329:635435 [3] NCCL INFO Channel 02/0 : 3[3] -> 2[2] via P2P/CUMEM/read
+x3006c0s1b0n0:635329:635435 [3] NCCL INFO Channel 03/0 : 3[3] -> 2[2] via P2P/CUMEM/read
+x3006c0s1b0n0:635329:635435 [3] NCCL INFO Channel 08/0 : 3[3] -> 2[2] via P2P/CUMEM/read
+x3006c0s1b0n0:635329:635435 [3] NCCL INFO Channel 09/0 : 3[3] -> 2[2] via P2P/CUMEM/read
+x3006c0s1b0n0:635329:635435 [3] NCCL INFO Channel 10/0 : 3[3] -> 2[2] via P2P/CUMEM/read
+x3006c0s1b0n0:635329:635435 [3] NCCL INFO Channel 12/0 : 3[3] -> 2[2] via P2P/CUMEM/read
+x3006c0s1b0n0:635329:635435 [3] NCCL INFO Channel 14/0 : 3[3] -> 2[2] via P2P/CUMEM/read
+x3006c0s1b0n0:635329:635435 [3] NCCL INFO Channel 15/0 : 3[3] -> 2[2] via P2P/CUMEM/read
+x3006c0s1b0n0:635329:635435 [3] NCCL INFO Channel 20/0 : 3[3] -> 2[2] via P2P/CUMEM/read
+x3006c0s1b0n0:635329:635435 [3] NCCL INFO Channel 21/0 : 3[3] -> 2[2] via P2P/CUMEM/read
+x3006c0s1b0n0:635329:635435 [3] NCCL INFO Channel 22/0 : 3[0:635326:635433 [0] NCCL INFO Channel 08/0 : 0[0] -> 2[2] via P2P/CUMEM/read
+x3006c0s1b0n0:635326:635433 [0] NCCL INFO Channel 09/0 : 0[0] -> 2[2] via P2P/CUMEM/read
+x3006c0s1b0n0:635326:635433 [0] NCCL INFO Channel 14/0 : 0[0] -> 2[2] via P2P/CUMEM/read
+x3006c0s1b0n0:635326:635433 [0] NCCL INFO Channel 15/0 : 0[0] -> 2[2] via P2P/CUMEM/read
+x3006c0s1b0n0:635326:635433 [0] NCCL INFO Channel 20/0 : 0[0] -> 2[2] via P2P/CUMEM/read
+x3006c0s1b0n0:635326:635433 [0] NCCL INFO Channel 21/0 : 0[0] -> 2[2] via P2P/CUMEM/read
+x3006c0s1b0n0:635326:635433 [0] NCCL INFO Channel 04/0 : 0[0] -> 3[3] via P2P/CUMEM/read
+x3006c0s1b0n0:635326:635433 [0] NCCL INFO Channel 05/0 : 0[0] -> 3[3] via P2P/CUMEM/read
+x3006c0s1b0n0:635326:635433 [0] NCCL INFO Channel 10/0 : 0[0] -> 3[3] via P2P/CUMEM/read
+x3006c0s1b0n0:635326:635433 [0] NCCL INFO Channel 11/0 : 0[0] -> 3[3] via P2P/CUMEM/read
+x3006c0s1b0n0:635326:635433 [0] NCCL INFO Channel 16/0 : 0[0] -> 3[3] via P2P/CUMEM/read
+x3006c0s1b0n0:635326:635433 [0] NCCL INFO Channel 17/0 : 0[0] -> 3[3] via P2P/CUMEM/read
+x3006c0s1b0n0:635326:635433 [0] NCCL INFO Channel 22/0 : 0[0] -> 3[3] via P2P/CUMEM/read
+x3006c0s1b0n0:635326:635433 [0] NCCL INFO Channel 23/0 : 0[0] -> 3[3] via P2P/CUMEM/read
+x3006c0s1b0n0:635326:635433 [0] NCCL INFO Connected all rings
+x3006c0s1b0n0:635326:635433 [0] NCCL INFO Channel 02/0 : 0[0] -> 1[1] via P2P/CUMEM/read
+x3006c0s1b0n0:635326:635433 [0] NCCL INFO Channel 03/0 : 0[0] -> 1[1] via P2P/CUMEM/read
+x3006c0s1b0n0:635326:635433 [0] NCCL INFO Channel 08/0 : 0[0] -> 1[1] via P2P/CUMEM/read
+x3006c0s1b0n0:635326:635433 [0] NCCL INFO Channel 09/0 : 0[0] -> 1[1] via P2P/CUMEM/read
+x3006c0s1b0n0:635326:635433 [0] NCCL INFO Channel 10/0 : 0[0] -> 1[1] via P2P/CUMEM/read
+x3006c0s1b0n0:635326:635433 [0] NCCL INFO Channel 11/0 : 0[0] -> 1[1] via P2P/CUMEM/read
+x3006c0s1b0n0:635326:635433 [0] NCCL INFO Channel 14/0 : 0[0] -> 1[1] via P2P/CUMEM/read
+x3006c0s1b0n0:635326:635433 [0] NCCL INFO Channel 15/0 : 0[0] -> 1[1] via P2P/CUMEM/read
+x3006c0s1b0n0:635326:635433 [0] NCCL IN3] -> 2[2] via P2P/CUMEM/read
+x3006c0s1b0n0:635329:635435 [3] NCCL INFO Connected all trees
+x3006c0s1b0n0:635329:635435 [3] NCCL INFO NCCL_ALGO set by environment to Ring
+x3006c0s1b0n0:635329:635435 [3] NCCL INFO threadThresholds 8/8/64 | 32/8/64 | 512 | 512
+x3006c0s1b0n0:635329:635435 [3] NCCL INFO 24 coll channels, 0 collnet channels, 0 nvls channels, 32 p2p channels, 8 p2p channels per peer
+x3006c0s1b0n0:635329:635435 [3] NCCL INFO comm 0x5597a4f1f570 rank 3 nranks 4 cudaDev 3 nvmlDev 3 busId c7000 commId 0xdbd2811570941f7f - Init COMPLETE
+FO Channel 20/0 : 0[0] -> 1[1] via P2P/CUMEM/read
+x3006c0s1b0n0:635326:635433 [0] NCCL INFO Channel 21/0 : 0[0] -> 1[1] via P2P/CUMEM/read
+x3006c0s1b0n0:635326:635433 [0] NCCL INFO Channel 22/0 : 0[0] -> 1[1] via P2P/CUMEM/read
+x3006c0s1b0n0:635326:635433 [0] NCCL INFO Channel 23/0 : 0[0] -> 1[1] via P2P/CUMEM/read
+x3006c0s1b0n0:635326:635433 [0] NCCL INFO Channel 04/0 : 0[0] -> 2[2] via P2P/CUMEM/read
+x3006c0s1b0n0:635326:635433 [0] NCCL INFO Channel 05/0 : 0[0] -> 2[2] via P2P/CUMEM/read
+x3006c0s1b0n0:635326:635433 [0] NCCL INFO Channel 06/0 : 0[0] -> 2[2] via P2P/CUMEM/read
+x3006c0s1b0n0:635326:635433 [0] NCCL INFO Channel 07/0 : 0[0] -> 2[2] via P2P/CUMEM/read
+x3006c0s1b0n0:635326:635433 [0] NCCL INFO Channel 16/0 : 0[0] -> 2[2] via P2P/CUMEM/read
+x3006c0s1b0n0:635326:635433 [0] NCCL INFO Channel 17/0 : 0[0] -> 2[2] via P2P/CUMEM/read
+x3006c0s1b0n0:635326:635433 [0] NCCL INFO Channel 18/0 : 0[0] -> 2[2] via P2P/CUMEM/read
+x3006c0s1b0n0:635326:635433 [0] NCCL INFO Channel 19/0 : 0[0] -> 2[2] via P2P/CUMEM/read
+x3006c0s1b0n0:635326:635433 [0] NCCL INFO Channel 08/0 : 0[0] -> 3[3] via P2P/CUMEM/read
+x3006c0s1b0n0:635326:635433 [0] NCCL INFO Channel 09/0 : 0[0] -> 3[3] via P2P/CUMEM/read
+x3006c0s1b0n0:635326:635433 [0] NCCL INFO Channel 20/0 : 0[0] -> 3[3] via P2P/CUMEM/read
+x3006c0s1b0n0:635326:635433 [0] NCCL INFO Channel 21/0 : 0[0] -> 3[3] via P2P/CUMEM/read
+x3006c0s1b0n0:635326:635433 [0] NCCL INFO Connected all trees
+x3006c0s1b0n0:635326:635433 [0] NCCL INFO NCCL_ALGO set by environment to Ring
+x3006c0s1b0n0:635326:635433 [0] NCCL INFO threadThresholds 8/8/64 | 32/8/64 | 512 | 512
+x3006c0s1b0n0:635326:635433 [0] NCCL INFO 24 coll channels, 0 collnet channels, 0 nvls channels, 32 p2p channels, 8 p2p channels per peer
+x3006c0s1b0n0:635326:635433 [0] NCCL INFO comm 0x56251722bd00 rank 0 nranks 4 cudaDev 0 nvmlDev 0 busId 7000 commId 0xdbd2811570941f7f - Init COMPLETE
+d all rings
+x3006c0s1b0n0:635327:635436 [1] NCCL INFO Channel 01/0 : 1[1] -> 2[2] via P2P/CUMEM/read
+x3006c0s1b0n0:635327:635436 [1] NCCL INFO Channel 02/0 : 1[1] -> 2[2] via P2P/CUMEM/read
+x3006c0s1b0n0:635327:635436 [1] NCCL INFO Channel 03/0 : 1[1] -> 2[2] via P2P/CUMEM/read
+x3006c0s1b0n0:635327:635436 [1] NCCL INFO Channel 05/0 : 1[1] -> 2[2] via P2P/CUMEM/read
+x3006c0s1b0n0:635327:635436 [1] NCCL INFO Channel 07/0 : 1[1] -> 2[2] via P2P/CUMEM/read
+x3006c0s1b0n0:635327:635436 [1] NCCL INFO Channel 13/0 : 1[1] -> 2[2] via P2P/CUMEM/read
+x3006c0s1b0n0:635327:635436 [1] NCCL INFO Channel 14/0 : 1[1] -> 2[2] via P2P/CUMEM/read
+x3006c0s1b0n0:635327:635436 [1] NCCL INFO Channel 15/0 : 1[1] -> 2[2] via P2P/CUMEM/read
+x3006c0s1b0n0:635327:635436 [1] NCCL INFO Channel 17/0 : 1[1] -> 2[2] via P2P/CUMEM/read
+x3006c0s1b0n0:635327:635436 [1] NCCL INFO Channel 19/0 : 1[1] -> 2[2] via P2P/CUMEM/read
+x3006c0s1b0n0:635327:635436 [1] NCCL INFO Channel 04/0 : 1[1] -> 3[3] via P2P/CUMEM/read
+x3006c0s1b0n0:635327:635436 [1] NCCL INFO Channel 05/0 : 1[1] -> 3[3] via P2P/CUMEM/read
+x3006c0s1b0n0:635327:635436 [1] NCCL INFO Channel 06/0 : 1[1] -> 3[3] via P2P/CUMEM/read
+x3006c0s1b0n0:635327:635436 [1] NCCL INFO Channel 16/0 : 1[1] -> 3[3] via P2P/CUMEM/read
+x3006c0s1b0n0:635327:635436 [1] NCCL INFO Channel 17/0 : 1[1] -> 3[3] via P2P/CUMEM/read
+x3006c0s1b0n0:635327:635436 [1] NCCL INFO Channel 18/0 : 1[1] -> 3[3] via P2P/CUMEM/read
+x3006c0s1b0n0:635327:635436 [1] NCCL INFO Channel 00/0 : 1[1] -> 0[0] via P2P/CUMEM/read
+x3006c0s1b0n0:635327:635436 [1] NCCL INFO Channel 01/0 : 1[1] -> 0[0] via P2P/CUMEM/read
+x3006c0s1b0n0:635327:635436 [1] NCCL INFO Channel 03/0 : 1[1] -> 0[0] via P2P/CUMEM/read
+x3006c0s1b0n0:635327:635436 [1] NCCL INFO Channel 09/0 : 1[1] -> 0[0] via P2P/CUMEM/read
+x3006c0s1b0n0:635327:635436 [1] NCCL INFO Channel 10/0 : 1[1] -> 0[0] via P2P/CUMEM/read
+x3006c0s1b0n0:635327:635436 [1] NCCL INFO Channel 12/0 : 1[1] -> 0[0] via P2P/CUMEM/read
+x3006c0s1b0n0:635327:635436 [1] NCCL INFO Channel 13/0 : 1[1] -> 0[0] via P2P/CUMEM/read
+x3006c0s1b0n0:635327:635436 [1] NCCL INFO Channel 15/0 : 1[1] -> 0[0] via P2P/CUMEM/read
+x3006c0s1b0n0:635327:635436 [1] NCCL INFO Channel 21/0 : 1[1] -> 0[0] via P2P/CUMEM/read
+x3006c0s1b0n0:635327:635436 [1] NCCL INFO Channel 22/0 : 1[1] -> 0[0] via P2P/CUMEM/read
+x3006c0s1b0n0:635327:635436 [1] NCCL INFO Connected all trees
+x3006c0s1b0n0:635327:635436 [1] NCCL INFO NCCL_ALGO set by environment to Ring
+x3006c0s1b0n0:635327:635436 [1] NCCL INFO threadThresholds 8/8/64 | 32/8/64 | 512 | 512
+x3006c0s1b0n0:635327:635436 [1] NCCL INFO 24 coll channels, 0 collnet channels, 0 nvls channels, 32 p2p channels, 8 p2p channels per peer
+x3006c0s1b0n0:635327:635436 [1] NCCL INFO comm 0x55fd51946620 rank 1 nranks 4 cudaDev 1 nvmlDev 1 busId 46000 commId 0xdbd2811570941f7f - Init COMPLETE
+x3006c0s1b0n0:635327:635452 [1] NCCL INFO Channel 24/1 : 1[1] -> 0[0] via P2P/CUMEM/read
+x3006c0s1b0n0:635327:635452 [1] NCCL INFO Channel 25/1 : 1[1] -> 0[0] via P2P/CUMEM/read
+x3006c0s1b0n0:635327:635452 [1] NCCL INFO Channel 26/1 : 1[1] -> 0[0] via P2P/CUMEM/read
+x3006c0s1b0n0:635327:635452 [1] NCCL INFO Channel 27/1 : 1[1] -> 0[0] via P2P/CUMEM/read
+x3006c0s1b0n0:635327:635452 [1] NCCL INFO Channel 28/1 : 1[1] -> 0[0] via P2P/CUMEM/read
+x3006c0s1b0n0:635327:635452 [1] NCCL INFO Channel 29/1 : 1[1] -> 0[0] via P2P/CUMEM/read
+x3006c0s1b0n0:635327:635452 [1] NCCL INFO Channel 30/1 : 1[1] -> 0[0] via P2P/CUMEM/read
+x3006c0s1b0n0:635327:635452 [1] NCCL INFO Channel 31/1 : 1[1] -> 0[0] via P2P/CUMEM/read
+x3006c0s1b1n0:2099251:2099382 [1] NCCL INFO Channel 24/1 : 1[1] -> 0[0] via P2P/CUMEM/read
+x3006c0s1b1n0:2099251:2099382 [1] NCCL INFO Channel 25/1 : 1[1] -> 0[0] via P2P/CUMEM/read
+x3006c0s1b1n0:2099251:2099382 [1] NCCL INFO Channel 26/1 : 1[1] -> 0[0] via P2P/CUMEM/read
+x3006c0s1b1n0:2099251:2099382 [1] NCCL INFO Channel 27/1 : 1[1] -> 0[0] via P2P/CUMEM/read
+x3006c0s1b1n0:2099251:2099382 [1] NCCL INFO Channel 28/1 : 1[1] -> 0[0] via P2P/CUMEM/read
+x3006c0s1b1n0:2099251:2099382 [1] NCCL INFO Channel 29/1 : 1[1] -> 0[0] via P2P/CUMEM/read
+x3006c0s1b1n0:2099251:2099382 [1] NCCL INFO Channel 30/1 : 1[1] -> 0[0] via P2P/CUMEM/read
+x3006c0s1b1n0:2099251:2099382 [1] NCCL INFO Channel 31/1 : 1[1] -> 0[0] via P2P/CUMEM/read
+x3006c0s1b0n0:635328:635449 [2] NCCL INFO Channel 08/1 : 2[2] -> 0[0] via P2P/CUMEM/read
+x3006c0s1b0n0:635328:635449 [2] NCCL INFO Channel 09/1 : 2[2] -> 0[0] via P2P/CUMEM/read
+x3006c0s1b0n0:635328:635449 [2] NCCL INFO Channel 10/1 : 2[2] -> 0[0] via P2P/CUMEM/read
+x3006c0s1b0n0:635328:635449 [2] NCCL INFO Channel 11/1 : 2[2] -> 0[0] via P2P/CUMEM/read
+x3006c0s1b0n0:635328:635449 [2] NCCL INFO Channel 12/1 : 2[2] -> 0[0] via P2P/CUMEM/read
+x3006c0s1b0n0:635328:635449 [2] NCCL INFO Channel 13/1 : 2[2] -> 0[0] via P2P/CUMEM/read
+x3006c0s1b0n0:635328:635449 [2] NCCL INFO Channel 14/1 : 2[2] -> 0[0] via P2P/CUMEM/read
+x3006c0s1b0n0:635328:635449 [2] NCCL INFO Channel 15/1 : 2[2] -> 0[0] via P2P/CUMEM/read
+x3006c0s1b1n0:2099253:2099381 [3] NCCL INFO Channel 16/1 : 3[3] -> 0[0] via P2P/CUMEM/read
+x3006c0s1b1n0:2099253:2099381 [3] NCCL INFO Channel 17/1 : 3[3] -> 0[0] via P2P/CUMEM/read
+x3006c0s1b1n0:2099253:2099381 [3] NCCL INFO Channel 18/1 : 3[3] -> 0[0] via P2P/CUMEM/read
+x3006c0s1b1n0:2099253:2099381 [3] NCCL INFO Channel 19/1 : 3[3] -> 0[0] via P2P/CUMEM/read
+x3006c0s1b1n0:2099253:2099381 [3] NCCL INFO Channel 20/1 : 3[3] -> 0[0] via P2P/CUMEM/read
+x3006c0s1b1n0:2099253:2099381 [3] NCCL INFO Channel 21/1 : 3[3] -> 0[0] via P2P/CUMEM/read
+x3006c0s1b1n0:2099253:2099381 [3] NCCL INFO Channel 22/1 : 3[3] -> 0[0] via P2P/CUMEM/read
+x3006c0s1b1n0:2099253:2099381 [3] NCCL INFO Channel 23/1 : 3[3] -> 0[0] via P2P/CUMEM/read
+x3006c0s1b0n0:635329:635450 [3] NCCL INFO Channel 16/1 : 3[3] -> 0[0] via P2P/CUMEM/read
+x3006c0s1b0n0:635329:635450 [3] NCCL INFO Channel 17/1 : 3[3] -> 0[0] via P2P/CUMEM/read
+x3006c0s1b0n0:635329:635450 [3] NCCL INFO Channel 18/1 : 3[3] -> 0[0] via P2P/CUMEM/read
+x3006c0s1b0n0:635329:635450 [3] NCCL INFO Channel 19/1 : 3[3] -> 0[0] via P2P/CUMEM/read
+x3006c0s1b0n0:635329:635450 [3] NCCL INFO Channel 20/1 : 3[3] -> 0[0] via P2P/CUMEM/read
+x3006c0s1b0n0:635329:635450 [3] NCCL INFO Channel 21/1 : 3[3] -> 0[0] via P2P/CUMEM/read
+x3006c0s1b0n0:635329:635450 [3] NCCL INFO Channel 22/1 : 3[3] -> 0[0] via P2P/CUMEM/read
+x3006c0s1b0n0:635329:635450 [3] NCCL INFO Channel 23/1 : 3[3] -> 0[0] via P2P/CUMEM/read
+x3006c0s1b1n0:2099252:2099383 [2] NCCL INFO Channel 08/1 : 2[2] -> 0[0] via P2P/CUMEM/read
+x3006c0s1b1n0:2099252:2099383 [2] NCCL INFO Channel 09/1 : 2[2] -> 0[0] via P2P/CUMEM/read
+x3006c0s1b1n0:2099252:2099383 [2] NCCL INFO Channel 10/1 : 2[2] -> 0[0] via P2P/CUMEM/read
+x3006c0s1b1n0:2099252:2099383 [2] NCCL INFO Channel 11/1 : 2[2] -> 0[0] via P2P/CUMEM/read
+x3006c0s1b1n0:2099252:2099383 [2] NCCL INFO Channel 12/1 : 2[2] -> 0[0] via P2P/CUMEM/read
+x3006c0s1b1n0:2099252:2099383 [2] NCCL INFO Channel 13/1 : 2[2] -> 0[0] via P2P/CUMEM/read
+x3006c0s1b1n0:2099252:2099383 [2] NCCL INFO Channel 14/1 : 2[2] -> 0[0] via P2P/CUMEM/read
+x3006c0s1b1n0:2099252:2099383 [2] NCCL INFO Channel 15/1 : 2[2] -> 0[0] via P2P/CUMEM/read
+[2025-08-20 18:52:39,426][DL_COMM][OUTPUT] - 
+[2025-08-20 18:52:39,426][DL_COMM][OUTPUT] - [TIMERS] ---------------------------------------------------------
+[2025-08-20 18:52:39,427][DL_COMM][OUTPUT] - 
+[2025-08-20 18:52:39,427][DL_COMM][INFO] -   [TIMERS] [BARRIER ENABLED] Timing measurements used MPI barriers for synchronization
+[2025-08-20 18:52:39,427][DL_COMM][OUTPUT] - 
+[2025-08-20 18:52:39,427][DL_COMM][OUTPUT] - [TIMERS] ITERATION TABLE FOR ALLREDUCE (seconds):
+[2025-08-20 18:52:39,427][DL_COMM][OUTPUT] - Iteration     (Within-Group-0)    (Within-Group-1)  
+[2025-08-20 18:52:39,427][DL_COMM][OUTPUT] -               LOGGING RANK - 0    LOGGING RANK - 4  
+[2025-08-20 18:52:39,427][DL_COMM][OUTPUT] - ----------------------------------------------------
+[2025-08-20 18:52:39,427][DL_COMM][OUTPUT] - 0                 0.001539            0.001492      
+[2025-08-20 18:52:39,427][DL_COMM][OUTPUT] - 1                 0.000157            0.000186      
+[2025-08-20 18:52:39,427][DL_COMM][OUTPUT] - 2                 0.000131            0.000135      
+[2025-08-20 18:52:39,427][DL_COMM][OUTPUT] - 3                 0.000135            0.000163      
+[2025-08-20 18:52:39,427][DL_COMM][OUTPUT] - 4                 0.000136            0.000128      
+[2025-08-20 18:52:39,427][DL_COMM][OUTPUT] - 5                 0.000138            0.000139      
+[2025-08-20 18:52:39,428][DL_COMM][OUTPUT] - 6                 0.000127            0.000128      
+[2025-08-20 18:52:39,428][DL_COMM][OUTPUT] - 7                 0.000136            0.000133      
+[2025-08-20 18:52:39,428][DL_COMM][OUTPUT] - 8                 0.000131            0.000126      
+[2025-08-20 18:52:39,428][DL_COMM][OUTPUT] - 9                 0.000144            0.000131      
+[2025-08-20 18:52:39,428][DL_COMM][OUTPUT] - ----------------------------------------------------
+[2025-08-20 18:52:39,428][DL_COMM][OUTPUT] - 
+[2025-08-20 18:52:39,428][DL_COMM][OUTPUT] - [TIMERS] ---------------------------------------------------------
+[2025-08-20 18:52:39,428][DL_COMM][OUTPUT] - 
+[2025-08-20 18:52:39,428][DL_COMM][OUTPUT] - [BANDWIDTH] -------------------------------------------
+[2025-08-20 18:52:39,428][DL_COMM][OUTPUT] - 
+[2025-08-20 18:52:39,429][DL_COMM][OUTPUT] - [BANDWIDTH] BANDWIDTH TABLE FOR ALLREDUCE (bytes/seconds):
+[2025-08-20 18:52:39,429][DL_COMM][OUTPUT] - Iteration     (Within-Group-0)    (Within-Group-1)  
+[2025-08-20 18:52:39,429][DL_COMM][OUTPUT] -               LOGGING RANK - 0    LOGGING RANK - 4  
+[2025-08-20 18:52:39,429][DL_COMM][OUTPUT] - ----------------------------------------------------
+[2025-08-20 18:52:39,429][DL_COMM][OUTPUT] - 0                 2661709             2745200       
+[2025-08-20 18:52:39,429][DL_COMM][OUTPUT] - 1                 26155106            21982539      
+[2025-08-20 18:52:39,429][DL_COMM][OUTPUT] - 2                 31170265            30324036      
+[2025-08-20 18:52:39,429][DL_COMM][OUTPUT] - 3                 30351031            25093839      
+[2025-08-20 18:52:39,429][DL_COMM][OUTPUT] - 4                 30096396            31892551      
+[2025-08-20 18:52:39,429][DL_COMM][OUTPUT] - 5                 29778502            29446143      
+[2025-08-20 18:52:39,429][DL_COMM][OUTPUT] - 6                 32188875            31995100      
+[2025-08-20 18:52:39,429][DL_COMM][OUTPUT] - 7                 30098661            30908817      
+[2025-08-20 18:52:39,429][DL_COMM][OUTPUT] - 8                 31189275            32431580      
+[2025-08-20 18:52:39,429][DL_COMM][OUTPUT] - 9                 28480054            31175237      
+[2025-08-20 18:52:39,429][DL_COMM][OUTPUT] - ----------------------------------------------------
+[2025-08-20 18:52:39,430][DL_COMM][OUTPUT] - 
+[2025-08-20 18:52:39,430][DL_COMM][OUTPUT] - [BANDWIDTH] -------------------------------------------
+[2025-08-20 18:52:39,430][DL_COMM][INFO] - -------------------------------------------------------------------------
+[2025-08-20 18:52:39,430][DL_COMM][INFO] - [MPI] Job complete
+[2025-08-20 18:52:39,430][DL_COMM][INFO] - -------------------------------------------------------------------------
+[2025-08-20 18:52:39,430][DL_COMM][INFO] - -------------------------------------------------------------------------
+[2025-08-20 18:52:39,430][DL_COMM][INFO] - [EXIT] All Done.
+[2025-08-20 18:52:39,430][DL_COMM][INFO] - -------------------------------------------------------------------------
+[2025-08-20 18:52:39,430][DL_COMM][INFO] - 
+[2025-08-20 18:52:39,430][DL_COMM][INFO] - ================================================================================
+[2025-08-20 18:52:39,430][DL_COMM][INFO] - [TASK 2/2] ==================== SP ====================
+[2025-08-20 18:52:39,430][DL_COMM][INFO] - ================================================================================
+[2025-08-20 18:52:39,430][DL_COMM][INFO] - 
+[2025-08-20 18:52:39,431][DL_COMM][INFO] - 
+[2025-08-20 18:52:39,431][DL_COMM][INFO] - [CONFIG] Setup
+[2025-08-20 18:52:39,431][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-08-20 18:52:39,431][DL_COMM][INFO] - [CONFIG] Task Name            : sp
+[2025-08-20 18:52:39,431][DL_COMM][INFO] - [CONFIG] Framework            : pytorch
+[2025-08-20 18:52:39,431][DL_COMM][INFO] - [CONFIG] Backend              : nccl
+[2025-08-20 18:52:39,431][DL_COMM][INFO] - [CONFIG] Extended Logging     : False
+[2025-08-20 18:52:39,431][DL_COMM][INFO] - [CONFIG] Barrier Enabled      : True
+[2025-08-20 18:52:39,431][DL_COMM][INFO] - [CONFIG] World Size           : 8
+[2025-08-20 18:52:39,431][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-08-20 18:52:39,432][DL_COMM][INFO] - 
+[2025-08-20 18:52:39,432][DL_COMM][INFO] - [CONFIG] Communication Group
+[2025-08-20 18:52:39,432][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-08-20 18:52:39,432][DL_COMM][INFO] - [CONFIG] Mode                 : across_node
+[2025-08-20 18:52:39,432][DL_COMM][INFO] - [CONFIG] Topology             : 2 nodes x 4 devices
+[2025-08-20 18:52:39,432][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-08-20 18:52:39,432][DL_COMM][INFO] - 
+[2025-08-20 18:52:39,432][DL_COMM][INFO] - [CONFIG] Communication Group Details
+[2025-08-20 18:52:39,432][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-08-20 18:52:39,432][DL_COMM][INFO] - [CONFIG] Collective Name      : allgather
+[2025-08-20 18:52:39,432][DL_COMM][INFO] - [CONFIG] Operation            : N/A
+[2025-08-20 18:52:39,432][DL_COMM][INFO] - [CONFIG] Scale Up Algorithm   : default
+[2025-08-20 18:52:39,432][DL_COMM][INFO] - [CONFIG] Scale Out Algorithm  : default
+[2025-08-20 18:52:39,432][DL_COMM][INFO] - [CONFIG] Data Type            : float32
+[2025-08-20 18:52:39,433][DL_COMM][INFO] - [CONFIG] Element Count        : 256
+[2025-08-20 18:52:39,433][DL_COMM][INFO] - [CONFIG] Buffer Size          : 1KB (1024 bytes)
+[2025-08-20 18:52:39,433][DL_COMM][INFO] - [CONFIG] Iterations           : 10
+[2025-08-20 18:52:39,433][DL_COMM][INFO] - [CONFIG] Verify Correctness   : True
+[2025-08-20 18:52:39,433][DL_COMM][INFO] - [CONFIG] ------------------------------------------------------
+[2025-08-20 18:52:39,433][DL_COMM][INFO] - 
+[2025-08-20 18:52:39,433][DL_COMM][INFO] - 
+[2025-08-20 18:52:39,433][DL_COMM][INFO] - [COMM][CONFIG] Setting up communication groups for mode: Across
+[2025-08-20 18:52:39,433][DL_COMM][INFO] - [COMM][CONFIG] Across-node: 2 nodes, 4 devices per node, Device IDs: [0, 1, 2, 3]
+[2025-08-20 18:52:39,433][DL_COMM][INFO] - [COMM][GROUP CREATION] Across-node groups:
+[2025-08-20 18:52:39,433][DL_COMM][INFO] - [COMM][GROUP CREATION][Across Group-0] Ranks: [0, 4], Device ID: 0, Logging: rank 0
+[2025-08-20 18:52:39,434][DL_COMM][INFO] - [COMM][GROUP CREATION][Across Group-1] Ranks: [1, 5], Device ID: 1, Logging: rank 1
+[2025-08-20 18:52:39,434][DL_COMM][INFO] - [COMM][GROUP CREATION][Across Group-2] Ranks: [2, 6], Device ID: 2, Logging: rank 2
+[2025-08-20 18:52:39,434][DL_COMM][INFO] - [COMM][GROUP CREATION][Across Group-3] Ranks: [3, 7], Device ID: 3, Logging: rank 3
+[2025-08-20 18:52:39,434][DL_COMM][INFO] - [COMM][GROUP CREATION] Created 4 across-node groups
+[2025-08-20 18:52:39,434][DL_COMM][INFO] - 
+[2025-08-20 18:52:39,434][DL_COMM][OUTPUT] - 
+[2025-08-20 18:52:39,434][DL_COMM][OUTPUT] - [TIMERS - SETUP] ---------------------------------------------------------
+[2025-08-20 18:52:39,434][DL_COMM][OUTPUT] - [TIMERS][LOGGING RANK - 0] Group Creation (Across)             = 0.000736 s
+NCCL version 2.20.5+cuda12.4
+[2025-08-20 18:52:39,434][DL_COMM][OUTPUT] - [TIMERS - SETUP] ---------------------------------------------------------
+[2025-08-20 18:52:39,435][DL_COMM][OUTPUT] - 
+NCCL version 2.20.5+cuda12.4
+NCCL version 2.20.5+cuda12.4
+[2025-08-20 18:52:39,435][DL_COMM][OUTPUT] - [MPI] Launching profiling job
+x3006c0s1b0n0:635328:635464 [2] NCCL INFO Using non-device net plugin version 0
+x3006c0s1b0n0:635328:635464 [2] NCCL INFO Using network Socket
+x3006c0s1b0n0:635328:635464 [2] NCCL INFO comm 0x564ec5cacb60 rank 0 nranks 2 cudaDev 2 nvmlDev 2 busId 85000 commId 0x463996f385b22385 - Init START
+x3006c0s1b1n0:2099253:2099438 [3] NCCL INFO Using non-device net plugin version 0
+x3006c0s1b1n0:2099253:2099438 [3] NCCL INFO Using network Socket
+x3006c0s1b1n0:2099253:2099438 [3] NCCL INFO comm 0x563a14997db0 rank 1 nranks 2 cudaDev 3 nvmlDev 3 busId c7000 commId 0x446a615761a14516 - Init START
+x3006c0s1b0n0:635329:635466 [3] NCCL INFO Using non-device net plugin version 0
+x3006c0s1b0n0:635329:635466 [3] NCCL INFO Using network Socket
+x3006c0s1b0n0:635329:635466 [3] NCCL INFO comm 0x5597abc42d80 rank 0 nranks 2 cudaDev 3 nvmlDev 3 busId c7000 commId 0x446a615761a14516 - Init START
+x3006c0s1b1n0:2099252:2099437 [2] NCCL INFO Using non-device net plugin version 0
+x3006c0s1b1n0:2099252:2099437 [2] NCCL INFO Using network Socket
+x3006c0s1b1n0:2099252:2099437 [2] NCCL INFO comm 0x55bbb3a3aa30 rank 1 nranks 2 cudaDev 2 nvmlDev 2 busId 85000 commId 0x463996f385b22385 - Init START
+x3006c0s1b1n0:2099250:2099440 [0] NCCL INFO Using non-device net plugin version 0
+x3006c0s1b1n0:2099250:2099440 [0] NCCL INFO Using network Socket
+x3006c0s1b1n0:2099250:2099440 [0] NCCL INFO comm 0x55aaf24dfec0 rank 1 nranks 2 cudaDev 0 nvmlDev 0 busId 7000 commId 0x131519c0f24700ba - Init START
+x3006c0s1b0n0:635327:635465 [1] NCCL INFO Using non-device net plugin version 0
+x3006c0s1b0n0:635327:635465 [1] NCCL INFO Using network Socket
+x3006c0s1b0n0:635327:635465 [1] NCCL INFO comm 0x55fd58669630 rank 0 nranks 2 cudaDev 1 nvmlDev 1 busId 46000 commId 0x77f30a63a6599fd4 - Init START
+x3006c0s1b1n0:2099251:2099439 [1] NCCL INFO Using non-device net plugin version 0
+x3006c0s1b1n0:2099251:2099439 [1] NCCL INFO Using network Socket
+x3006c0s1b1n0:2099251:2099439 [1] NCCL INFO comm 0x56009c83c140 rank 1 nranks 2 cudaDev 1 nvmlDev 1 busId 46000 commId 0x77f30a63a6599fd4 - Init START
+x3006c0s1b0n0:635326:635468 [0] NCCL INFO Using non-device net plugin version 0
+x3006c0s1b0n0:635326:635468 [0] NCCL INFO Using network Socket
+x3006c0s1b0n0:635326:635468 [0] NCCL INFO comm 0x56251dff3f90 rank 0 nranks 2 cudaDev 0 nvmlDev 0 busId 7000 commId 0x131519c0f24700ba - Init START
+x3006c0s1b0n0:635328:635464 [2] NCCL INFO Setting affinity for GPU 2 to ff00,00000000
+x3006c0s1b0n0:635328:635464 [2] NCCL INFO comm 0x564ec5cacb60 rank 0 nRanks 2 nNodes 2 localRanks 1 localRank 0 MNNVL 0
+x3006c0s1b0n0:635328:635464 [2] NCCL INFO Channel 00/04 :    0   1
+x3006c0s1b0n0:635328:635464 [2] NCCL INFO Channel 01/04 :    0   1
+x3006c0s1b0n0:635328:635464 [2] NCCL INFO Channel 02/04 :    0   1
+x3006c0s1b0n0:635328:635464 [2] NCCL INFO Channel 03/04 :    0   1
+x3006c0s1b0n0:635328:635464 [2] NCCL INFO Trees [0] 1/-1/-1->0->-1 [1] 1/-1/-1->0->-1 [2] -1/-1/-1->0->1 [3] -1/-1/-1->0->1
+x3006c0s1b0n0:635328:635464 [2] NCCL INFO P2P Chunksize set to 131072
+x3006c0s1b0n0:635329:635466 [3] NCCL INFO comm 0x5597abc42d80 rank 0 nRanks 2 nNodes 2 localRanks 1 localRank 0 MNNVL 0
+x3006c0s1b0n0:635329:635466 [3] NCCL INFO Channel 00/02 :    0   1
+x3006c0s1b0n0:635329:635466 [3] NCCL INFO Channel 01/02 :    0   1
+x3006c0s1b0n0:635329:635466 [3] NCCL INFO Trees [0] 1/-1/-1->0->-1 [1] -1/-1/-1->0->1
+x3006c0s1b0n0:635329:635466 [3] NCCL INFO P2P Chunksize set to 131072
+x3006c0s1b1n0:2099253:2099438 [3] NCCL INFO comm 0x563a14997db0 rank 1 nRanks 2 nNodes 2 localRanks 1 localRank 0 MNNVL 0
+x3006c0s1b1n0:2099253:2099438 [3] NCCL INFO Trees [0] -1/-1/-1->1->0 [1] 0/-1/-1->1->-1
+x3006c0s1b1n0:2099253:2099438 [3] NCCL INFO P2P Chunksize set to 131072
+x3006c0s1b1n0:2099252:2099437 [2] NCCL INFO Setting affinity for GPU 2 to ff00,00000000
+x3006c0s1b1n0:2099252:2099437 [2] NCCL INFO comm 0x55bbb3a3aa30 rank 1 nRanks 2 nNodes 2 localRanks 1 localRank 0 MNNVL 0
+x3006c0s1b1n0:2099252:2099437 [2] NCCL INFO Trees [0] -1/-1/-1->1->0 [1] -1/-1/-1->1->0 [2] 0/-1/-1->1->-1 [3] 0/-1/-1->1->-1
+x3006c0s1b1n0:2099252:2099437 [2] NCCL INFO P2P Chunksize set to 131072
+x3006c0s1b1n0:2099251:2099439 [1] NCCL INFO Setting affinity for GPU 1 to ff0000
+x3006c0s1b1n0:2099251:2099439 [1] NCCL INFO comm 0x56009c83c140 rank 1 nRanks 2 nNodes 2 localRanks 1 localRank 0 MNNVL 0
+x3006c0s1b1n0:2099251:2099439 [1] NCCL INFO Trees [0] -1/-1/-1->1->0 [1] 0/-1/-1->1->-1
+x3006c0s1b1n0:2099251:2099439 [1] NCCL INFO P2P Chunksize set to 131072
+x3006c0s1b0n0:635327:635465 [1] NCCL INFO Setting affinity for GPU 1 to ff0000
+x3006c0s1b0n0:635327:635465 [1] NCCL INFO comm 0x55fd58669630 rank 0 nRanks 2 nNodes 2 localRanks 1 localRank 0 MNNVL 0
+x3006c0s1b0n0:635327:635465 [1] NCCL INFO Channel 00/02 :    0   1
+x3006c0s1b0n0:635327:635465 [1] NCCL INFO Channel 01/02 :    0   1
+x3006c0s1b0n0:635327:635465 [1] NCCL INFO Trees [0] 1/-1/-1->0->-1 [1] -1/-1/-1->0->1
+x3006c0s1b0n0:635327:635465 [1] NCCL INFO P2P Chunksize set to 131072
+x3006c0s1b0n0:635326:635468 [0] NCCL INFO comm 0x56251dff3f90 rank 0 nRanks 2 nNodes 2 localRanks 1 localRank 0 MNNVL 0
+x3006c0s1b0n0:635326:635468 [0] NCCL INFO Channel 00/04 :    0   1
+x3006c0s1b0n0:635326:635468 [0] NCCL INFO Channel 01/04 :    0   1
+x3006c0s1b0n0:635326:635468 [0] NCCL INFO Channel 02/04 :    0   1
+x3006c0s1b0n0:635326:635468 [0] NCCL INFO Channel 03/04 :    0   1
+x3006c0s1b0n0:635326:635468 [0] NCCL INFO Trees [0] 1/-1/-1->0->-1 [1] 1/-1/-1->0->-1 [2] -1/-1/-1->0->1 [3] -1/-1/-1->0->1
+x3006c0s1b0n0:635326:635468 [0] NCCL INFO P2P Chunksize set to 131072
+x3006c0s1b1n0:2099250:2099440 [0] NCCL INFO comm 0x55aaf24dfec0 rank 1 nRanks 2 nNodes 2 localRanks 1 localRank 0 MNNVL 0
+x3006c0s1b1n0:2099250:2099440 [0] NCCL INFO Trees [0] -1/-1/-1->1->0 [1] -1/-1/-1->1->0 [2] 0/-1/-1->1->-1 [3] 0/-1/-1->1->-1
+x3006c0s1b1n0:2099250:2099440 [0] NCCL INFO P2P Chunksize set to 131072
+x3006c0s1b0n0:635329:635466 [3] NCCL INFO Channel 00/0 : 1[3] -> 0[3] [receive] via NET/Socket/1
+x3006c0s1b0n0:635329:635466 [3] NCCL INFO Channel 01/0 : 1[3] -> 0[3] [receive] via NET/Socket/1
+x3006c0s1b0n0:635329:635466 [3] NCCL INFO Channel 00/0 : 0[3] -> 1[3] [send] via NET/Socket/1
+x3006c0s1b1n0:2099252:2099437 [2] NCCL INFO Channel 00/0 : 0[2] -> 1[2] [receive] via NET/Socket/1
+x3006c0s1b1n0:2099252:2099437 [2] NCCL INFO Channel 01/0 : 0[2] -> 1[2] [receive] via NET/Socket/2
+x3006c0s1b1n0:2099252:2099437 [2] NCCL INFO Channel 02/0 : 0[2] -> 1[2] [receive] via NET/Socket/1
+x3006c0s1b1n0:2099252:2099437 [2] NCCL INFO Channel 03/0 : 0[2] -> 1[2] [receive] via NET/Socket/2
+x3006c0s1b1n0:2099252:2099437 [2] NCCL INFO Channel 00/0 : 1[2] -> 0[2] [send] via NET/Socket/1
+x3006c0s1b1n0:2099252:2099437 [2] NCCL INFO Channel 01/0 : 1[2] -> 0[2] [send] via NET/Socket/2
+x3006c0s1b1n0:2099252:2099437 [2] NCCL INFO Channel 02/0 : 1[2] -> 0[2] [send] via NET/Socket/1
+x3006c0s1b1n0:2099252:2099437 [2] NCCL INFO Channel 03/0 : 1[2] -> 0[2] [send] via NET/Socket/2
+x3006c0s1b1n0:2099250:2099440 [0] NCCL INFO Channel 00/0 : 0[0] -> 1[0] [receive] via NET/Socket/1
+x3006c0s1b1n0:2099250:2099440 [0] NCCL INFO Channel 01/0 : 0[0] -> 1[0] [receive] via NET/Socket/2
+x3006c0s1b1n0:2099250:2099440 [0] NCCL INFO Channel 02/0 : 0[0] -> 1[0] [receive] via NET/Socket/1
+x3006c0s1b1n0:2099250:2099440 [0] NCCL INFO Channel 03/0 : 0[0] -> 1[0] [receive] via NET/Socket/2
+x3006c0s1b1n0:2099250:2099440 [0] NCCL INFO Channel 00/0 : 1[0] -> 0[0] [send] via NET/Socket/1
+x3006c0s1b1n0:2099250:2099440 [0] NCCL INFO Channel 01/0 : 1[0] -> 0[0] [send] via NET/Socket/2
+x3006c0s1b1n0:2099250:2099440 [0] NCCL INFO Channel 02/0 : 1[0] -> 0[0] [send] via NET/Socket/1
+x3006c0s1b1n0:2099250:2099440 [0] NCCL INFO Channel 03/0 : 1[0] -> 0[0] [send] via NET/Socket/2
+x3006c0s1b0n0:635327:635465 [1] NCCL INFO Channel 00/0 : 1[1] -> 0[1] [receive] via NET/Socket/2
+x3006c0s1b0n0:635327:635465 [1] NCCL INFO Channel 01/0 : 1[1] -> 0[1] [receive] via NET/Socket/2
+x3006c0s1b0n0:635327:635465 [1] NCCL INFO Channel 00/0 : 0[1] -> 1[1] [send] via NET/Socket/2
+x3006c0s1b0n0:635327:635465 [1] NCCL INFO Channel 01/0 : 0[1] -> 1[1] [send] via NET/Socket/2
+x3006c0s1b1n0:2099251:2099439 [1] NCCL INFO Channel 00/0 : 0[1] -> 1[1] [receive] via NET/Socket/2
+x3006c0s1b1n0:2099251:2099439 [1] NCCL INFO Channel 01/0 : 0[1] -> 1[1] [receive] via NET/Socket/2
+x3006c0s1b1n0:2099251:2099439 [1] NCCL INFO Channel 00/0 : 1[1] -> 0[1] [send] via NET/Socket/2
+x3006c0s1b1n0:2099251:2099439 [1] NCCL INFO Channel 01/0 : 1[1] -> 0[1] [send] via NET/Socket/2
+x3006c0s1b1n0:2099251:2099439 [1] NCCL INFO Connected all rings
+x3006c0s1b1n0:2099251:2099439 [1] NCCL INFO Connected all trees
+x3006c0s1b1n0:2099251:2099439 [1] NCCL INFO NCCL_ALGO set by environment to Ring
+x3006c0s1b1n0:2099251:2099439 [1] NCCL INFO threadThresholds 8/8/64 | 16/8/64 | 512 | 512
+x3006c0s1b1n0:2099251:2099439 [1] NCCL INFO 2 coll channels, 0 collnet channels, 0 nvls channels, 2 p2p channels, 2 p2p channels per peer
+x3006c0s1b0n0:635327:635465 [1] NCCL INFO Connected all rings
+x3006c0s1b0n0:635327:635465 [1] NCCL INFO Connected all trees
+x3006c0s1b0n0:635327:635465 [1] NCCL INFO NCCL_ALGO set by environment to Ring
+x3006c0s1b0n0:635327:635465 [1] NCCL INFO threadThresholds 8/8/64 | 16/8/64 | 512 | 512
+x3006c0s1b0n0:635327:635465 [1] NCCL INFO 2 coll channels, 0 collnet channels, 0 nvls channels, 2 p2p channels, 2 p2p channels per peer
+x3006c0s1b0n0:635326:635468 [0] NCCL INFO Channel 00/0 : 1[0] -> 0[0] [receive] via NET/Socket/1
+x3006c0s1b0n0:635326:635468 [0] NCCL INFO Channel 01/0 : 1[0] -> 0[0] [receive] via NET/Socket/2
+x3006c0s1b0n0:635326:635468 [0] NCCL INFO Channel 02/0 : 1[0] -> 0[0] [receive] via NET/Socket/1
+x3006c0s1b0n0:635326:635468 [0] NCCL INFO Channel 03/0 : 1[0] -> 0[0] [receive] via NET/Socket/2
+x3006c0s1b0n0:635326:635468 [0] NCCL INFO Channel 00/0 : 0[0] -> 1[0] [send] via NET/Socket/1
+x3006c0s1b0n0:635326:635468 [0] NCCL INFO Channel 01/0 : 0[0] -> 1[0] [send] via NET/Socket/2
+x3006c0s1b0n0:635326:635468 [0] NCCL INFO Channel 02/0 : 0[0] -> 1[0] [send] via NET/Socket/1
+x3006c0s1b0n0:635326:635468 [0] NCCL INFO Channel 03/0 : 0[0] -> 1[0] [send] via NET/Socket/2
+x3006c0s1b0n0:635329:635466 [3] NCCL INFO Channel 01/0 : 0[3] -> 1[3] [send] via NET/Socket/1
+x3006c0s1b0n0:635329:635466 [3] NCCL INFO Connected all rings
+x3006c0s1b0n0:635329:635466 [3] NCCL INFO Connected all trees
+x3006c0s1b0n0:635329:635466 [3] NCCL INFO NCCL_ALGO set by environment to Ring
+x3006c0s1b0n0:635329:635466 [3] NCCL INFO threadThresholds 8/8/64 | 16/8/64 | 512 | 512
+x3006c0s1b0n0:635329:635466 [3] NCCL INFO 2 coll channels, 0 collnet channels, 0 nvls channels, 2 p2p channels, 2 p2p channels per peer
+x3006c0s1b1n0:2099253:2099438 [3] NCCL INFO Channel 00/0 : 0[3] -> 1[3] [receive] via NET/Socket/1
+x3006c0s1b1n0:2099253:2099438 [3] NCCL INFO Channel 01/0 : 0[3] -> 1[3] [receive] via NET/Socket/1
+x3006c0s1b1n0:2099253:2099438 [3] NCCL INFO Channel 00/0 : 1[3] -> 0[3] [send] via NET/Socket/1
+x3006c0s1b1n0:2099253:2099438 [3] NCCL INFO Channel 01/0 : 1[3] -> 0[3] [send] via NET/Socket/1
+x3006c0s1b1n0:2099253:2099438 [3] NCCL INFO Connected all rings
+x3006c0s1b1n0:2099253:2099438 [3] NCCL INFO Connected all trees
+x3006c0s1b1n0:2099253:2099438 [3] NCCL INFO NCCL_ALGO set by environment to Ring
+x3006c0s1b1n0:2099253:2099438 [3] NCCL INFO threadThresholds 8/8/64 | 16/8/64 | 512 | 512
+x3006c0s1b1n0:2099253:2099438 [3] NCCL INFO 2 coll channels, 0 collnet channels, 0 nvls channels, 2 p2p channels, 2 p2p channels per peer
+x3006c0s1b0n0:635327:635465 [1] NCCL INFO comm 0x55fd58669630 rank 0 nranks 2 cudaDev 1 nvmlDev 1 busId 46000 commId 0x77f30a63a6599fd4 - Init COMPLETE
+x3006c0s1b1n0:2099251:2099439 [1] NCCL INFO comm 0x56009c83c140 rank 1 nranks 2 cudaDev 1 nvmlDev 1 busId 46000 commId 0x77f30a63a6599fd4 - Init COMPLETE
+x3006c0s1b0n0:635329:635466 [3] NCCL INFO comm 0x5597abc42d80 rank 0 nranks 2 cudaDev 3 nvmlDev 3 busId c7000 commId 0x446a615761a14516 - Init COMPLETE
+x3006c0s1b1n0:2099253:2099438 [3] NCCL INFO comm 0x563a14997db0 rank 1 nranks 2 cudaDev 3 nvmlDev 3 busId c7000 commId 0x446a615761a14516 - Init COMPLETE
+x3006c0s1b1n0:2099252:2099437 [2] NCCL INFO Connected all rings
+x3006c0s1b1n0:2099252:2099437 [2] NCCL INFO Connected all trees
+x3006c0s1b1n0:2099252:2099437 [2] NCCL INFO NCCL_ALGO set by environment to Ring
+x3006c0s1b1n0:2099252:2099437 [2] NCCL INFO threadThresholds 8/8/64 | 16/8/64 | 512 | 512
+x3006c0s1b1n0:2099252:2099437 [2] NCCL INFO 4 coll channels, 0 collnet channels, 0 nvls channels, 4 p2p channels, 2 p2p channels per peer
+x3006c0s1b0n0:635328:635464 [2] NCCL INFO Channel 00/0 : 1[2] -> 0[2] [receive] via NET/Socket/1
+x3006c0s1b0n0:635328:635464 [2] NCCL INFO Channel 01/0 : 1[2] -> 0[2] [receive] via NET/Socket/2
+x3006c0s1b0n0:635328:635464 [2] NCCL INFO Channel 02/0 : 1[2] -> 0[2] [receive] via NET/Socket/1
+x3006c0s1b0n0:635328:635464 [2] NCCL INFO Channel 03/0 : 1[2] -> 0[2] [receive] via NET/Socket/2
+x3006c0s1b0n0:635328:635464 [2] NCCL INFO Channel 00/0 : 0[2] -> 1[2] [send] via NET/Socket/1
+x3006c0s1b0n0:635328:635464 [2] NCCL INFO Channel 01/0 : 0[2] -> 1[2] [send] via NET/Socket/2
+x3006c0s1b0n0:635328:635464 [2] NCCL INFO Channel 02/0 : 0[2] -> 1[2] [send] via NET/Socket/1
+x3006c0s1b0n0:635328:635464 [2] NCCL INFO Channel 03/0 : 0[2] -> 1[2] [send] via NET/Socket/2
+x3006c0s1b0n0:635328:635464 [2] NCCL INFO Connected all rings
+x3006c0s1b0n0:635328:635464 [2] NCCL INFO Connected all trees
+x3006c0s1b0n0:635328:635464 [2] NCCL INFO NCCL_ALGO set by environment to Ring
+x3006c0s1b0n0:635328:635464 [2] NCCL INFO threadThresholds 8/8/64 | 16/8/64 | 512 | 512
+x3006c0s1b0n0:635328:635464 [2] NCCL INFO 4 coll channels, 0 collnet channels, 0 nvls channels, 4 p2p channels, 2 p2p channels per peer
+x3006c0s1b0n0:635327:635483 [1] NCCL INFO Channel 00/1 : 1[1] -> 0[1] [receive] via NET/Socket/2/Shared
+x3006c0s1b0n0:635327:635483 [1] NCCL INFO Channel 01/1 : 1[1] -> 0[1] [receive] via NET/Socket/2/Shared
+x3006c0s1b1n0:2099251:2099455 [1] NCCL INFO Channel 00/1 : 1[1] -> 0[1] [send] via NET/Socket/2/Shared
+x3006c0s1b1n0:2099251:2099455 [1] NCCL INFO Channel 01/1 : 1[1] -> 0[1] [send] via NET/Socket/2/Shared
+x3006c0s1b0n0:635326:635468 [0] NCCL INFO Connected all rings
+x3006c0s1b0n0:635326:635468 [0] NCCL INFO Connected all trees
+x3006c0s1b0n0:635326:635468 [0] NCCL INFO NCCL_ALGO set by environment to Ring
+x3006c0s1b0n0:635326:635468 [0] NCCL INFO threadThresholds 8/8/64 | 16/8/64 | 512 | 512
+x3006c0s1b0n0:635326:635468 [0] NCCL INFO 4 coll channels, 0 collnet channels, 0 nvls channels, 4 p2p channels, 2 p2p channels per peer
+x3006c0s1b1n0:2099250:2099440 [0] NCCL INFO Connected all rings
+x3006c0s1b1n0:2099250:2099440 [0] NCCL INFO Connected all trees
+x3006c0s1b1n0:2099250:2099440 [0] NCCL INFO NCCL_ALGO set by environment to Ring
+x3006c0s1b1n0:2099250:2099440 [0] NCCL INFO threadThresholds 8/8/64 | 16/8/64 | 512 | 512
+x3006c0s1b1n0:2099250:2099440 [0] NCCL INFO 4 coll channels, 0 collnet channels, 0 nvls channels, 4 p2p channels, 2 p2p channels per peer
+x3006c0s1b1n0:2099253:2099456 [3] NCCL INFO Channel 00/1 : 1[3] -> 0[3] [send] via NET/Socket/1/Shared
+x3006c0s1b1n0:2099253:2099456 [3] NCCL INFO Channel 01/1 : 1[3] -> 0[3] [send] via NET/Socket/1/Shared
+x3006c0s1b0n0:635329:635484 [3] NCCL INFO Channel 00/1 : 1[3] -> 0[3] [receive] via NET/Socket/1/Shared
+x3006c0s1b0n0:635329:635484 [3] NCCL INFO Channel 01/1 : 1[3] -> 0[3] [receive] via NET/Socket/1/Shared
+x3006c0s1b0n0:635328:635464 [2] NCCL INFO comm 0x564ec5cacb60 rank 0 nranks 2 cudaDev 2 nvmlDev 2 busId 85000 commId 0x463996f385b22385 - Init COMPLETE
+x3006c0s1b1n0:2099252:2099437 [2] NCCL INFO comm 0x55bbb3a3aa30 rank 1 nranks 2 cudaDev 2 nvmlDev 2 busId 85000 commId 0x463996f385b22385 - Init COMPLETE
+x3006c0s1b1n0:2099250:2099440 [0] NCCL INFO comm 0x55aaf24dfec0 rank 1 nranks 2 cudaDev 0 nvmlDev 0 busId 7000 commId 0x131519c0f24700ba - Init COMPLETE
+x3006c0s1b0n0:635326:635468 [0] NCCL INFO comm 0x56251dff3f90 rank 0 nranks 2 cudaDev 0 nvmlDev 0 busId 7000 commId 0x131519c0f24700ba - Init COMPLETE
+x3006c0s1b0n0:635328:635486 [2] NCCL INFO Channel 02/1 : 1[2] -> 0[2] [receive] via NET/Socket/1/Shared
+x3006c0s1b0n0:635328:635486 [2] NCCL INFO Channel 03/1 : 1[2] -> 0[2] [receive] via NET/Socket/2/Shared
+x3006c0s1b1n0:2099252:2099458 [2] NCCL INFO Channel 02/1 : 1[2] -> 0[2] [send] via NET/Socket/1/Shared
+x3006c0s1b1n0:2099252:2099458 [2] NCCL INFO Channel 03/1 : 1[2] -> 0[2] [send] via NET/Socket/2/Shared
+x3006c0s1b0n0:635326:635488 [0] NCCL INFO Channel 02/1 : 1[0] -> 0[0] [receive] via NET/Socket/1/Shared
+x3006c0s1b0n0:635326:635488 [0] NCCL INFO Channel 03/1 : 1[0] -> 0[0] [receive] via NET/Socket/2/Shared
+x3006c0s1b1n0:2099250:2099460 [0] NCCL INFO Channel 02/1 : 1[0] -> 0[0] [send] via NET/Socket/1/Shared
+x3006c0s1b1n0:2099250:2099460 [0] NCCL INFO Channel 03/1 : 1[0] -> 0[0] [send] via NET/Socket/2/Shared
+[2025-08-20 18:52:39,681][DL_COMM][OUTPUT] - 
+[2025-08-20 18:52:39,681][DL_COMM][OUTPUT] - [TIMERS] ---------------------------------------------------------
+[2025-08-20 18:52:39,681][DL_COMM][OUTPUT] - 
+[2025-08-20 18:52:39,681][DL_COMM][INFO] -   [TIMERS] [BARRIER ENABLED] Timing measurements used MPI barriers for synchronization
+[2025-08-20 18:52:39,681][DL_COMM][OUTPUT] - 
+[2025-08-20 18:52:39,681][DL_COMM][OUTPUT] - [TIMERS] ITERATION TABLE FOR ALLGATHER (seconds):
+[2025-08-20 18:52:39,681][DL_COMM][OUTPUT] - Iteration     (Across-Group-0)    (Across-Group-1)    (Across-Group-2)    (Across-Group-3)  
+[2025-08-20 18:52:39,681][DL_COMM][OUTPUT] -               LOGGING RANK - 0    LOGGING RANK - 1    LOGGING RANK - 2    LOGGING RANK - 3  
+[2025-08-20 18:52:39,681][DL_COMM][OUTPUT] - --------------------------------------------------------------------------------------------
+[2025-08-20 18:52:39,681][DL_COMM][OUTPUT] - 0                 0.000587            0.000745            0.000719            0.000486      
+[2025-08-20 18:52:39,681][DL_COMM][OUTPUT] - 1                 0.000319            0.000412            0.000341            0.000328      
+[2025-08-20 18:52:39,681][DL_COMM][OUTPUT] - 2                 0.000298            0.000339            0.000334            0.000319      
+[2025-08-20 18:52:39,682][DL_COMM][OUTPUT] - 3                 0.000301            0.000349            0.000303            0.000316      
+[2025-08-20 18:52:39,682][DL_COMM][OUTPUT] - 4                 0.000300            0.000310            0.000288            0.000312      
+[2025-08-20 18:52:39,682][DL_COMM][OUTPUT] - 5                 0.000299            0.000304            0.000304            0.000296      
+[2025-08-20 18:52:39,682][DL_COMM][OUTPUT] - 6                 0.000298            0.000291            0.000287            0.000297      
+[2025-08-20 18:52:39,682][DL_COMM][OUTPUT] - 7                 0.000336            0.000293            0.000300            0.000302      
+[2025-08-20 18:52:39,682][DL_COMM][OUTPUT] - 8                 0.000299            0.000294            0.000297            0.000292      
+[2025-08-20 18:52:39,682][DL_COMM][OUTPUT] - 9                 0.000300            0.000311            0.000298            0.000283      
+[2025-08-20 18:52:39,682][DL_COMM][OUTPUT] - --------------------------------------------------------------------------------------------
+[2025-08-20 18:52:39,682][DL_COMM][OUTPUT] - 
+[2025-08-20 18:52:39,682][DL_COMM][OUTPUT] - [TIMERS] ---------------------------------------------------------
+[2025-08-20 18:52:39,682][DL_COMM][OUTPUT] - 
+[2025-08-20 18:52:39,682][DL_COMM][OUTPUT] - [BANDWIDTH] -------------------------------------------
+[2025-08-20 18:52:39,683][DL_COMM][OUTPUT] - 
+[2025-08-20 18:52:39,683][DL_COMM][OUTPUT] - [BANDWIDTH] BANDWIDTH TABLE FOR ALLGATHER (bytes/seconds):
+[2025-08-20 18:52:39,683][DL_COMM][OUTPUT] - Iteration     (Across-Group-0)    (Across-Group-1)    (Across-Group-2)    (Across-Group-3)  
+[2025-08-20 18:52:39,683][DL_COMM][OUTPUT] -               LOGGING RANK - 0    LOGGING RANK - 1    LOGGING RANK - 2    LOGGING RANK - 3  
+[2025-08-20 18:52:39,683][DL_COMM][OUTPUT] - --------------------------------------------------------------------------------------------
+[2025-08-20 18:52:39,683][DL_COMM][OUTPUT] - 0                 6974970             5495920             5693931             8426377       
+[2025-08-20 18:52:39,683][DL_COMM][OUTPUT] - 1                 12843787            9941885             11997966            12470820      
+[2025-08-20 18:52:39,683][DL_COMM][OUTPUT] - 2                 13726951            12073441            12254017            12859127      
+[2025-08-20 18:52:39,684][DL_COMM][OUTPUT] - 3                 13604534            11739551            13537908            12969705      
+[2025-08-20 18:52:39,684][DL_COMM][OUTPUT] - 4                 13671415            13195756            14236984            13145272      
+[2025-08-20 18:52:39,684][DL_COMM][OUTPUT] - 5                 13719137            13473644            13483454            13849302      
+[2025-08-20 18:52:39,684][DL_COMM][OUTPUT] - 6                 13731130            14057869            14295268            13772279      
+[2025-08-20 18:52:39,684][DL_COMM][OUTPUT] - 7                 12199141            13980471            13648145            13543285      
+[2025-08-20 18:52:39,684][DL_COMM][OUTPUT] - 8                 13690673            13932794            13801560            14050638      
+[2025-08-20 18:52:39,684][DL_COMM][OUTPUT] - 9                 13632260            13180886            13731601            14487250      
+[2025-08-20 18:52:39,684][DL_COMM][OUTPUT] - --------------------------------------------------------------------------------------------
+[2025-08-20 18:52:39,684][DL_COMM][OUTPUT] - 
+[2025-08-20 18:52:39,684][DL_COMM][OUTPUT] - [BANDWIDTH] -------------------------------------------
+[2025-08-20 18:52:39,684][DL_COMM][INFO] - -------------------------------------------------------------------------
+[2025-08-20 18:52:39,684][DL_COMM][INFO] - [MPI] Job complete
+[2025-08-20 18:52:39,684][DL_COMM][INFO] - -------------------------------------------------------------------------
+[2025-08-20 18:52:39,684][DL_COMM][INFO] - -------------------------------------------------------------------------
+[2025-08-20 18:52:39,684][DL_COMM][INFO] - [EXIT] All Done.
+[2025-08-20 18:52:39,684][DL_COMM][INFO] - -------------------------------------------------------------------------
+[2025-08-20 18:52:39,685][DL_COMM][INFO] - 
+[2025-08-20 18:52:39,685][DL_COMM][INFO] - ================================================================================
+[2025-08-20 18:52:39,685][DL_COMM][INFO] - [FINAL] All 2 tasks completed successfully!
+[2025-08-20 18:52:39,685][DL_COMM][INFO] - ================================================================================
+x3006c0s1b1n0:2099250:2099359 [0] NCCL INFO [Service thread] Connection closed by localRank 0
+x3006c0s1b0n0:635326:635439 [0] NCCL INFO [Service thread] Connection closed by localRank 0
+x3006c0s1b0n0:635326:635491 [0] NCCL INFO comm 0x56251722bd00 rank 0 nranks 4 cudaDev 0 busId 7000 - Abort COMPLETE
+x3006c0s1b0n0:635327:635442 [1] NCCL INFO [Service thread] Connection closed by localRank 1
+x3006c0s1b0n0:635329:635437 [3] NCCL INFO [Service thread] Connection closed by localRank 3
+x3006c0s1b0n0:635328:635438 [2] NCCL INFO [Service thread] Connection closed by localRank 2
+x3006c0s1b1n0:2099250:2099463 [0] NCCL INFO comm 0x55aaeb7b99a0 rank 0 nranks 4 cudaDev 0 busId 7000 - Abort COMPLETE
+x3006c0s1b0n0:635327:635490 [0] NCCL INFO comm 0x55fd51946620 rank 1 nranks 4 cudaDev 1 busId 46000 - Abort COMPLETE
+x3006c0s1b0n0:635329:635489 [0] NCCL INFO comm 0x5597a4f1f570 rank 3 nranks 4 cudaDev 3 busId c7000 - Abort COMPLETE
+x3006c0s1b0n0:635328:635492 [0] NCCL INFO comm 0x564ebef8c540 rank 2 nranks 4 cudaDev 2 busId 85000 - Abort COMPLETE
+x3006c0s1b0n0:635328:635471 [2] NCCL INFO [Service thread] Connection closed by localRank 0
+x3006c0s1b1n0:2099253:2099356 [3] NCCL INFO [Service thread] Connection closed by localRank 3
+x3006c0s1b1n0:2099251:2099357 [1] NCCL INFO [Service thread] Connection closed by localRank 1
+x3006c0s1b0n0:635329:635469 [3] NCCL INFO [Service thread] Connection closed by localRank 0
+x3006c0s1b1n0:2099252:2099360 [2] NCCL INFO [Service thread] Connection closed by localRank 2
+x3006c0s1b1n0:2099250:2099447 [0] NCCL INFO [Service thread] Connection closed by localRank 0
+x3006c0s1b1n0:2099253:2099461 [0] NCCL INFO comm 0x563a0dc74e10 rank 3 nranks 4 cudaDev 3 busId c7000 - Abort COMPLETE
+x3006c0s1b1n0:2099251:2099464 [0] NCCL INFO comm 0x560095b19010 rank 1 nranks 4 cudaDev 1 busId 46000 - Abort COMPLETE
+x3006c0s1b1n0:2099252:2099462 [0] NCCL INFO comm 0x55bbacd16f10 rank 2 nranks 4 cudaDev 2 busId 85000 - Abort COMPLETE
+x3006c0s1b0n0:635327:635473 [1] NCCL INFO [Service thread] Connection closed by localRank 0
+x3006c0s1b1n0:2099251:2099445 [1] NCCL INFO [Service thread] Connection closed by localRank 0
+x3006c0s1b0n0:635326:635475 [0] NCCL INFO [Service thread] Connection closed by localRank 0
+x3006c0s1b1n0:2099253:2099441 [3] NCCL INFO [Service thread] Connection closed by localRank 0
+x3006c0s1b1n0:2099252:2099443 [2] NCCL INFO [Service thread] Connection closed by localRank 0
+x3006c0s1b1n0:2099250:2099469 [0] NCCL INFO comm 0x55aaf24dfec0 rank 1 nranks 2 cudaDev 0 busId 7000 - Abort COMPLETE
+x3006c0s1b0n0:635327:635499 [0] NCCL INFO comm 0x55fd58669630 rank 0 nranks 2 cudaDev 1 busId 46000 - Abort COMPLETE
+x3006c0s1b0n0:635326:635497 [0] NCCL INFO comm 0x56251dff3f90 rank 0 nranks 2 cudaDev 0 busId 7000 - Abort COMPLETE
+x3006c0s1b0n0:635328:635503 [0] NCCL INFO comm 0x564ec5cacb60 rank 0 nranks 2 cudaDev 2 busId 85000 - Abort COMPLETE
+x3006c0s1b1n0:2099253:2099471 [0] NCCL INFO comm 0x563a14997db0 rank 1 nranks 2 cudaDev 3 busId c7000 - Abort COMPLETE
+x3006c0s1b0n0:635329:635501 [0] NCCL INFO comm 0x5597abc42d80 rank 0 nranks 2 cudaDev 3 busId c7000 - Abort COMPLETE
+x3006c0s1b1n0:2099252:2099475 [0] NCCL INFO comm 0x55bbb3a3aa30 rank 1 nranks 2 cudaDev 2 busId 85000 - Abort COMPLETE
+x3006c0s1b1n0:2099251:2099473 [0] NCCL INFO comm 0x56009c83c140 rank 1 nranks 2 cudaDev 1 busId 46000 - Abort COMPLETE

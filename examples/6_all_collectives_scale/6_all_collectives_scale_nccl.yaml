@@ -1,17 +1,17 @@
 framework        : pytorch
-ccl_backend      : ccl
+ccl_backend      : nccl
 extended_logging : off
 barrier          : on
 device_type      : gpu
-memory_source    : host
+memory_source    : gpu
 
-order_of_run: [allreduce-scale, allgather-scale, reducescatter-scale, broadcast-scale, reduce-scale, alltoall-scale, alltoallsingle-scale, gather-scale, scatter-scale, barrier-scale]
+order_of_run: [ allreduce-scale, allgather-scale, reducescatter-scale, broadcast-scale, reduce-scale, alltoall-scale, alltoallsingle-scale, gather-scale, scatter-scale, barrier-scale]
 
 allreduce-scale:
   comm_group: across_node
-  num_compute_nodes: 2
-  num_devices_per_node: 12
-  device_ids_per_node: [0,1,2,3,4,5,6,7,8,9,10,11]
+  num_compute_nodes: 1024
+  num_devices_per_node: 4
+  device_ids_per_node: [0,1,2,3]
   verify_correctness: on
   collective:
     collective_name: allreduce
@@ -28,9 +28,9 @@ allreduce-scale:
 
 allgather-scale:
   comm_group: across_node
-  num_compute_nodes: 2
-  num_devices_per_node: 12
-  device_ids_per_node: [0,1,2,3,4,5,6,7,8,9,10,11]
+  num_compute_nodes: 1024
+  num_devices_per_node: 4
+  device_ids_per_node: [0,1,2,3 ]
   verify_correctness: on
   collective:
     collective_name: allgather
@@ -47,9 +47,9 @@ allgather-scale:
 
 reducescatter-scale:
   comm_group: across_node
-  num_compute_nodes: 2
-  num_devices_per_node: 12
-  device_ids_per_node: [0,1,2,3,4,5,6,7,8,9,10,11]
+  num_compute_nodes: 1024
+  num_devices_per_node: 4
+  device_ids_per_node: [0,1,2,3 ]
   verify_correctness: on
   collective:
     collective_name: reducescatter
@@ -66,9 +66,9 @@ reducescatter-scale:
 
 broadcast-scale:
   comm_group: across_node
-  num_compute_nodes: 2
-  num_devices_per_node: 12
-  device_ids_per_node: [0,1,2,3,4,5,6,7,8,9,10,11]
+  num_compute_nodes: 1024
+  num_devices_per_node: 4
+  device_ids_per_node: [0,1,2,3 ]
   verify_correctness: on
   collective:
     collective_name: broadcast
@@ -85,9 +85,9 @@ broadcast-scale:
 
 reduce-scale:
   comm_group: across_node
-  num_compute_nodes: 2
-  num_devices_per_node: 12
-  device_ids_per_node: [0,1,2,3,4,5,6,7,8,9,10,11]
+  num_compute_nodes: 1024
+  num_devices_per_node: 4
+  device_ids_per_node: [0,1,2,3 ]
   verify_correctness: on
   collective:
     collective_name: reduce
@@ -104,9 +104,9 @@ reduce-scale:
 
 alltoall-scale:
   comm_group: across_node
-  num_compute_nodes: 2
-  num_devices_per_node: 12
-  device_ids_per_node: [0,1,2,3,4,5,6,7,8,9,10,11]
+  num_compute_nodes: 1024
+  num_devices_per_node: 4
+  device_ids_per_node: [0,1,2,3 ]
   verify_correctness: on
   collective:
     collective_name: alltoall
@@ -123,9 +123,9 @@ alltoall-scale:
 
 alltoallsingle-scale:
   comm_group: across_node
-  num_compute_nodes: 2
-  num_devices_per_node: 12
-  device_ids_per_node: [0,1,2,3,4,5,6,7,8,9,10,11]
+  num_compute_nodes: 1024
+  num_devices_per_node: 4
+  device_ids_per_node: [0,1,2,3 ]
   verify_correctness: on
   collective:
     collective_name: alltoallsingle
@@ -142,9 +142,9 @@ alltoallsingle-scale:
 
 gather-scale:
   comm_group: across_node
-  num_compute_nodes: 2
-  num_devices_per_node: 12
-  device_ids_per_node: [0,1,2,3,4,5,6,7,8,9,10,11]
+  num_compute_nodes: 1024
+  num_devices_per_node: 4
+  device_ids_per_node: [0,1,2,3 ]
   verify_correctness: on
   collective:
     collective_name: gather
@@ -161,9 +161,9 @@ gather-scale:
 
 scatter-scale:
   comm_group: across_node
-  num_compute_nodes: 2
-  num_devices_per_node: 12
-  device_ids_per_node: [0,1,2,3,4,5,6,7,8,9,10,11]
+  num_compute_nodes: 1024
+  num_devices_per_node: 4
+  device_ids_per_node: [0,1,2,3 ]
   verify_correctness: on
   collective:
     collective_name: scatter
@@ -180,9 +180,9 @@ scatter-scale:
 
 barrier-scale:
   comm_group: across_node
-  num_compute_nodes: 2
-  num_devices_per_node: 12
-  device_ids_per_node: [0,1,2,3,4,5,6,7,8,9,10,11]
+  num_compute_nodes: 1024
+  num_devices_per_node: 4
+  device_ids_per_node: [0,1,2,3 ]
   verify_correctness: on
   collective:
     collective_name: barrier
