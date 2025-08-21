@@ -20,69 +20,164 @@ pip install DLcomm
 
 ## YAML configuration file
 
-Workload characteristics for DL COMM are specified by a YAML configuration file. The main configuration file is located at `dl_comm/config/config.yaml`. A sample configuration file is also available in the `examples/config.yaml` for reference.
+Workload characteristics for DL COMM are specified by a YAML configuration file. Multiple example configurations are available in the `examples/` directory, organized in numbered folders (e.g., `examples/1_simple_flat/`, `examples/2_multimode/`). Each folder contains complete configuration files and corresponding job scripts.
 
 Below is an example configuration file
 
 ```yaml
-framework  : pytorch  # tensorflow / jax / titan / monarch
-ccl_backend : ccl   # rccl / nccl / xccl (Note: PyTorch 2.7+ users should use 'xccl' instead of 'ccl' for Intel oneCCL)
-ccl_debug   : on # on / off - enables CCL debug logging and algorithm selection reporting
-use_profiler: unitrace
-barrier     : on    # on / off - on: adds MPI barrier before timer printing for accurate timing, off: only rank 0 prints
+framework        : pytorch
+ccl_backend      : ccl   # rccl / nccl / xccl (Note: PyTorch 2.7+ users should use 'xccl' instead of 'ccl' for Intel oneCCL)
+extended_logging : off
+barrier          : on    # on / off - on: adds MPI barrier before timer printing for accurate timing, off: only rank 0 prints
+device_type      : gpu
+memory_source    : gpu
 
-comm_group:
-  mode: combined # within_node/across_node/combined/flatview -> Only one out of four should be used
-  
-  flatview:
-    num_compute_nodes: 2
-    num_gpus_per_node: 12
-    gpu_ids_per_node: [0,1,2,3,4,5,6,7,8,9,10,11]   
-    collective:
-      name: allgather   # allgather / reducescatter / broadcast
-      op: sum          # max / min / prod / sum
-      scale_up_algorithm: topo
-      scale_out_algorithm: ring        # rabinseifner 
-      iterations: 5
-      payload:
-        dtype: bfloat16  # float64 / int32 / int64 / bfloat16 / float8 / float32
-        count: 1024
-        buffer_size: 1KB # 4096  # in Bytes -> float32(4B) x 1024 elements
-    verify_correctness: on
+order_of_run: [simple-allreduce]
 
-  combined:
-    within_node: 
-      num_compute_nodes: 2
-      num_gpus_per_node: 12
-      gpu_ids_per_node: [0,1,2,3,4,5,6,7, 8, 9, 10, 11]   
-      collective:
-        name: allgather   # allgather / reducescatter / broadcast
-        op: sum          # max / min / prod / sum
-        scale_up_algorithm: ring
-        scale_out_algorithm: ring        # rabinseifner 
-        iterations: 2
-        payload:
-          dtype: bfloat16  # float64 / int32 / int64 / bfloat16 / float8 / float32
-          count: 1024
-          buffer_size: 1KB # 4096  # in Bytes -> float32(4B) x 1024 elements
-      verify_correctness: on
-
-    across_node: 
-      num_compute_nodes: 2
-      num_gpus_per_node: 3
-      gpu_ids_per_node: [0,1,3] 
-      collective:
-        name: alltoall   # allgather / reducescatter / broadcast
-        op: sum          # max / min / prod / sum
-        scale_up_algorithm: ring
-        scale_out_algorithm: ring        # rabinseifner 
-        iterations: 4
-        payload:
-          dtype: bfloat16  # float64 / int32 / int64 / bfloat16 / float8 / float32
-          count: 1024
-          buffer_size: 1KB # 4096  # in Bytes -> float32(4B) x 1024 elements
-      verify_correctness: on
+simple-allreduce:
+  comm_group: flatview
+  num_compute_nodes: 2
+  num_devices_per_node: 12
+  device_ids_per_node: [0,1,2,3,4,5,6,7,8,9,10,11]
+  verify_correctness: on
+  collective:
+    collective_name: allreduce  # allgather / reducescatter / broadcast / allreduce / alltoall
+    collective_op: sum          # max / min / prod / sum
+    scale_up_algorithm: default
+    scale_out_algorithm: default
+    iterations: 5
+    warmup_iterations: 2
+    add_mxm_compute: on
+    payload:
+      dtype: float32  # float64 / int32 / int64 / bfloat16 / float8 / float32
+      count: 
+      buffer_size: 100KB
 ```
+
+### Example 2: Multi-mode Communication
+
+The `examples/2_multimode/` directory demonstrates running multiple collective operations with different communication group modes in a single benchmark run. This example shows:
+
+- **Sequential Execution**: Two different collectives run in order
+- **Within-node**: AllGather operation across GPUs within the same node
+- **Across-node**: AllReduce operation across GPUs on different nodes
+- **Memory Source**: Host memory instead of GPU memory
+- **Buffer Size**: 512KB for both operations
+
+```yaml
+framework        : pytorch
+ccl_backend      : ccl
+extended_logging : off
+barrier          : on
+device_type      : gpu
+memory_source    : host
+
+order_of_run: [within-node-allgather, across-node-allreduce]
+
+within-node-allgather:
+  comm_group: within_node
+  num_compute_nodes: 2
+  num_devices_per_node: 12
+  device_ids_per_node: [0,1,2,3,4,5,6,7,8,9,10,11]
+  verify_correctness: on
+  collective:
+    collective_name: allgather
+    collective_op: sum
+    scale_up_algorithm: default
+    scale_out_algorithm: default
+    iterations: 5
+    warmup_iterations: 2
+    add_mxm_compute: on
+    payload:
+      dtype: float32
+      count: 
+      buffer_size: 512KB
+
+across-node-allreduce:
+  comm_group: across_node
+  num_compute_nodes: 2
+  num_devices_per_node: 12
+  device_ids_per_node: [0,1,2,3,4,5,6,7,8,9,10,11]
+  verify_correctness: on
+  collective:
+    collective_name: allreduce
+    collective_op: sum
+    scale_up_algorithm: default
+    scale_out_algorithm: default
+    iterations: 5
+    warmup_iterations: 2
+    add_mxm_compute: on
+    payload:
+      dtype: float32
+      count: 
+      buffer_size: 512KB
+```
+
+## RCCL and JAX Support
+
+### RCCL with PyTorch
+
+DLcomm supports AMD's ROCm Collective Communications Library (RCCL) for AMD GPU systems. The `examples/8_rccl_pytorch/` directory demonstrates comprehensive collective communication testing with RCCL backend.
+
+**Key Features:**
+- **All Collective Operations**: Tests 10 different collective operations (allreduce, allgather, reducescatter, broadcast, reduce, alltoall, alltoallsingle, gather, scatter, barrier)
+- **RCCL Backend**: Uses `ccl_backend: nccl` for RCCL integration with PyTorch
+- **AMD GPU Optimized**: Configured for AMD GPU systems with ROCm
+
+**Job Script Requirements:**
+```bash
+# Environment modules
+module load miniforge3/23.11.0-0
+module load cray-python
+module load rocm/6.2.4
+
+# Network configuration for AMD systems
+export NCCL_SOCKET_IFNAME=hsn0
+export MASTER_ADDR=$(ip -4 addr show dev hsn0 | awk '/inet/{print $2}' | cut -d/ -f1)
+
+# SLURM execution
+srun --ntasks=16 --export=ALL --cpu-bind=threads \
+  python3 -m dl_comm.dl_comm_main \
+  --config-path="$SCRIPT_DIR" \
+  --config-name=8_rccl_pytorch
+```
+
+### JAX Support (Experimental)
+
+DLcomm provides experimental support for JAX framework with limited collective operations. The `examples/9_rccl_jax/` directory demonstrates JAX integration.
+
+**Current Limitations:**
+- **Experimental Status**: JAX support is under active development
+- **Limited Collectives**: Only 2 collective operations currently supported (allreduce, allgather)
+- **Verification Disabled**: Correctness verification is turned off (`verify_correctness: off`)
+
+**JAX Configuration:**
+```yaml
+framework        : jax
+ccl_backend      : nccl
+barrier          : off
+order_of_run: [allreduce-jax, allgather-jax]
+```
+
+**JAX Job Script Requirements:**
+```bash
+# JAX-specific environment setup
+eval "$(/sw/frontier/miniforge3/23.11.0-0/bin/conda shell.bash hook)"
+conda activate jax_env-frontier
+
+# JAX platform configuration
+export JAX_PLATFORMS=rocm
+export COORDINATOR_ADDR=$(scontrol show hostname $SLURM_NODELIST | head -n1)
+export COORDINATOR_PORT=1234
+
+# SLURM execution with JAX-specific parameters
+srun --ntasks=16 --gpus-per-task=1 --cpus-per-task=1 --export=ALL \
+  python3 -m dl_comm.dl_comm_main \
+  --config-path="$SCRIPT_DIR" \
+  --config-name=9_rccl_jax
+```
+
+**Note**: JAX support is experimental and may have limitations compared to PyTorch. Only allreduce and allgather operations are currently implemented.
 
 ### Important Note for PyTorch Users
 
