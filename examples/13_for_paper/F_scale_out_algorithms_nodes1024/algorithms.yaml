@@ -1,0 +1,578 @@
+framework        : pytorch
+ccl_backend      : ccl
+extended_logging : off
+barrier          : on
+device_type      : gpu
+memory_source    : gpu
+
+order_of_run: [allgatherv-direct, allgatherv-naive, allgatherv-flat, allgatherv-multi_bcast, allgatherv-ring, allreduce-direct, allreduce-rabenseifner, allreduce-nreduce, allreduce-ring, allreduce-double_tree, allreduce-recursive_doubling, allreduce-2d, alltoall-direct, alltoall-naive, alltoall-scatter, alltoallv-direct, alltoallv-naive, alltoallv-scatter, barrier-direct, barrier-ring, bcast-direct, bcast-ring, bcast-double_tree, bcast-naive, reduce-direct, reduce-rabenseifner, reduce-tree, reduce-double_tree, reduce_scatter-direct, reduce_scatter-ring]
+
+allgatherv-direct:
+  comm_group: across_node
+  num_compute_nodes: 1024
+  num_devices_per_node: 4
+  device_ids_per_node: [0,1,2,3]
+  verify_correctness: on
+  collective:
+    collective_name: allgather
+    collective_op: sum
+    scale_up_algorithm: default
+    scale_out_algorithm: direct
+    iterations: 10
+    warmup_iterations: 0
+    add_mxm_compute: off
+    payload:
+      dtype: float32
+      count: 
+      buffer_size: 10MB
+
+allgatherv-naive:
+  comm_group: across_node
+  num_compute_nodes: 1024
+  num_devices_per_node: 4
+  device_ids_per_node: [0,1,2,3]
+  verify_correctness: on
+  collective:
+    collective_name: allgather
+    collective_op: sum
+    scale_up_algorithm: default
+    scale_out_algorithm: naive
+    iterations: 10
+    warmup_iterations: 0
+    add_mxm_compute: off
+    payload:
+      dtype: float32
+      count: 
+      buffer_size: 10MB
+
+allgatherv-flat:
+  comm_group: across_node
+  num_compute_nodes: 1024
+  num_devices_per_node: 4
+  device_ids_per_node: [0,1,2,3]
+  verify_correctness: on
+  collective:
+    collective_name: allgather
+    collective_op: sum
+    scale_up_algorithm: default
+    scale_out_algorithm: flat
+    iterations: 10
+    warmup_iterations: 0
+    add_mxm_compute: off
+    payload:
+      dtype: float32
+      count: 
+      buffer_size: 10MB
+
+allgatherv-multi_bcast:
+  comm_group: across_node
+  num_compute_nodes: 1024
+  num_devices_per_node: 4
+  device_ids_per_node: [0,1,2,3]
+  verify_correctness: on
+  collective:
+    collective_name: allgather
+    collective_op: sum
+    scale_up_algorithm: default
+    scale_out_algorithm: multi_bcast
+    iterations: 10
+    warmup_iterations: 0
+    add_mxm_compute: off
+    payload:
+      dtype: float32
+      count: 
+      buffer_size: 10MB
+
+allgatherv-ring:
+  comm_group: across_node
+  num_compute_nodes: 1024
+  num_devices_per_node: 4
+  device_ids_per_node: [0,1,2,3]
+  verify_correctness: on
+  collective:
+    collective_name: allgather
+    collective_op: sum
+    scale_up_algorithm: default
+    scale_out_algorithm: ring
+    iterations: 10
+    warmup_iterations: 0
+    add_mxm_compute: off
+    payload:
+      dtype: float32
+      count: 
+      buffer_size: 10MB
+
+allreduce-direct:
+  comm_group: across_node
+  num_compute_nodes: 1024
+  num_devices_per_node: 4
+  device_ids_per_node: [0,1,2,3]
+  verify_correctness: on
+  collective:
+    collective_name: allreduce
+    collective_op: sum
+    scale_up_algorithm: default
+    scale_out_algorithm: direct
+    iterations: 10
+    warmup_iterations: 0
+    add_mxm_compute: off
+    payload:
+      dtype: float32
+      count: 
+      buffer_size: 10MB
+
+allreduce-rabenseifner:
+  comm_group: across_node
+  num_compute_nodes: 1024
+  num_devices_per_node: 4
+  device_ids_per_node: [0,1,2,3]
+  verify_correctness: on
+  collective:
+    collective_name: allreduce
+    collective_op: sum
+    scale_up_algorithm: default
+    scale_out_algorithm: rabenseifner
+    iterations: 10
+    warmup_iterations: 0
+    add_mxm_compute: off
+    payload:
+      dtype: float32
+      count: 
+      buffer_size: 10MB
+
+allreduce-nreduce:
+  comm_group: across_node
+  num_compute_nodes: 1024
+  num_devices_per_node: 4
+  device_ids_per_node: [0,1,2,3]
+  verify_correctness: on
+  collective:
+    collective_name: allreduce
+    collective_op: sum
+    scale_up_algorithm: default
+    scale_out_algorithm: nreduce
+    iterations: 10
+    warmup_iterations: 0
+    add_mxm_compute: off
+    payload:
+      dtype: float32
+      count: 
+      buffer_size: 10MB
+
+allreduce-ring:
+  comm_group: across_node
+  num_compute_nodes: 1024
+  num_devices_per_node: 4
+  device_ids_per_node: [0,1,2,3]
+  verify_correctness: on
+  collective:
+    collective_name: allreduce
+    collective_op: sum
+    scale_up_algorithm: default
+    scale_out_algorithm: ring
+    iterations: 10
+    warmup_iterations: 0
+    add_mxm_compute: off
+    payload:
+      dtype: float32
+      count: 
+      buffer_size: 10MB
+
+allreduce-double_tree:
+  comm_group: across_node
+  num_compute_nodes: 1024
+  num_devices_per_node: 4
+  device_ids_per_node: [0,1,2,3]
+  verify_correctness: on
+  collective:
+    collective_name: allreduce
+    collective_op: sum
+    scale_up_algorithm: default
+    scale_out_algorithm: double_tree
+    iterations: 10
+    warmup_iterations: 0
+    add_mxm_compute: off
+    payload:
+      dtype: float32
+      count: 
+      buffer_size: 10MB
+
+allreduce-recursive_doubling:
+  comm_group: across_node
+  num_compute_nodes: 1024
+  num_devices_per_node: 4
+  device_ids_per_node: [0,1,2,3]
+  verify_correctness: on
+  collective:
+    collective_name: allreduce
+    collective_op: sum
+    scale_up_algorithm: default
+    scale_out_algorithm: recursive_doubling
+    iterations: 10
+    warmup_iterations: 0
+    add_mxm_compute: off
+    payload:
+      dtype: float32
+      count: 
+      buffer_size: 10MB
+
+allreduce-2d:
+  comm_group: across_node
+  num_compute_nodes: 1024
+  num_devices_per_node: 4
+  device_ids_per_node: [0,1,2,3]
+  verify_correctness: on
+  collective:
+    collective_name: allreduce
+    collective_op: sum
+    scale_up_algorithm: default
+    scale_out_algorithm: 2d
+    iterations: 10
+    warmup_iterations: 0
+    add_mxm_compute: off
+    payload:
+      dtype: float32
+      count: 
+      buffer_size: 10MB
+
+alltoall-direct:
+  comm_group: across_node
+  num_compute_nodes: 1024
+  num_devices_per_node: 4
+  device_ids_per_node: [0,1,2,3]
+  verify_correctness: on
+  collective:
+    collective_name: alltoall
+    collective_op: sum
+    scale_up_algorithm: default
+    scale_out_algorithm: direct
+    iterations: 10
+    warmup_iterations: 0
+    add_mxm_compute: off
+    payload:
+      dtype: float32
+      count: 
+      buffer_size: 10MB
+
+alltoall-naive:
+  comm_group: across_node
+  num_compute_nodes: 1024
+  num_devices_per_node: 4
+  device_ids_per_node: [0,1,2,3]
+  verify_correctness: on
+  collective:
+    collective_name: alltoall
+    collective_op: sum
+    scale_up_algorithm: default
+    scale_out_algorithm: naive
+    iterations: 10
+    warmup_iterations: 0
+    add_mxm_compute: off
+    payload:
+      dtype: float32
+      count: 
+      buffer_size: 10MB
+
+alltoall-scatter:
+  comm_group: across_node
+  num_compute_nodes: 1024
+  num_devices_per_node: 4
+  device_ids_per_node: [0,1,2,3]
+  verify_correctness: on
+  collective:
+    collective_name: alltoall
+    collective_op: sum
+    scale_up_algorithm: default
+    scale_out_algorithm: scatter
+    iterations: 10
+    warmup_iterations: 0
+    add_mxm_compute: off
+    payload:
+      dtype: float32
+      count: 
+      buffer_size: 10MB
+
+alltoallv-direct:
+  comm_group: across_node
+  num_compute_nodes: 1024
+  num_devices_per_node: 4
+  device_ids_per_node: [0,1,2,3]
+  verify_correctness: on
+  collective:
+    collective_name: alltoallsingle
+    collective_op: sum
+    scale_up_algorithm: default
+    scale_out_algorithm: direct
+    iterations: 10
+    warmup_iterations: 0
+    add_mxm_compute: off
+    payload:
+      dtype: float32
+      count: 
+      buffer_size: 10MB
+
+alltoallv-naive:
+  comm_group: across_node
+  num_compute_nodes: 1024
+  num_devices_per_node: 4
+  device_ids_per_node: [0,1,2,3]
+  verify_correctness: on
+  collective:
+    collective_name: alltoallsingle
+    collective_op: sum
+    scale_up_algorithm: default
+    scale_out_algorithm: naive
+    iterations: 10
+    warmup_iterations: 0
+    add_mxm_compute: off
+    payload:
+      dtype: float32
+      count: 
+      buffer_size: 10MB
+
+alltoallv-scatter:
+  comm_group: across_node
+  num_compute_nodes: 1024
+  num_devices_per_node: 4
+  device_ids_per_node: [0,1,2,3]
+  verify_correctness: on
+  collective:
+    collective_name: alltoallsingle
+    collective_op: sum
+    scale_up_algorithm: default
+    scale_out_algorithm: scatter
+    iterations: 10
+    warmup_iterations: 0
+    add_mxm_compute: off
+    payload:
+      dtype: float32
+      count: 
+      buffer_size: 10MB
+
+barrier-direct:
+  comm_group: across_node
+  num_compute_nodes: 1024
+  num_devices_per_node: 4
+  device_ids_per_node: [0,1,2,3]
+  verify_correctness: on
+  collective:
+    collective_name: barrier
+    collective_op: sum
+    scale_up_algorithm: default
+    scale_out_algorithm: direct
+    iterations: 10
+    warmup_iterations: 0
+    add_mxm_compute: off
+    payload:
+      dtype: float32
+      count: 
+      buffer_size: 10MB
+
+barrier-ring:
+  comm_group: across_node
+  num_compute_nodes: 1024
+  num_devices_per_node: 4
+  device_ids_per_node: [0,1,2,3]
+  verify_correctness: on
+  collective:
+    collective_name: barrier
+    collective_op: sum
+    scale_up_algorithm: default
+    scale_out_algorithm: ring
+    iterations: 10
+    warmup_iterations: 0
+    add_mxm_compute: off
+    payload:
+      dtype: float32
+      count: 
+      buffer_size: 10MB
+
+bcast-direct:
+  comm_group: across_node
+  num_compute_nodes: 1024
+  num_devices_per_node: 4
+  device_ids_per_node: [0,1,2,3]
+  verify_correctness: on
+  collective:
+    collective_name: broadcast
+    collective_op: sum
+    scale_up_algorithm: default
+    scale_out_algorithm: direct
+    iterations: 10
+    warmup_iterations: 0
+    add_mxm_compute: off
+    payload:
+      dtype: float32
+      count: 
+      buffer_size: 10MB
+
+bcast-ring:
+  comm_group: across_node
+  num_compute_nodes: 1024
+  num_devices_per_node: 4
+  device_ids_per_node: [0,1,2,3]
+  verify_correctness: on
+  collective:
+    collective_name: broadcast
+    collective_op: sum
+    scale_up_algorithm: default
+    scale_out_algorithm: ring
+    iterations: 10
+    warmup_iterations: 0
+    add_mxm_compute: off
+    payload:
+      dtype: float32
+      count: 
+      buffer_size: 10MB
+
+bcast-double_tree:
+  comm_group: across_node
+  num_compute_nodes: 1024
+  num_devices_per_node: 4
+  device_ids_per_node: [0,1,2,3]
+  verify_correctness: on
+  collective:
+    collective_name: broadcast
+    collective_op: sum
+    scale_up_algorithm: default
+    scale_out_algorithm: double_tree
+    iterations: 10
+    warmup_iterations: 0
+    add_mxm_compute: off
+    payload:
+      dtype: float32
+      count: 
+      buffer_size: 10MB
+
+bcast-naive:
+  comm_group: across_node
+  num_compute_nodes: 1024
+  num_devices_per_node: 4
+  device_ids_per_node: [0,1,2,3]
+  verify_correctness: on
+  collective:
+    collective_name: broadcast
+    collective_op: sum
+    scale_up_algorithm: default
+    scale_out_algorithm: naive
+    iterations: 10
+    warmup_iterations: 0
+    add_mxm_compute: off
+    payload:
+      dtype: float32
+      count: 
+      buffer_size: 10MB
+
+reduce-direct:
+  comm_group: across_node
+  num_compute_nodes: 1024
+  num_devices_per_node: 4
+  device_ids_per_node: [0,1,2,3]
+  verify_correctness: on
+  collective:
+    collective_name: reduce
+    collective_op: sum
+    scale_up_algorithm: default
+    scale_out_algorithm: direct
+    iterations: 10
+    warmup_iterations: 0
+    add_mxm_compute: off
+    payload:
+      dtype: float32
+      count: 
+      buffer_size: 10MB
+
+reduce-rabenseifner:
+  comm_group: across_node
+  num_compute_nodes: 1024
+  num_devices_per_node: 4
+  device_ids_per_node: [0,1,2,3]
+  verify_correctness: on
+  collective:
+    collective_name: reduce
+    collective_op: sum
+    scale_up_algorithm: default
+    scale_out_algorithm: rabenseifner
+    iterations: 10
+    warmup_iterations: 0
+    add_mxm_compute: off
+    payload:
+      dtype: float32
+      count: 
+      buffer_size: 10MB
+
+reduce-tree:
+  comm_group: across_node
+  num_compute_nodes: 1024
+  num_devices_per_node: 4
+  device_ids_per_node: [0,1,2,3]
+  verify_correctness: on
+  collective:
+    collective_name: reduce
+    collective_op: sum
+    scale_up_algorithm: default
+    scale_out_algorithm: tree
+    iterations: 10
+    warmup_iterations: 0
+    add_mxm_compute: off
+    payload:
+      dtype: float32
+      count: 
+      buffer_size: 10MB
+
+reduce-double_tree:
+  comm_group: across_node
+  num_compute_nodes: 1024
+  num_devices_per_node: 4
+  device_ids_per_node: [0,1,2,3]
+  verify_correctness: on
+  collective:
+    collective_name: reduce
+    collective_op: sum
+    scale_up_algorithm: default
+    scale_out_algorithm: double_tree
+    iterations: 10
+    warmup_iterations: 0
+    add_mxm_compute: off
+    payload:
+      dtype: float32
+      count: 
+      buffer_size: 10MB
+
+reduce_scatter-direct:
+  comm_group: across_node
+  num_compute_nodes: 1024
+  num_devices_per_node: 4
+  device_ids_per_node: [0,1,2,3]
+  verify_correctness: on
+  collective:
+    collective_name: reducescatter
+    collective_op: sum
+    scale_up_algorithm: default
+    scale_out_algorithm: direct
+    iterations: 10
+    warmup_iterations: 0
+    add_mxm_compute: off
+    payload:
+      dtype: float32
+      count: 
+      buffer_size: 10MB
+
+reduce_scatter-ring:
+  comm_group: across_node
+  num_compute_nodes: 1024
+  num_devices_per_node: 4
+  device_ids_per_node: [0,1,2,3]
+  verify_correctness: on
+  collective:
+    collective_name: reducescatter
+    collective_op: sum
+    scale_up_algorithm: default
+    scale_out_algorithm: ring
+    iterations: 10
+    warmup_iterations: 0
+    add_mxm_compute: off
+    payload:
+      dtype: float32
+      count: 
+      buffer_size: 10MB

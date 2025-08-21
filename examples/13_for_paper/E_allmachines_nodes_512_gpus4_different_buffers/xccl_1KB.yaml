@@ -1,0 +1,198 @@
+framework        : pytorch
+ccl_backend      : ccl
+extended_logging : off
+barrier          : on
+device_type      : gpu
+memory_source    : gpu
+
+order_of_run: [ allreduce-scale, allgather-scale, reducescatter-scale, broadcast-scale, reduce-scale, alltoall-scale, alltoallsingle-scale, gather-scale, scatter-scale, barrier-scale]
+
+allreduce-scale:
+  comm_group: across_node
+  num_compute_nodes: 512
+  num_devices_per_node: 4
+  device_ids_per_node: [0,1,2,3]
+  verify_correctness: on
+  collective:
+    collective_name: allreduce
+    collective_op: sum
+    scale_up_algorithm: default
+    scale_out_algorithm: default
+    iterations: 10
+    warmup_iterations: 0
+    add_mxm_compute: off
+    payload:
+      dtype: float32
+      count: 
+      buffer_size: 1KB
+
+allgather-scale:
+  comm_group: across_node
+  num_compute_nodes: 512
+  num_devices_per_node: 4
+  device_ids_per_node: [0,1,2,3]
+  verify_correctness: on
+  collective:
+    collective_name: allgather
+    collective_op: sum
+    scale_up_algorithm: default
+    scale_out_algorithm: default
+    iterations: 10
+    warmup_iterations: 0
+    add_mxm_compute: off
+    payload:
+      dtype: float32
+      count: 
+      buffer_size: 1KB
+
+reducescatter-scale:
+  comm_group: across_node
+  num_compute_nodes: 512
+  num_devices_per_node: 4
+  device_ids_per_node: [0,1,2,3]
+  verify_correctness: on
+  collective:
+    collective_name: reducescatter
+    collective_op: sum
+    scale_up_algorithm: default
+    scale_out_algorithm: default
+    iterations: 10
+    warmup_iterations: 0
+    add_mxm_compute: off
+    payload:
+      dtype: float32
+      count: 
+      buffer_size: 1KB
+
+broadcast-scale:
+  comm_group: across_node
+  num_compute_nodes: 512
+  num_devices_per_node: 4
+  device_ids_per_node: [0,1,2,3]
+  verify_correctness: on
+  collective:
+    collective_name: broadcast
+    collective_op: sum
+    scale_up_algorithm: default
+    scale_out_algorithm: default
+    iterations: 10
+    warmup_iterations: 0
+    add_mxm_compute: off
+    payload:
+      dtype: float32
+      count: 
+      buffer_size: 1KB
+
+reduce-scale:
+  comm_group: across_node
+  num_compute_nodes: 512
+  num_devices_per_node: 4
+  device_ids_per_node: [0,1,2,3]
+  verify_correctness: on
+  collective:
+    collective_name: reduce
+    collective_op: sum
+    scale_up_algorithm: default
+    scale_out_algorithm: default
+    iterations: 10
+    warmup_iterations: 0
+    add_mxm_compute: off
+    payload:
+      dtype: float32
+      count: 
+      buffer_size: 1KB
+
+alltoall-scale:
+  comm_group: across_node
+  num_compute_nodes: 512
+  num_devices_per_node: 4
+  device_ids_per_node: [0,1,2,3]
+  verify_correctness: on
+  collective:
+    collective_name: alltoall
+    collective_op: sum
+    scale_up_algorithm: default
+    scale_out_algorithm: default
+    iterations: 10
+    warmup_iterations: 0
+    add_mxm_compute: off
+    payload:
+      dtype: float32
+      count: 
+      buffer_size: 1KB
+
+alltoallsingle-scale:
+  comm_group: across_node
+  num_compute_nodes: 512
+  num_devices_per_node: 4
+  device_ids_per_node: [0,1,2,3]
+  verify_correctness: on
+  collective:
+    collective_name: alltoallsingle
+    collective_op: sum
+    scale_up_algorithm: default
+    scale_out_algorithm: default
+    iterations: 10
+    warmup_iterations: 0
+    add_mxm_compute: off
+    payload:
+      dtype: float32
+      count: 
+      buffer_size: 1KB
+
+gather-scale:
+  comm_group: across_node
+  num_compute_nodes: 512
+  num_devices_per_node: 4
+  device_ids_per_node: [0,1,2,3]
+  verify_correctness: on
+  collective:
+    collective_name: gather
+    collective_op: sum
+    scale_up_algorithm: default
+    scale_out_algorithm: default
+    iterations: 10
+    warmup_iterations: 0
+    add_mxm_compute: off
+    payload:
+      dtype: float32
+      count: 
+      buffer_size: 1KB
+
+scatter-scale:
+  comm_group: across_node
+  num_compute_nodes: 512
+  num_devices_per_node: 4
+  device_ids_per_node: [0,1,2,3]
+  verify_correctness: on
+  collective:
+    collective_name: scatter
+    collective_op: sum
+    scale_up_algorithm: default
+    scale_out_algorithm: default
+    iterations: 10
+    warmup_iterations: 0
+    add_mxm_compute: off
+    payload:
+      dtype: float32
+      count: 
+      buffer_size: 1KB
+
+barrier-scale:
+  comm_group: across_node
+  num_compute_nodes: 512
+  num_devices_per_node: 4
+  device_ids_per_node: [0,1,2,3]
+  verify_correctness: on
+  collective:
+    collective_name: barrier
+    collective_op: sum
+    scale_up_algorithm: default
+    scale_out_algorithm: default
+    iterations: 10
+    warmup_iterations: 0
+    add_mxm_compute: off
+    payload:
+      dtype: float32
+      count: 
+      buffer_size: 1KB
