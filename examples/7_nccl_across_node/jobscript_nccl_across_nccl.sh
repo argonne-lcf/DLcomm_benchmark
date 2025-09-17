@@ -49,6 +49,8 @@ RUN_TIMESTAMP=$(date '+%Y%m%d_%H%M%S')
 RUN_LOG_DIR="$SCRIPT_DIR/logs/run_${RUN_TIMESTAMP}"
 mkdir -p "$RUN_LOG_DIR"
 
+export RUN_LOG_DIR=${RUN_LOG_DIR}
+
 export TERMINAL_LOG_FILE="$RUN_LOG_DIR/terminal_output.log"
 export DL_COMM_LOG_DIR="$RUN_LOG_DIR"
 

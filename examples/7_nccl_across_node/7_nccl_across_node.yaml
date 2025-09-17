@@ -3,7 +3,7 @@ ccl_backend      : nccl
 extended_logging : off
 barrier          : on
 device_type      : gpu
-memory           : host
+memory_source    : host
 
 order_of_run: [allreduce-across, allgather-across, reducescatter-across, broadcast-across, reduce-across, alltoall-across, alltoallsingle-across, gather-across, scatter-across, barrier-across]
 
