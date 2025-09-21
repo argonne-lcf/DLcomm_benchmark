@@ -448,7 +448,7 @@ def main(cfg: DictConfig):
                     mxm_size=1024
                     mxm_metrics_local = None
                     with timer(f"MxM Compute Time, m={mxm_size}"):
-                        mxm_metrics_local = dummy_mxm_compute(device, _dtype, size=mxm_size, framework=framework, mpi_rank=mpi_rank, log=log)
+                        mxm_metrics_local = dummy_mxm_compute(device, _dtype, size=mxm_size, framework=framework)
                     
                     all_mxm_metrics = MPI.COMM_WORLD.gather(mxm_metrics_local, root=0)
                     

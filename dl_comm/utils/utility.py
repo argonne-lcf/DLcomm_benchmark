@@ -1,4 +1,3 @@
- 
 import os
 import logging
 from datetime import datetime
@@ -120,12 +119,10 @@ def utcnow(format=LOG_TS_FORMAT):
     return datetime.now().strftime(format)
 
 
-def dummy_mxm_compute(device, dtype=None, size=None, framework="pytorch", mpi_rank=None, log=None):
+def dummy_mxm_compute(device, dtype=None, size=None, framework="pytorch"):
     if framework == 'pytorch':
         import torch
         import time
-        
-        dtype = torch.float32
         
         if device.type == 'cuda':
             device_name = torch.cuda.get_device_name(device.index)
@@ -139,12 +136,6 @@ def dummy_mxm_compute(device, dtype=None, size=None, framework="pytorch", mpi_ra
         
         A = torch.randn(size, size, dtype=dtype, device=device)
         B = torch.randn(size, size, dtype=dtype, device=device)
-        
-        _ = torch.matmul(A, B)
-        if device.type == 'cuda':
-            torch.cuda.synchronize()
-        elif device.type == 'xpu':
-            torch.xpu.synchronize()
         
         start_time = time.perf_counter()
         C = torch.matmul(A, B)
