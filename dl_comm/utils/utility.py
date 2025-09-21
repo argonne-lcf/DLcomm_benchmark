@@ -120,21 +120,55 @@ def utcnow(format=LOG_TS_FORMAT):
     return datetime.now().strftime(format)
 
 
-def dummy_mxm_compute(device, dtype=None, size=None, framework="pytorch"):
+def dummy_mxm_compute(device, dtype=None, size=None, framework="pytorch", mpi_rank=None, log=None):
     if framework == 'pytorch':
         import torch
+        import time
         
         dtype = torch.float32
         
+        if device.type == 'cuda':
+            device_name = torch.cuda.get_device_name(device.index)
+            device_id = device.index
+        elif device.type == 'xpu':
+            device_name = f"XPU Device {device.index}"
+            device_id = device.index
+        else:
+            device_name = "CPU"
+            device_id = 0
+        
         A = torch.randn(size, size, dtype=dtype, device=device)
         B = torch.randn(size, size, dtype=dtype, device=device)
-        C = torch.matmul(A, B)
         
+        _ = torch.matmul(A, B)
         if device.type == 'cuda':
             torch.cuda.synchronize()
         elif device.type == 'xpu':
             torch.xpu.synchronize()
         
+        start_time = time.perf_counter()
+        C = torch.matmul(A, B)
+        if device.type == 'cuda':
+            torch.cuda.synchronize()
+        elif device.type == 'xpu':
+            torch.xpu.synchronize()
+        end_time = time.perf_counter()
+        
+        time_ms = (end_time - start_time) * 1000
+        total_flops = 2 * (size ** 3)
+        gflops = total_flops / 1e9
+        tflops_throughput = (total_flops / 1e12) / ((end_time - start_time))
+        
         del A, B, C
+        
+        return {
+            'time_ms': time_ms,
+            'gflops': gflops,
+            'tflops_throughput': tflops_throughput,
+            'size': size,
+            'device_name': device_name,
+            'device_id': device_id,
+            'device_type': device.type
+        }
     elif framework == 'jax':
-        pass
+        return None

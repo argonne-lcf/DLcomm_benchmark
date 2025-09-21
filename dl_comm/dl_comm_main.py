@@ -446,11 +446,46 @@ def main(cfg: DictConfig):
             if framework=="pytorch":
                 if add_mxm_compute:
                     mxm_size=1024
+                    mxm_metrics_local = None
                     with timer(f"MxM Compute Time, m={mxm_size}"):
-                        dummy_mxm_compute(device, _dtype, size=mxm_size, framework=framework) # defined in ./utils/utility.py)
+                        mxm_metrics_local = dummy_mxm_compute(device, _dtype, size=mxm_size, framework=framework, mpi_rank=mpi_rank, log=log)
+                    
+                    all_mxm_metrics = MPI.COMM_WORLD.gather(mxm_metrics_local, root=0)
+                    
                     if mpi_rank == 0:
                         log.output("")
-                        log.output(f"[MxM COMPUTE] Matrix multiplication compute completed.")
+                        log.output(f"[MxM COMPUTE] Benchmarking GEMM {mxm_size}x{mxm_size} · {mxm_size}x{mxm_size} ...")
+                        log.output("")
+                        
+                        total_time_ms = 0
+                        total_gflops = 0
+                        total_throughput = 0
+                        device_count = 0
+                        
+                        for rank, metrics in enumerate(all_mxm_metrics):
+                            if metrics:
+                                device_count += 1
+                                total_time_ms += metrics['time_ms']
+                                total_gflops += metrics['gflops']
+                                total_throughput += metrics['tflops_throughput']
+                                
+                                log.output(f"[GPU {metrics['device_id']}: {metrics['device_name']}]  "
+                                          f"size=({mxm_size}x{mxm_size})·({mxm_size}x{mxm_size})  "
+                                          f"time={metrics['time_ms']:.3f} ms  "
+                                          f"ops={metrics['gflops']:.2f} GFLOP  "
+                                          f"throughput={metrics['tflops_throughput']:.2f} TFLOP/s")
+                        
+                        if device_count > 1:
+                            avg_time = total_time_ms / device_count
+                            aggregate_throughput = total_gflops / (avg_time / 1000)
+                            
+                            log.output("")
+                            log.output("=== Node Summary (sequential benchmark run) ===")
+                            log.output(f"Total ops executed: {total_gflops:.2f} GFLOP")
+                            log.output(f"Aggregate time: {avg_time/1000:.3f} s")
+                            log.output(f"Aggregate throughput: {aggregate_throughput/1000:.2f} TFLOP/s")
+                            log.output(f"Sum of per-GPU throughputs: {total_throughput:.2f} TFLOP/s")
+                        
                         log.output("")
                 MPI.COMM_WORLD.Barrier()
             elif framework=="jax":
