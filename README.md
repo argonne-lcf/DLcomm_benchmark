@@ -6,9 +6,11 @@ The benchmark is provided as an executable that can be configured to test variou
 
 Unlike traditional communication benchmarks, DLComm is built with the philosophy of reflecting real-world communication performance of the application as accurately as possible. It captures the interplay between Python runtimes, AI frameworks, and collective communication libraries (CCL) to provide insights that are directly relevant to actual AI workloads.
 
-The below gif shows a simple model of how different collective communications are performed over a group of GPUs. Update the below gif with a note - x axis is num_gpus_per_node and y axis is num_compute_nodes. Each sqaure is a GPU on a compute node. Each blinking bright rectangles could represent different collectives executing in an order.
+The figure below illustrates a simple model of how DLComm can form different communication groups across GPUs on multiple compute nodes. It shows how GPUs can be selected within nodes, across nodes, or as a flat group, allowing users to explicitly specify which GPU IDs participate in each collective communication group.
 
-![Alt text](tools/dl_comm_logo.gif)
+<img src="tools/DLcomm_modes_readme.png" style="width: 95%;">
+<img src="tools/DLcomm_logo.gif" style="width: 25%;">
+
 
 ## Installation and running DLCOMM
 
