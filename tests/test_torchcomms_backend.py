@@ -6,7 +6,9 @@ point is caught in CPU CI rather than 20 minutes into an Aurora queue.
 """
 
 import inspect
+import os
 import re
+import types
 from pathlib import Path
 
 import pytest
@@ -179,3 +181,128 @@ def test_recv_without_src_is_rejected():
     assert "src" in str(e.value)
     with pytest.raises(ValueError):
         d.irecv(tensor=object(), src=None)
+
+# ---------------------------------------------------------------------------
+# new_group semantics: non-members, and transports without split.
+# Job 8824653 died on "XCCL split is not supported now and will be added
+# later", so the fallback path is exercised with a fake comm that raises the
+# exact upstream message.
+# ---------------------------------------------------------------------------
+
+
+class _FakeComm:
+    """Minimal stand-in for torchcomms.TorchComm."""
+
+    def __init__(self, rank=0, size=4, split_error=None):
+        self._rank, self._size = rank, size
+        self._split_error = split_error
+        self.split_calls = []
+
+    def get_rank(self):
+        return self._rank
+
+    def get_size(self):
+        return self._size
+
+    def split(self, ranks, name, hints=None, timeout=None):
+        self.split_calls.append((tuple(ranks), name))
+        if self._split_error:
+            raise RuntimeError(self._split_error)
+        return _FakeComm(rank=list(ranks).index(self._rank), size=len(ranks))
+
+
+def test_non_member_never_calls_split():
+    """dist.new_group is collective over the parent; split throws for non-members."""
+    fake = _FakeComm(rank=3, size=4)
+    d = tcb.TorchCommsDist(fake)
+    grp = d.new_group(ranks=[0, 1])
+    assert fake.split_calls == [], "split must not be called by a non-member"
+    assert grp is not None
+    assert list(grp.ranks) == [0, 1]
+
+
+def test_member_uses_native_split_when_available():
+    fake = _FakeComm(rank=1, size=4)
+    d = tcb.TorchCommsDist(fake)
+    d.new_group(ranks=[0, 1])
+    assert fake.split_calls, "member should use native split"
+
+
+def test_empty_rank_list_returns_none():
+    d = tcb.TorchCommsDist(_FakeComm())
+    assert d.new_group(ranks=[]) is None
+
+
+def test_group_creation_is_cached():
+    fake = _FakeComm(rank=0, size=4)
+    d = tcb.TorchCommsDist(fake)
+    a = d.new_group(ranks=[0, 1])
+    b = d.new_group(ranks=[1, 0])   # same set, different order
+    assert a is b, "identical member sets must reuse one communicator"
+    assert len(fake.split_calls) == 1
+
+
+def test_unrelated_split_error_is_not_swallowed():
+    """Only the documented 'not supported' case may trigger the fallback."""
+    fake = _FakeComm(rank=0, size=4, split_error="network unreachable")
+    d = tcb.TorchCommsDist(fake)
+    with pytest.raises(RuntimeError, match="network unreachable"):
+        d.new_group(ranks=[0, 1])
+
+
+def test_xccl_split_unsupported_triggers_new_comm_fallback(monkeypatch):
+    """The exact XCCL message from job 8824653 must route to new_comm."""
+    fake = _FakeComm(rank=0, size=4,
+                     split_error="XCCL split is not supported now and will be added later")
+    d = tcb.TorchCommsDist(fake, backend="xccl", device="xpu:0")
+
+    captured = {}
+
+    def _fake_new_comm_for(key, label):
+        captured["key"] = key
+        captured["rank_env"] = os.environ.get("RANK")
+        return _FakeComm(rank=0, size=len(key))
+
+    monkeypatch.setattr(d, "_new_comm_for", _fake_new_comm_for)
+    grp = d.new_group(ranks=[0, 1])
+    assert captured["key"] == (0, 1), "fallback did not receive the member set"
+    assert grp is not None
+    assert d._split_unsupported, "the upstream limitation should be recorded"
+
+
+def test_fallback_restores_rank_env_vars(monkeypatch):
+    """new_comm reads RANK/WORLD_SIZE from env; they must be put back."""
+    monkeypatch.setenv("RANK", "7")
+    monkeypatch.setenv("WORLD_SIZE", "24")
+    monkeypatch.setenv("MASTER_ADDR", "127.0.0.1")
+    monkeypatch.setenv("MASTER_PORT", "29500")
+
+    fake = _FakeComm(rank=7, size=24,
+                     split_error="XCCL split is not supported now and will be added later")
+    d = tcb.TorchCommsDist(fake, backend="xccl", device="cpu")
+
+    seen = {}
+
+    class _Store:
+        def __init__(self, *a, **k):
+            pass
+
+    def _fake_new_comm(backend, device, name, store=None, **kw):
+        seen["rank"] = os.environ["RANK"]
+        seen["world"] = os.environ["WORLD_SIZE"]
+        return _FakeComm(rank=0, size=2)
+
+    fake_tc = types.SimpleNamespace(new_comm=_fake_new_comm)
+    monkeypatch.setattr(tcb, "_require", lambda: fake_tc)
+    monkeypatch.setattr(tcb, "_tc", fake_tc, raising=False)
+    d._root_store = _Store()
+    monkeypatch.setattr("torch.distributed.PrefixStore", _Store, raising=False)
+
+    d.new_group(ranks=[6, 7])
+
+    # inside the call: member-local values
+    assert seen["rank"] == "1", "rank should be member-local index of 7 in [6,7]"
+    assert seen["world"] == "2"
+    # after the call: globals restored
+    assert os.environ["RANK"] == "7"
+    assert os.environ["WORLD_SIZE"] == "24"

@@ -127,10 +127,26 @@ Restored: `10 passed`. Full suite: **159 passed**.
 
 ## Status
 
-The adapter is complete and unit-tested on CPU. It has **not yet been executed
-on Aurora hardware** — that requires a job with `ccl_backend: torchcomms`. Until
-that run produces a correctness verdict, torchcomms support is implemented but
-unproven.
+The adapter is complete and unit-tested on CPU (187 tests). On Aurora it has
+been executed and **blocked by an upstream gap**: the torchcomms XCCL backend
+implements only `all_reduce`; the other thirteen operations DLcomm needs raise
+`XCCL <op> is not supported now and will be added later`. See
+`19-xccl-torchcomms-capability.md` for the measured support matrix (job
+`8824688`).
+
+The adapter itself reached group creation, built both 12-rank within-node
+subcommunicators, and entered the timing loop, so the bootstrap, group, and
+dispatch paths are hardware-validated. No correctness verdict is available,
+and none can be until the XCCL operations land upstream.
+
+Three hardware defects in the adapter were found and fixed along the way:
+
+| Job | Failure | Fix |
+|---|---|---|
+| `8824643` | `new_group()` rejected `use_local_synchronization` | accept and ignore torch.distributed-only kwargs |
+| — | `barrier()` rejected `device_ids` (caught by the improved test, pre-queue) | same |
+| `8824653` | `XCCL split is not supported` | build subcommunicators via `new_comm` + `PrefixStore` |
+| `8824653` | `split` throws for non-members; `dist.new_group` is collective over the parent | sentinel group for non-members |
 
 ## Usage
 

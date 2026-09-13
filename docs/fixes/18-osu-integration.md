@@ -100,6 +100,40 @@ Hardware verification via `run_osu.sh`: discovery against `/soft/tools/osu`, a
 real `mpiexec -n 2 osu_latency` run, parsing its output, and a comparison
 against job `8824624`'s measured `sendrecv` figure of 7.196e+09 B/s.
 
+## Hardware verification (job `8824688`)
+
+Discovery, execution, parsing, and comparison all confirmed on Aurora:
+
+```
+osu_latency:   /soft/tools/osu/osu_latency        <- found
+osu_bw:        NOT FOUND. Searched: ['/soft/tools/osu', '$PATH']
+osu_allreduce: NOT FOUND. Searched: ['/soft/tools/osu', '$PATH']
+```
+
+**The site install ships only four pt2pt binaries** — `osu_latency`,
+`osu_latency_mp`, `osu_mbw_mr`, `osu_multi_lat`. No `osu_bw`, and no
+collectives. The equivalence map above describes OSU the project, not what is
+installed at `/soft/tools/osu`, so `build_from_tarball()` is the required path
+for every collective comparison rather than a fallback.
+
+This is exactly the case the "raise, never return None" rule exists for: the
+missing benchmark produced an error naming all searched paths and the
+`DLCOMM_OSU_DIR` override, instead of a silent zero that would have rendered
+as a plausible `0.00x` ratio.
+
+First measured comparison, DLcomm XCCL against MPI:
+
+```
+collective            bytes   dlcomm B/s      osu B/s    ratio  status
+sendrecv            4194304    7.196e+09    2.315e+10    0.31x  ok
+```
+
+**This ratio is not yet apples-to-apples.** OSU ran 2 ranks across 2 nodes;
+the DLcomm figure is a 12-rank within-node median from job `8824624`. It
+demonstrates that the pipeline produces real numbers end to end, not that
+DLcomm achieves 31% of MPI. A matched-topology run is required before the
+ratio carries meaning.
+
 ## Usage
 
 ```python

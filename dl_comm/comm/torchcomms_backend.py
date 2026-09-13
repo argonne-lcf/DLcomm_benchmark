@@ -115,10 +115,17 @@ class TorchCommsDist:
     preferable to silently degrading to a different transport.
     """
 
-    def __init__(self, comm: Any, op_map: dict | None = None):
+    def __init__(self, comm: Any, op_map: dict | None = None,
+                 backend: str | None = None, device: Any = None):
         self._comm = comm
         self._splits: dict[tuple, Any] = {}
         self._op_map = op_map or {}
+        # Retained so new_group can rebuild a subcommunicator via new_comm
+        # when the transport does not implement split (XCCL, job 8824653).
+        self._backend = backend
+        self._device = device
+        self._root_store = None
+        self._split_unsupported: str | None = None
 
     # -- communicator plumbing ------------------------------------------
     @property
@@ -176,15 +183,94 @@ class TorchCommsDist:
         and callers such as ``comm_setup.setup_communication_groups`` pass
         ``use_local_synchronization=True`` unconditionally. Rejecting them
         crashed job 8824643 on all 24 ranks at group-creation time.
+
+        Two semantic gaps with torch.distributed are handled here:
+
+        1. ``dist.new_group`` is collective over the *parent* group -- every
+           rank calls it for every subgroup, including ones it is not in.
+           torchcomms' ``split`` throws if the calling rank is absent from
+           ``ranks``. Non-members therefore get a sentinel and never enter
+           the native call.
+        2. XCCL raises "split is not supported now and will be added later"
+           (job 8824653). When that happens the group is instead built with a
+           fresh ``new_comm`` over a PrefixStore scoped to the member set,
+           with RANK/WORLD_SIZE temporarily rewritten to the member-local
+           values that ``new_comm`` reads from the environment.
         """
         key = tuple(sorted(int(r) for r in ranks))
-        if key not in self._splits:
-            label = name or group_desc or (
-                "dlcomm_" + "_".join(str(r) for r in key))
+        if not key:
+            return None
+        if key in self._splits:
+            return self._splits[key]
+
+        label = name or group_desc or ("dlcomm_" + "_".join(str(r) for r in key))
+
+        # (1) Non-members must not call into torchcomms at all.
+        if self.get_rank() not in key:
+            grp = TorchCommsGroup(None, list(key))
+            self._splits[key] = grp
+            return grp
+
+        # (2) Preferred path: native split.
+        try:
             self._splits[key] = TorchCommsGroup(
                 self._comm.split(list(key), label), list(key)
             )
+            return self._splits[key]
+        except RuntimeError as exc:
+            if "split is not supported" not in str(exc).lower():
+                raise
+            self._split_unsupported = str(exc)
+
+        # (3) Fallback: build the subcommunicator directly.
+        self._splits[key] = TorchCommsGroup(
+            self._new_comm_for(key, label), list(key)
+        )
         return self._splits[key]
+
+    def _new_comm_for(self, key: tuple[int, ...], label: str):
+        """Build a subcommunicator via new_comm when split is unavailable.
+
+        ``new_comm`` reads RANK/WORLD_SIZE from the environment and rendezvouses
+        through a store. Giving each member set its own PrefixStore keyed by the
+        member list keeps concurrent group creations from colliding, and the
+        env vars are restored immediately afterwards so the global communicator
+        is unaffected.
+        """
+        import os
+
+        from torch.distributed import PrefixStore, TCPStore
+
+        tc = _require()
+        member_rank = key.index(self.get_rank())
+        prefix = "dlcomm_grp_" + "_".join(str(r) for r in key)
+
+        if self._root_store is None:
+            self._root_store = TCPStore(
+                host_name=os.environ["MASTER_ADDR"],
+                port=int(os.environ["MASTER_PORT"]) + 1,
+                world_size=None,
+                is_master=(self.get_rank() == 0),
+                wait_for_workers=False,
+            )
+        store = PrefixStore(prefix, self._root_store)
+
+        saved = {k: os.environ.get(k) for k in ("RANK", "WORLD_SIZE")}
+        os.environ["RANK"] = str(member_rank)
+        os.environ["WORLD_SIZE"] = str(len(key))
+        try:
+            return tc.new_comm(
+                backend=self._backend,
+                device=self._device,
+                name=f"{label}_{prefix}",
+                store=store,
+            )
+        finally:
+            for k, v in saved.items():
+                if v is None:
+                    os.environ.pop(k, None)
+                else:
+                    os.environ[k] = v
 
     # -- capability probes --------------------------------------------------
     def is_mpi_available(self) -> bool:
@@ -337,10 +423,13 @@ def build(device, device_type: str = "gpu", transport: str | None = None,
     kwargs = {}
     if timeout is not None:
         kwargs["timeout"] = timeout
+    resolved = resolve_transport(device_type, transport)
     comm = tc.new_comm(
-        resolve_transport(device_type, transport),
+        resolved,
         device,
         name,
         **kwargs,
     )
-    return TorchCommsDist(comm)
+    # backend/device are retained so new_group can fall back to new_comm on
+    # transports where split is unimplemented (XCCL).
+    return TorchCommsDist(comm, backend=resolved, device=device)
