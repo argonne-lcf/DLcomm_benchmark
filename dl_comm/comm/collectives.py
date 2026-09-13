@@ -197,12 +197,22 @@ def _scatter(tensor, op=None, group=None, dist=None,log=None,framework="pytorch"
             smallest_rank = min(group_ranks)
         world_size = dist.get_world_size(group)
         global_rank = dist.get_rank()
-        
+
         if global_rank == smallest_rank:
-            scatter_list = [tensor.clone() for _ in range(world_size)]
+            # Each destination must receive a DISTINCT buffer, otherwise a
+            # scatter that delivered the wrong slice (or delivered nothing)
+            # cannot be detected. See docs/fixes/01-rank-dependent-verification.md
+            from dl_comm.verify import scatter_source, choose_moduli
+            rank_mod, pos_mod = choose_moduli(tensor.dtype, world_size, None)
+            scatter_list = [
+                scatter_source(torch, tensor.numel(), tensor.dtype, i,
+                               world_size, rank_mod, pos_mod, device=tensor.device)
+                for i in range(world_size)
+            ]
             dist.scatter(tensor, scatter_list, src=smallest_rank, group=group)
         else:
             dist.scatter(tensor, None, src=smallest_rank, group=group)
+        return tensor
     elif framework == 'jax':
         pass
 

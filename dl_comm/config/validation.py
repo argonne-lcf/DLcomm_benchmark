@@ -344,16 +344,17 @@ class ConfigValidator:
             nonlocal has_errors
             num_gpus = config_section.num_devices_per_node
             num_nodes = config_section.num_compute_nodes
-            
-             
-            expected_total_ranks = num_nodes * num_gpus
-            # Disabled rank count validation
-            # if expected_total_ranks != mpi_size:
-            #     if mpi_rank == 0:
-            #         log.error(f"[VALIDATION] {mode_name}: Expected {expected_total_ranks} total ranks but got {mpi_size}")
-            #     has_errors = True
-            
-   
+
+            # Rank-count validation. This was previously commented out, which
+            # allowed a job launched with a different -ppn than the config
+            # describes to run with silently orphaned ranks.
+            # See docs/fixes/03-rank-topology-validation.md
+            from dl_comm.config.topology import validate_rank_topology
+            ok, _messages = validate_rank_topology(
+                comm_mode, config_section, mpi_size, mpi_rank, log, strict=True)
+            if not ok:
+                has_errors = True
+
             if available_devices < num_gpus:
                 if mpi_rank == 0:
                     log.error(f"[VALIDATION] {mode_name}: Need {num_gpus} GPUs per node but only {available_devices} available")
@@ -365,6 +366,9 @@ class ConfigValidator:
             
         elif comm_mode == "across_node":
             validate_basic_config(mode_cfg, "Across-node mode")
+
+        elif comm_mode == "flatview":
+            validate_basic_config(mode_cfg, "Flatview mode")
             
         
          

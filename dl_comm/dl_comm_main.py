@@ -41,7 +41,10 @@ from dl_comm.analysis.correctness import check_collective_correctness
 from dl_comm.comm import COLLECTIVES, OPS_NEED_REDUCE, OP_MAP, DTYPES
 from dl_comm.comm.collectives import init_framework_constants
 from dl_comm.analysis import report_ccl_selection, report_nccl_selection, gather_and_print_all_bandwidths 
-from dl_comm.timer import timer, print_all_times, gather_and_print_all_times, reset_times
+from dl_comm.timer import timer, print_all_times, gather_and_print_all_times, reset_times, set_sync_device
+from dl_comm.verify import build_payload
+from dl_comm.verify import failures as verify_failures
+from dl_comm.analysis.results import build_results, write_results, write_csv
 from dl_comm.config import ConfigValidator, parse_buffer_size, validate_and_calculate_buffer_size, print_system_info
 from dl_comm.config import adjust_buffer_size_for_group_divisibility, validate_mpi_configuration
 from dl_comm.config import setup_algorithm_overrides, setup_collective_algorithms_ccl
@@ -194,12 +197,26 @@ def main(cfg: DictConfig):
     # ----------------------------------------------------------------------------
     
     max_mpi_size_needed, mpi_validation_errors = validate_mpi_configuration(cfg, mpi_size, mpi_rank, log)
+    if mpi_validation_errors:
+        # Previously this result was computed and discarded, so a launch whose
+        # rank count did not match the config ran with silently idle ranks.
+        # See docs/fixes/03-rank-topology-validation.md
+        if mpi_rank == 0:
+            log.error("[EXIT] Exiting due to MPI launch geometry mismatch")
+        DLCOMMLogger.flush()
+        MPI.COMM_WORLD.Barrier()
+        sys.exit(2)
     
     # ----------------------------------------------------------------------------
     # ALGORITHM SETUP (before distributed init)
     # ----------------------------------------------------------------------------
     
     setup_algorithm_overrides(cfg, log)
+
+    # Accumulates one entry per measured communication group across all tasks;
+    # written out as results.json / results.csv at the end of the run.
+    run_measurements = []
+    verify_failures.reset()
      
     MPI.COMM_WORLD.Barrier()
     with timer("init time"):
@@ -509,7 +526,19 @@ def main(cfg: DictConfig):
                 
                 for i in range(warmup_iters):
                     if framework == "pytorch":
-                        x = torch.ones(num_elems, dtype=_dtype).to(device, non_blocking=True)
+                        # Warmup must exercise the same payload construction as
+                        # the measured loop so that any lazy allocation it
+                        # triggers is paid here rather than in iteration 0.
+                        _wu_group = (flat_group if comm_mode == "flatview" else
+                                     my_within_group if comm_mode == "within_node" else
+                                     my_across_group)
+                        if _wu_group is not None:
+                            _wu_ranks = dist.get_process_group_ranks(_wu_group)
+                            _wu_world, _wu_index = len(_wu_ranks), _wu_ranks.index(mpi_rank)
+                        else:
+                            _wu_world, _wu_index = mpi_size, mpi_rank
+                        x = build_payload(torch, num_elems, _dtype, _wu_index,
+                                          _wu_world, op_name, device=device)
                     elif framework == "jax":
                         pass
                     
@@ -568,20 +597,46 @@ def main(cfg: DictConfig):
 
             # Collective execution for all modes
             elif framework=="pytorch":
+                # Register the device whose queue must drain before each
+                # timestamp, so the measurement no longer depends on the
+                # external CCL_OP_SYNC environment variable.
+                # See docs/fixes/05-timing-and-statistics.md
+                set_sync_device(device, enabled=True)
+
+                active_group = None
+                if comm_mode == "flatview":
+                    active_group = flat_group
+                elif comm_mode == "within_node":
+                    active_group = my_within_group
+                elif comm_mode == "across_node":
+                    active_group = my_across_group
+
+                if active_group is not None:
+                    group_ranks = dist.get_process_group_ranks(active_group)
+                    group_world = len(group_ranks)
+                    my_group_index = group_ranks.index(mpi_rank)
+                else:
+                    group_world, my_group_index = mpi_size, mpi_rank
+
                 for i in range(iters):
-            
-                    x = torch.ones(num_elems, dtype=_dtype).to(device, non_blocking=True)
+
+                    # Rank-dependent payload: an all-ones buffer made 12 of 15
+                    # collective/op combinations impossible to verify.
+                    # See docs/fixes/01-rank-dependent-verification.md
+                    x = build_payload(torch, num_elems, _dtype, my_group_index,
+                                      group_world, op_name, device=device)
 
                     context = {'mpi_rank': mpi_rank, 'cfg': cfg,'log': log, 'iteration': i}
-    
 
-                        
                     if comm_mode == "flatview":
                         if flat_group is not None:
                             time_barrier(group=flat_group, device=device)
                             with timer("(Flatview)"):
                                 result = run_collective(x, op_obj, group=flat_group, dist=dist, framework=framework)
-                                time_barrier(group=flat_group, device=device)
+                            # Barrier moved OUT of the timed region: it was
+                            # previously inside, so its cost was charged to the
+                            # collective. See docs/fixes/05-timing-and-statistics.md
+                            time_barrier(group=flat_group, device=device)
                             if enable_correctness:
                                 check_collective_correctness(context, x, coll_name, op=op_obj, group=flat_group, result_data=result, group_type="Flatview", group_id="All")
 
@@ -590,7 +645,7 @@ def main(cfg: DictConfig):
                             time_barrier(group=my_within_group, device=device)
                             with timer(f"(Within-Group-{within_group_id})"):
                                 result = run_collective(x, op_obj, group=my_within_group, dist=dist, log=log, framework=framework)
-                                time_barrier(group=my_within_group, device=device)
+                            time_barrier(group=my_within_group, device=device)
                             if enable_correctness:
                                 check_collective_correctness(context, x, coll_name, op=op_obj, group=my_within_group, result_data=result, group_type="Within", group_id=within_group_id)
                 
@@ -599,7 +654,7 @@ def main(cfg: DictConfig):
                             time_barrier(group=my_across_group , device=device)
                             with timer(f"(Across-Group-{across_group_id})"):
                                 result = run_collective(x, op_obj, group=my_across_group, dist=dist, log=log, framework=framework)
-                                time_barrier(group=my_across_group,  device=device)
+                            time_barrier(group=my_across_group,  device=device)
                             if enable_correctness:
                                 check_collective_correctness(context, x, coll_name, op=op_obj, group=my_across_group, result_data=result, group_type="Across", group_id=across_group_id)
                 
@@ -620,7 +675,7 @@ def main(cfg: DictConfig):
                 adjusted_buffer_sizes_single = {'across': buffer_in_bytes}
             else:
                 adjusted_buffer_sizes_single = None
-            gather_and_print_all_bandwidths(log, cfg, mpi_size, ranks_responsible_for_logging, "[BANDWIDTH]", adjusted_buffer_sizes_single, comm_mode, mode_cfg, coll_name)
+            gather_and_print_all_bandwidths(log, cfg, mpi_size, ranks_responsible_for_logging, "[BANDWIDTH]", adjusted_buffer_sizes_single, comm_mode, mode_cfg, coll_name, results_sink=run_measurements)
             
             # Only rank 0 prints remaining analysis
             if mpi_rank == 0:
@@ -654,7 +709,58 @@ def main(cfg: DictConfig):
                 log.info("-------------------------------------------------------------------------")
  
     
-    if mpi_rank == 0 and len(tasks_to_run) > 1:
+    # ----------------------------------------------------------------------------
+    #  CORRECTNESS VERDICT AND STRUCTURED RESULTS
+    # ----------------------------------------------------------------------------
+    # A verification failure previously only produced a log line and the process
+    # still exited 0. Reduce the per-rank tallies across MPI_COMM_WORLD so any
+    # rank's failure fails the whole job.
+    # See docs/fixes/04-fail-loudly.md
+
+    local_verify = verify_failures.snapshot()
+    total_failures = MPI.COMM_WORLD.allreduce(local_verify["failures"], op=MPI.SUM)
+    total_checks = MPI.COMM_WORLD.allreduce(local_verify["checks"], op=MPI.SUM)
+    total_skipped = MPI.COMM_WORLD.allreduce(local_verify["skipped"], op=MPI.SUM)
+    all_details = MPI.COMM_WORLD.gather(local_verify["details"], root=0)
+
+    correctness_summary = {
+        "enabled": bool(getattr(cfg, "verify_correctness", False)),
+        "total_checks": total_checks,
+        "total_failures": total_failures,
+        "total_skipped": total_skipped,
+        "passed": bool(total_failures == 0),
+    }
+
+    if mpi_rank == 0:
+        flat_details = [d for chunk in (all_details or []) if chunk for d in chunk]
+        if flat_details:
+            correctness_summary["details"] = flat_details[:200]
+
+        log.output("")
+        log.output("[CORRECTNESS] ---------------------------------------------------------")
+        log.output(f"[CORRECTNESS] checks={total_checks} failures={total_failures} "
+                   f"skipped={total_skipped}")
+        if total_failures:
+            log.error(f"[CORRECTNESS] VERIFICATION FAILED on {total_failures} check(s)")
+            for detail in flat_details[:20]:
+                log.error(f"[CORRECTNESS]   {detail}")
+        elif correctness_summary["enabled"] and total_checks == 0:
+            log.warning("[CORRECTNESS] verification was enabled but no checks ran")
+        elif correctness_summary["enabled"]:
+            log.output("[CORRECTNESS] all checks passed")
+        log.output("[CORRECTNESS] ---------------------------------------------------------")
+
+        try:
+            results_dir = log_dir
+        except NameError:
+            results_dir = os.getcwd()
+        document = build_results(
+            cfg=cfg, mpi_size=mpi_size, comm_mode=None, collective_name=None,
+            measurements=run_measurements, correctness=correctness_summary)
+        write_results(os.path.join(results_dir, "results.json"), document, log)
+        write_csv(os.path.join(results_dir, "results.csv"), run_measurements, log)
+
+    if mpi_rank == 0 and len(tasks_to_run) > 1 and total_failures == 0:
         log.info("")
         log.info("=" * 80)
         log.info(f"[FINAL] All {len(tasks_to_run)} tasks completed successfully!")
@@ -672,6 +778,9 @@ def main(cfg: DictConfig):
     if framework == "jax":
         jdist.shutdown()
     reset_times()
+
+    if total_failures:
+        sys.exit(1)
     
 if __name__ == "__main__":
     main()

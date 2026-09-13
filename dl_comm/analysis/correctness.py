@@ -1,349 +1,356 @@
-def check_collective_correctness(context, tensor_after, collective_name, op=None, group=None, result_data=None, group_type=None, group_id=None):
-    # Verify correctness on all iterations, but only print failures
-    framework = context['cfg'].framework.lower()
-    
-    if framework == 'pytorch':
-        import torch
-        import torch.distributed as dist
-        
-        if collective_name == "allreduce":
-            _check_allreduce(context, tensor_after, op, group, group_type, group_id, dist, torch)
-        elif collective_name == "reduce":
-            _check_reduce(context, tensor_after, op, group, group_type, group_id, dist, torch)
-        elif collective_name == "broadcast":
-            _check_broadcast(context, tensor_after, op, group, group_type, group_id, dist, torch)
-        elif collective_name == "gather":
-            _check_gather(context, tensor_after, op, group, group_type, group_id, result_data, dist, torch)
-        elif collective_name == "scatter":
-            _check_scatter(context, tensor_after, op, group, group_type, group_id, dist, torch)
-        elif collective_name == "reducescatter":
-            _check_reducescatter(context, tensor_after, op, group, group_type, group_id, dist, torch, result_data)
-        elif collective_name == "alltoall":
-            _check_alltoall(context, tensor_after, op, group, group_type, group_id, result_data, dist, torch)
-        elif collective_name == "alltoallsingle":
-            _check_alltoallsingle(context, tensor_after, op, group, group_type, group_id, result_data, dist, torch)
-        elif collective_name == "allgather":
-            _check_allgather(context, tensor_after, op, group, group_type, group_id, result_data, dist, torch)
-    elif framework == 'jax':
-        pass
+"""Correctness verification for DLcomm collectives.
+
+Every checker below derives its expected result from the *rank-dependent*
+payload produced by :mod:`dl_comm.verify.payload`, so that a collective which
+transferred nothing, transferred the wrong chunk, or shuffled the rank order is
+detected. See ``docs/fixes/01-rank-dependent-verification.md``.
+
+All checkers:
+  * compute a local verdict,
+  * reduce the verdict across the group so a failure on any rank is reported,
+  * record the outcome in :mod:`dl_comm.verify.failures` so the run can exit
+    nonzero (``docs/fixes/04-fail-loudly.md``).
+"""
+
+from dl_comm.verify import (
+    build_payload,
+    scatter_source,
+    position_term,
+    rank_signature,
+    expected_reduction,
+    choose_moduli,
+    tolerance_for,
+    failures,
+)
+
+# Reverse lookup from a torch ReduceOp back to its config name.
+_OP_NAMES = ("sum", "max", "min", "prod")
 
 
-def _check_allreduce(context, tensor_after, op, group, group_type, group_id, dist, torch):
-    log = context['log']
+def _op_to_name(op, dist):
+    if op is None:
+        return None
+    mapping = {
+        dist.ReduceOp.SUM: "sum",
+        dist.ReduceOp.MAX: "max",
+        dist.ReduceOp.MIN: "min",
+        dist.ReduceOp.PRODUCT: "prod",
+    }
+    for key, name in mapping.items():
+        if op == key:
+            return name
+    return None
+
+
+def _group_info(dist, group):
+    """Return ``(group_ranks, world_size, root_rank, my_index)``."""
     world_size = dist.get_world_size(group)
-    
     if group is None:
         group_ranks = list(range(world_size))
-        dst_rank = 0
     else:
-        group_ranks = dist.get_process_group_ranks(group)
-        dst_rank = min(group_ranks)
-    
-    if op == dist.ReduceOp.SUM:
-        expected_value = world_size
-    elif op == dist.ReduceOp.MAX:
-        expected_value = 1
-    elif op == dist.ReduceOp.MIN:
-        expected_value = 1
-    elif op == dist.ReduceOp.PRODUCT:
-        expected_value = 1
-    
-    expected_tensor = torch.full_like(tensor_after, expected_value)
-    is_correct = torch.allclose(tensor_after, expected_tensor, rtol=1e-6)
-    
-    correct_tensor = torch.tensor([1 if is_correct else 0], dtype=torch.int32).to(tensor_after.device)
-    
+        group_ranks = list(dist.get_process_group_ranks(group))
+    root = min(group_ranks)
     my_rank = dist.get_rank()
+    my_index = group_ranks.index(my_rank) if my_rank in group_ranks else None
+    return group_ranks, world_size, root, my_index
 
-    if my_rank== dst_rank:
-        gathered_results = [torch.zeros_like(correct_tensor) for _ in range(world_size)]
-        dist.gather(correct_tensor, gathered_results, dst=dst_rank, group=group)
-        
-        total_correct = sum(result.item() for result in gathered_results)
-        if total_correct != world_size:
-            failed_ranks = [i for i, result in enumerate(gathered_results) if result.item() == 0]
-            log.output(f"[CORRECTNESS][{group_type}-Group-{group_id}] AllReduce iteration {context['iteration']} [FAILED] - Ranks {failed_ranks} received incorrect values")
+
+def _reduce_verdict(context, dist, torch, tensor_like, group, group_ranks, root,
+                    local_ok, label, extra=""):
+    """All-reduce the local boolean so any rank's failure fails the whole group.
+
+    Uses ``all_reduce`` with MIN rather than a root-only ``gather`` so that the
+    verdict is consistent on every rank and no rank can skip the collective.
+    """
+    log = context["log"]
+    flag = torch.tensor([1 if local_ok else 0], dtype=torch.int32)
+    if hasattr(tensor_like, "device"):
+        flag = flag.to(tensor_like.device)
+
+    dist.all_reduce(flag, op=dist.ReduceOp.MIN, group=group)
+    group_ok = bool(flag.item() == 1)
+
+    iteration = context.get("iteration", "?")
+    if not group_ok:
+        detail = f"{label} iteration {iteration} [FAILED]"
+        if extra:
+            detail += f" - {extra}"
+        # Only the group root writes the log line, but every rank records the
+        # failure so the MPI-wide reduction at end of run sees it.
+        if dist.get_rank() == root:
+            log.output(f"[CORRECTNESS]{detail}")
+        failures.record_failure(detail)
     else:
-        dist.gather(correct_tensor, None, dst=dst_rank, group=group)
+        failures.record_pass()
+    return group_ok
 
 
-def _check_reduce(context, tensor_after, op, group, group_type, group_id, dist, torch):
-    log = context['log']
-    world_size = dist.get_world_size(group)
-    
-    if group is None:
-        group_ranks = list(range(world_size))
-        dst_rank = 0
+def _skip(context, label, reason):
+    iteration = context.get("iteration", "?")
+    detail = f"{label} iteration {iteration} - {reason}"
+    context["log"].output(f"[CORRECTNESS]{detail}")
+    failures.record_skip(detail)
+
+
+def check_collective_correctness(context, tensor_after, collective_name, op=None,
+                                 group=None, result_data=None, group_type=None,
+                                 group_id=None):
+    framework = context["cfg"].framework.lower()
+    if framework != "pytorch":
+        return
+    if collective_name == "barrier":
+        return
+
+    import torch
+    import torch.distributed as dist
+
+    handler = _HANDLERS.get(collective_name)
+    if handler is None:
+        return
+
+    label = f"[{group_type}-Group-{group_id}] {collective_name}"
+    handler(context, tensor_after, op, group, group_id, result_data, dist, torch, label)
+
+
+# ---------------------------------------------------------------------------
+# Reductions: every rank ends with the reduction of all rank signatures.
+# ---------------------------------------------------------------------------
+
+def _expected_reduced(torch, tensor, op_name, world_size, rank_mod, pos_mod):
+    """Reduction of ``pos + sig`` across the group, elementwise."""
+    n = tensor.numel()
+    pos = position_term(torch, n, pos_mod)
+    if op_name == "prod":
+        # positional term is disabled for prod (pos_mod == 1)
+        value = expected_reduction("prod", world_size, rank_mod)
+        return torch.full_like(tensor, value)
+
+    sigs = [rank_signature(i, world_size, rank_mod, op_name) for i in range(world_size)]
+    if op_name == "sum":
+        # sum over ranks of (pos + sig) = world_size*pos + sum(sig)
+        expected = pos * world_size + sum(sigs)
+    elif op_name == "max":
+        expected = pos + max(sigs)
+    elif op_name == "min":
+        expected = pos + min(sigs)
     else:
-        group_ranks = dist.get_process_group_ranks(group)
-        dst_rank = min(group_ranks)
-    
-    my_rank = dist.get_rank()
-    
-    if my_rank == dst_rank:
-        if op == dist.ReduceOp.SUM:
-            expected_value = world_size
-        elif op == dist.ReduceOp.MAX:
-            expected_value = 1
-        elif op == dist.ReduceOp.MIN:
-            expected_value = 1
-        elif op == dist.ReduceOp.PRODUCT:
-            expected_value = 1
-        
-        expected_tensor = torch.full_like(tensor_after, expected_value)
-        is_correct = torch.allclose(tensor_after, expected_tensor, rtol=1e-6)
-        
-        if not is_correct:
-            log.output(f"[CORRECTNESS][{group_type}-Group-{group_id}] Reduce iteration {context['iteration']} [FAILED] - Root rank received incorrect value")
+        raise ValueError(f"unsupported op '{op_name}'")
+    return expected.to(tensor.dtype).to(tensor.device)
 
 
-def _check_broadcast(context, tensor_after, op, group, group_type, group_id, dist, torch):
-    log = context['log']
-    world_size = dist.get_world_size(group)
-    
-    if group is None:
-        group_ranks = list(range(world_size))
-        src_rank = 0
+def _check_reduction(context, tensor_after, op, group, group_id, result_data,
+                     dist, torch, label, root_only):
+    op_name = _op_to_name(op, dist)
+    if op_name is None:
+        _skip(context, label, "no reduction op supplied")
+        return
+
+    group_ranks, world_size, root, my_index = _group_info(dist, group)
+    rank_mod, pos_mod = choose_moduli(tensor_after.dtype, world_size, op_name)
+    rtol, atol = tolerance_for(tensor_after.dtype)
+
+    expected = _expected_reduced(torch, tensor_after, op_name, world_size,
+                                 rank_mod, pos_mod)
+
+    if root_only and dist.get_rank() != root:
+        # Non-root ranks of `reduce` hold undefined data; they must still take
+        # part in the verdict all_reduce.
+        local_ok = True
     else:
-        group_ranks = dist.get_process_group_ranks(group)
-        src_rank = min(group_ranks)
-    
-    expected_tensor = torch.ones_like(tensor_after)
-    is_correct = torch.allclose(tensor_after, expected_tensor, rtol=1e-6)
-    
-    correct_tensor = torch.tensor([1 if is_correct else 0], dtype=torch.int32).to(tensor_after.device)
-    
-    my_rank = dist.get_rank()
-    
-    if my_rank == src_rank:
-        gathered_results = [torch.zeros_like(correct_tensor) for _ in range(world_size)]
-        dist.gather(correct_tensor, gathered_results, dst=src_rank, group=group)
-        
-        total_correct = sum(result.item() for result in gathered_results)
-        if total_correct != world_size:
-            failed_ranks = [i for i, result in enumerate(gathered_results) if result.item() == 0]
-            log.output(f"[CORRECTNESS][{group_type}-Group-{group_id}] Broadcast iteration {context['iteration']} [FAILED] - Ranks {failed_ranks} received incorrect values")
-    else:
-        dist.gather(correct_tensor, None, dst=src_rank, group=group)
+        local_ok = bool(torch.allclose(tensor_after.to(expected.dtype), expected,
+                                       rtol=rtol, atol=atol))
+
+    _reduce_verdict(context, dist, torch, tensor_after, group, group_ranks, root,
+                    local_ok, label,
+                    extra=f"op={op_name}, group_size={world_size}")
 
 
-def _check_gather(context, tensor_after, op, group, group_type, group_id, result_data, dist, torch):
-    log = context['log']
-    world_size = dist.get_world_size(group)
-    
-    if group is None:
-        group_ranks = list(range(world_size))
-        dst_rank = 0
+def _check_allreduce(context, t, op, group, gid, result, dist, torch, label):
+    _check_reduction(context, t, op, group, gid, result, dist, torch, label, False)
+
+
+def _check_reduce(context, t, op, group, gid, result, dist, torch, label):
+    _check_reduction(context, t, op, group, gid, result, dist, torch, label, True)
+
+
+def _check_reducescatter(context, t, op, group, gid, result, dist, torch, label):
+    op_name = _op_to_name(op, dist)
+    if op_name is None:
+        _skip(context, label, "no reduction op supplied")
+        return
+    if result is None:
+        _skip(context, label, "collective returned no result data")
+        return
+
+    group_ranks, world_size, root, my_index = _group_info(dist, group)
+    rank_mod, pos_mod = choose_moduli(t.dtype, world_size, op_name)
+    rtol, atol = tolerance_for(t.dtype)
+
+    # This rank receives chunk `my_index` of the reduced buffer. The positional
+    # term therefore starts at my_index * chunk_size, which is what makes a
+    # wrong-chunk bug detectable.
+    chunk = result.numel()
+    offset = (my_index if my_index is not None else 0) * chunk
+    pos = position_term(torch, chunk, pos_mod, offset=offset)
+
+    sigs = [rank_signature(i, world_size, rank_mod, op_name) for i in range(world_size)]
+    if op_name == "sum":
+        expected = pos * world_size + sum(sigs)
+    elif op_name == "max":
+        expected = pos + max(sigs)
+    elif op_name == "min":
+        expected = pos + min(sigs)
     else:
-        group_ranks = dist.get_process_group_ranks(group)
-        dst_rank = min(group_ranks)
-    
-    my_rank = dist.get_rank()
-    
-    if my_rank == dst_rank:
-        
-        if result_data is None:
-            log.output(f"[CORRECTNESS][{group_type}-Group-{group_id}] Gather iteration {context['iteration']} [FAILED] - No result data available")
+        expected = torch.full_like(pos, expected_reduction("prod", world_size, rank_mod))
+    expected = expected.to(result.dtype).to(result.device)
+
+    local_ok = bool(torch.allclose(result.to(expected.dtype), expected,
+                                   rtol=rtol, atol=atol))
+    _reduce_verdict(context, dist, torch, t, group, group_ranks, root, local_ok,
+                    label, extra=f"op={op_name}, chunk={chunk}, index={my_index}")
+
+
+# ---------------------------------------------------------------------------
+# Data movement: position and source rank both matter.
+# ---------------------------------------------------------------------------
+
+def _check_broadcast(context, t, op, group, gid, result, dist, torch, label):
+    group_ranks, world_size, root, my_index = _group_info(dist, group)
+    rank_mod, pos_mod = choose_moduli(t.dtype, world_size, None)
+    rtol, atol = tolerance_for(t.dtype)
+
+    # Everyone must end up holding the ROOT's payload, i.e. group index 0.
+    expected = build_payload(torch, t.numel(), t.dtype, 0, world_size, None,
+                             device=t.device, rank_modulus=rank_mod,
+                             position_modulus=pos_mod)
+    local_ok = bool(torch.allclose(t, expected, rtol=rtol, atol=atol))
+    _reduce_verdict(context, dist, torch, t, group, group_ranks, root, local_ok,
+                    label, extra=f"expected root(index 0) payload")
+
+
+def _check_allgather(context, t, op, group, gid, result, dist, torch, label):
+    group_ranks, world_size, root, my_index = _group_info(dist, group)
+    if result is None:
+        _skip(context, label, "collective returned no result data")
+        return
+    rank_mod, pos_mod = choose_moduli(t.dtype, world_size, None)
+    rtol, atol = tolerance_for(t.dtype)
+
+    bad = []
+    for i, got in enumerate(result):
+        expected = build_payload(torch, got.numel(), got.dtype, i, world_size, None,
+                                 device=got.device, rank_modulus=rank_mod,
+                                 position_modulus=pos_mod)
+        if not torch.allclose(got, expected, rtol=rtol, atol=atol):
+            bad.append(i)
+
+    local_ok = not bad and len(result) == world_size
+    extra = f"wrong/misordered slots {bad}" if bad else f"got {len(result)} of {world_size} slots"
+    _reduce_verdict(context, dist, torch, t, group, group_ranks, root, local_ok,
+                    label, extra=extra)
+
+
+def _check_gather(context, t, op, group, gid, result, dist, torch, label):
+    group_ranks, world_size, root, my_index = _group_info(dist, group)
+    rank_mod, pos_mod = choose_moduli(t.dtype, world_size, None)
+    rtol, atol = tolerance_for(t.dtype)
+    is_root = dist.get_rank() == root
+
+    if is_root:
+        if result is None:
+            _skip(context, label, "root received no gather list")
             return
-        
-        expected_tensor = torch.ones_like(tensor_after)
-        all_correct = True
-        failed_ranks = []
-        
-        for rank_idx, gathered_tensor in enumerate(result_data):
-            if not torch.allclose(gathered_tensor, expected_tensor, rtol=1e-6):
-                all_correct = False
-                failed_ranks.append(rank_idx)
-        
-        if not all_correct:
-            log.output(f"[CORRECTNESS][{group_type}-Group-{group_id}] Gather iteration {context['iteration']} [FAILED] - Incorrect values received from ranks {failed_ranks}")
-
-
-def _check_scatter(context, tensor_after, op, group, group_type, group_id, dist, torch):
-    log = context['log']
-    world_size = dist.get_world_size(group)
-    
-    if group is None:
-        src_rank = 0
+        bad = []
+        for i, got in enumerate(result):
+            expected = build_payload(torch, got.numel(), got.dtype, i, world_size,
+                                     None, device=got.device,
+                                     rank_modulus=rank_mod, position_modulus=pos_mod)
+            if not torch.allclose(got, expected, rtol=rtol, atol=atol):
+                bad.append(i)
+        local_ok = not bad and len(result) == world_size
+        extra = f"wrong/misordered slots {bad}" if bad else ""
     else:
-        group_ranks = dist.get_process_group_ranks(group)
-        src_rank = min(group_ranks)
-    
-    expected_tensor = torch.ones_like(tensor_after)
-    is_correct = torch.allclose(tensor_after, expected_tensor, rtol=1e-6)
-    
-    correct_tensor = torch.tensor([1 if is_correct else 0], dtype=torch.int32).to(tensor_after.device)
-    
-    my_rank = dist.get_rank()
-    
-    if my_rank == src_rank:
-        gathered_results = [torch.zeros_like(correct_tensor) for _ in range(world_size)]
-        dist.gather(correct_tensor, gathered_results, dst=src_rank, group=group)
-        
-        total_correct = sum(result.item() for result in gathered_results)
-        if total_correct != world_size:
-            failed_ranks = [i for i, result in enumerate(gathered_results) if result.item() == 0]
-            log.output(f"[CORRECTNESS][{group_type}-Group-{group_id}] Scatter iteration {context['iteration']} [FAILED] - Ranks {failed_ranks} received incorrect values")
-    else:
-        dist.gather(correct_tensor, None, dst=src_rank, group=group)
+        local_ok = True
+        extra = ""
+
+    _reduce_verdict(context, dist, torch, t, group, group_ranks, root, local_ok,
+                    label, extra=extra)
 
 
-def _check_reducescatter(context, tensor_after, op, group, group_type, group_id, dist, torch, result_data=None):
-    log = context['log']
-    world_size = dist.get_world_size(group)
-    
-    if group is None:
-        dst_rank = 0
-    else:
-        group_ranks = dist.get_process_group_ranks(group)
-        dst_rank = min(group_ranks)
-    
- 
-    if result_data is None:
-        if dist.get_rank() == dst_rank:
-            log.output(f"[CORRECTNESS][{group_type}-Group-{group_id}] ReduceScatter iteration {context['iteration']} [FAILED] - No result data available")
+def _check_scatter(context, t, op, group, gid, result, dist, torch, label):
+    group_ranks, world_size, root, my_index = _group_info(dist, group)
+    rank_mod, pos_mod = choose_moduli(t.dtype, world_size, None)
+    rtol, atol = tolerance_for(t.dtype)
+
+    # This rank must receive exactly the slice the root addressed to it.
+    expected = scatter_source(torch, t.numel(), t.dtype,
+                              my_index if my_index is not None else 0,
+                              world_size, rank_mod, pos_mod, device=t.device)
+    local_ok = bool(torch.allclose(t, expected, rtol=rtol, atol=atol))
+    _reduce_verdict(context, dist, torch, t, group, group_ranks, root, local_ok,
+                    label, extra=f"expected slice for index {my_index}")
+
+
+def _check_alltoall(context, t, op, group, gid, result, dist, torch, label):
+    group_ranks, world_size, root, my_index = _group_info(dist, group)
+    if result is None:
+        _skip(context, label, "collective returned no result data")
         return
-    
-    if op == dist.ReduceOp.SUM:
-        expected_value = world_size
-    elif op == dist.ReduceOp.MAX:
-        expected_value = 1
-    elif op == dist.ReduceOp.MIN:
-        expected_value = 1
-    elif op == dist.ReduceOp.PRODUCT:
-        expected_value = 1
-    
-    # Check the actual ReduceScatter result (chunk), not the original input tensor
-    expected_tensor = torch.full_like(result_data, expected_value)
-    is_correct = torch.allclose(result_data, expected_tensor, rtol=1e-6)
-    
-    correct_tensor = torch.tensor([1 if is_correct else 0], dtype=torch.int32).to(tensor_after.device)
-    
-    my_rank = dist.get_rank()
+    rank_mod, pos_mod = choose_moduli(t.dtype, world_size, None)
+    rtol, atol = tolerance_for(t.dtype)
 
-    if my_rank == dst_rank:
-        gathered_results = [torch.zeros_like(correct_tensor) for _ in range(world_size)]
-        dist.gather(correct_tensor, gathered_results, dst=dst_rank, group=group)
-        
-        total_correct = sum(result.item() for result in gathered_results)
-        if total_correct != world_size:
-            failed_ranks = [i for i, result in enumerate(gathered_results) if result.item() == 0]
-            log.output(f"[CORRECTNESS][{group_type}-Group-{group_id}] ReduceScatter iteration {context['iteration']} [FAILED] - Ranks {failed_ranks} received incorrect values")
-    else:
-        dist.gather(correct_tensor, None, dst=dst_rank, group=group)
+    # Slot i of the output came from group member i, who sent its own payload.
+    bad = []
+    for i, got in enumerate(result):
+        expected = build_payload(torch, got.numel(), got.dtype, i, world_size, None,
+                                 device=got.device, rank_modulus=rank_mod,
+                                 position_modulus=pos_mod)
+        if not torch.allclose(got, expected, rtol=rtol, atol=atol):
+            bad.append(i)
+
+    local_ok = not bad and len(result) == world_size
+    extra = f"wrong/misordered slots {bad}" if bad else ""
+    _reduce_verdict(context, dist, torch, t, group, group_ranks, root, local_ok,
+                    label, extra=extra)
 
 
-def _check_alltoall(context, tensor_after, op, group, group_type, group_id, result_data, dist, torch):
-    log = context['log']
-    world_size = dist.get_world_size(group)
-    
-    if group is None:
-        dst_rank = 0
-    else:
-        group_ranks = dist.get_process_group_ranks(group)
-        dst_rank = min(group_ranks)
-    
-    my_rank = dist.get_rank()
-    
-    if result_data is None:
-        if my_rank == dst_rank:
-            log.output(f"[CORRECTNESS][{group_type}-Group-{group_id}] AllToAll iteration {context['iteration']} [FAILED] - No result data available")
+def _check_alltoallsingle(context, t, op, group, gid, result, dist, torch, label):
+    group_ranks, world_size, root, my_index = _group_info(dist, group)
+    if result is None:
+        _skip(context, label, "collective returned no result data")
         return
-    
-    expected_tensor = torch.ones_like(tensor_after)
-    all_correct = True
-    failed_tensor_indices = []
-    
-    for tensor_idx, received_tensor in enumerate(result_data):
-        if not torch.allclose(received_tensor, expected_tensor, rtol=1e-6):
-            all_correct = False
-            failed_tensor_indices.append(tensor_idx)
-    
-    correct_tensor = torch.tensor([1 if all_correct else 0], dtype=torch.int32).to(tensor_after.device)
-    
-    if my_rank == dst_rank:
-        gathered_results = [torch.zeros_like(correct_tensor) for _ in range(world_size)]
-        dist.gather(correct_tensor, gathered_results, dst=dst_rank, group=group)
-        
-        total_correct = sum(result.item() for result in gathered_results)
-        if total_correct != world_size:
-            failed_ranks = [i for i, result in enumerate(gathered_results) if result.item() == 0]
-            log.output(f"[CORRECTNESS][{group_type}-Group-{group_id}] AllToAll iteration {context['iteration']} [FAILED] - Ranks {failed_ranks} received incorrect values")
-    else:
-        dist.gather(correct_tensor, None, dst=dst_rank, group=group)
+    rank_mod, pos_mod = choose_moduli(t.dtype, world_size, None)
+    rtol, atol = tolerance_for(t.dtype)
 
+    # all_to_all_single splits the buffer into world_size contiguous chunks;
+    # chunk i of the output is chunk `my_index` of member i's input.
+    n = result.numel()
+    chunk = n // world_size if world_size else n
+    parts = []
+    for i in range(world_size):
+        sig = rank_signature(i, world_size, rank_mod, None)
+        offset = (my_index if my_index is not None else 0) * chunk
+        parts.append(position_term(torch, chunk, pos_mod, offset=offset) + sig)
+    expected = torch.cat(parts).to(result.dtype).to(result.device) if parts else None
 
-def _check_alltoallsingle(context, tensor_after, op, group, group_type, group_id, result_data, dist, torch):
-    log = context['log']
-    world_size = dist.get_world_size(group)
-    
-    if group is None:
-        dst_rank = 0
-    else:
-        group_ranks = dist.get_process_group_ranks(group)
-        dst_rank = min(group_ranks)
-    
-    my_rank = dist.get_rank()
-    
-    if result_data is None:
-        if my_rank == dst_rank:
-            log.output(f"[CORRECTNESS][{group_type}-Group-{group_id}] AllToAllSingle iteration {context['iteration']} [FAILED] - No result data available")
+    if expected is None or expected.numel() != n:
+        _skip(context, label, f"cannot model expected layout (n={n}, ws={world_size})")
         return
-    
-    # For alltoallsingle, result_data should be a single tensor, not a list
-    expected_tensor = torch.ones_like(tensor_after)
-    all_correct = torch.allclose(result_data, expected_tensor, rtol=1e-6)
-    
-    correct_tensor = torch.tensor([1 if all_correct else 0], dtype=torch.int32).to(tensor_after.device)
-    
-    if my_rank == dst_rank:
-        gathered_results = [torch.zeros_like(correct_tensor) for _ in range(world_size)]
-        dist.gather(correct_tensor, gathered_results, dst=dst_rank, group=group)
-        
-        total_correct = sum(result.item() for result in gathered_results)
-        if total_correct != world_size:
-            failed_ranks = [i for i, result in enumerate(gathered_results) if result.item() == 0]
-            log.output(f"[CORRECTNESS][{group_type}-Group-{group_id}] AllToAllSingle iteration {context['iteration']} [FAILED] - Ranks {failed_ranks} received incorrect values")
-    else:
-        dist.gather(correct_tensor, None, dst=dst_rank, group=group)
+
+    local_ok = bool(torch.allclose(result.to(expected.dtype), expected,
+                                   rtol=rtol, atol=atol))
+    _reduce_verdict(context, dist, torch, t, group, group_ranks, root, local_ok,
+                    label, extra=f"chunk={chunk}, index={my_index}")
 
 
-def _check_allgather(context, tensor_after, op, group, group_type, group_id, result_data, dist, torch):
-    log = context['log']
-    world_size = dist.get_world_size(group)
-    
-    if group is None:
-        dst_rank = 0
-    else:
-        group_ranks = dist.get_process_group_ranks(group)
-        dst_rank = min(group_ranks)
-    
-    my_rank = dist.get_rank()
-    
-    if result_data is None:
-        if my_rank == dst_rank:
-            log.output(f"[CORRECTNESS][{group_type}-Group-{group_id}] AllGather iteration {context['iteration']} [FAILED] - No result data available")
-        return
-    
-    expected_tensor = torch.ones_like(tensor_after)
-    all_correct = True
-    failed_tensor_indices = []
-    
-    for tensor_idx, gathered_tensor in enumerate(result_data):
-        if not torch.allclose(gathered_tensor, expected_tensor, rtol=1e-6):
-            all_correct = False
-            failed_tensor_indices.append(tensor_idx)
-    
-    correct_tensor = torch.tensor([1 if all_correct else 0], dtype=torch.int32).to(tensor_after.device)
-    
-    if my_rank == dst_rank:
-        gathered_results = [torch.zeros_like(correct_tensor) for _ in range(world_size)]
-        dist.gather(correct_tensor, gathered_results, dst=dst_rank, group=group)
-        
-        total_correct = sum(result.item() for result in gathered_results)
-        if total_correct != world_size:
-            failed_ranks = [i for i, result in enumerate(gathered_results) if result.item() == 0]
-            log.output(f"[CORRECTNESS][{group_type}-Group-{group_id}] AllGather iteration {context['iteration']} [FAILED] - Ranks {failed_ranks} received incorrect values")
-    else:
-        dist.gather(correct_tensor, None, dst=dst_rank, group=group)
-
+_HANDLERS = {
+    "allreduce": _check_allreduce,
+    "reduce": _check_reduce,
+    "reducescatter": _check_reducescatter,
+    "broadcast": _check_broadcast,
+    "allgather": _check_allgather,
+    "gather": _check_gather,
+    "scatter": _check_scatter,
+    "alltoall": _check_alltoall,
+    "alltoallsingle": _check_alltoallsingle,
+}

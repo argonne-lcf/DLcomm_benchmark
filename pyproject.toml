@@ -11,16 +11,19 @@ authors = [
     { name = "Kaushik Velusamy", email = "kaushikvelusamy@gmail.com" }
 ]
 readme = "README.md"
-# license = { file = "LICENSE" }  
-requires-python = ">=3.8"
+# The README states Apache 2.0 together with the DOE government-rights notice,
+# so the classifier below is aligned to that. The LICENSE file itself is not
+# committed here: naming the copyright holder is the project's call, not a
+# mechanical fix. Add LICENSE and re-enable the line below.
+# license = { file = "LICENSE" }
+requires-python = ">=3.9"
 keywords = ["deep-learning", "gpu", "communication", "benchmark", "mpi", "distributed", "pytorch", "ccl"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
     "Intended Audience :: Science/Research",
-    "License :: OSI Approved :: MIT License",
+    "License :: OSI Approved :: Apache Software License",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
