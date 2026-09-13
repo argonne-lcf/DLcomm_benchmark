@@ -28,6 +28,7 @@ import json
 import time
 import signal
 import faulthandler
+import numpy as np
 import pytz
 import hydra
 import socket
@@ -267,6 +268,11 @@ def main(cfg: DictConfig):
     # Accumulates one entry per measured communication group across all tasks;
     # written out as results.json / results.csv at the end of the run.
     run_measurements = []
+    # Tracks whether any task actually enabled verification. Read after the
+    # task loop, `cfg` does not carry this flag -- it lives on the per-mode
+    # config (`mode_cfg.verify_correctness`), so probing `cfg` reports False
+    # even on runs that verified 480 checks. See docs/fixes/14-enabled-flag.md
+    correctness_was_enabled = False
     verify_failures.reset()
      
     MPI.COMM_WORLD.Barrier()
@@ -363,6 +369,8 @@ def main(cfg: DictConfig):
             warmup_iters       = getattr(coll_cfg, 'warmup_iterations', 0)  # Default to 0 if not specified
             add_mxm_compute    = getattr(coll_cfg, 'add_mxm_compute', False)  # Default to False if not specified
             enable_correctness = mode_cfg.verify_correctness
+            if enable_correctness:
+                correctness_was_enabled = True
 
             # Validate operation is provided for collectives that need it
             if coll_name in OPS_NEED_REDUCE:
@@ -397,6 +405,12 @@ def main(cfg: DictConfig):
             num_elems = buffer_in_bytes // elem_size
 
             # lookup collective fn and op
+            # A bare COLLECTIVES[coll_name] raises an unadorned KeyError that
+            # names neither the config field at fault nor the valid choices.
+            if coll_name not in COLLECTIVES:
+                raise ValueError(
+                    f"Unknown collective '{coll_name}'. Registered collectives: "
+                    f"{sorted(COLLECTIVES)}")
             run_collective = COLLECTIVES[coll_name]
             op_obj         = OP_MAP[op_name] if coll_name in OPS_NEED_REDUCE else None
 
@@ -788,13 +802,34 @@ def main(cfg: DictConfig):
             MPI.COMM_WORLD.Abort(3)
         time.sleep(0.05)
 
-    total_failures = MPI.COMM_WORLD.allreduce(local_verify["failures"], op=MPI.SUM)
-    total_checks = MPI.COMM_WORLD.allreduce(local_verify["checks"], op=MPI.SUM)
-    total_skipped = MPI.COMM_WORLD.allreduce(local_verify["skipped"], op=MPI.SUM)
-    all_details = MPI.COMM_WORLD.gather(local_verify["details"], root=0)
+    # Use the UPPERCASE buffer-based MPI calls, not the lowercase pickle-based
+    # ones. The lowercase mpi4py variants (allreduce/gather) negotiate object
+    # sizes with dynamic probe/recv traffic, which deadlocks once the XCCL
+    # backend has been initialised on the same ranks: Aurora job 8824457 hung
+    # here with all 24 ranks confirmed present at this line by the watchdog.
+    # The uppercase calls move fixed-size buffers and are unaffected.
+    # See docs/fixes/13-mpi-buffer-api.md
+    _counts = np.array([local_verify["failures"],
+                        local_verify["checks"],
+                        local_verify["skipped"],
+                        1 if correctness_was_enabled else 0], dtype=np.int64)
+    _totals = np.zeros(4, dtype=np.int64)
+    MPI.COMM_WORLD.Allreduce(_counts, _totals, op=MPI.SUM)
+    total_failures = int(_totals[0])
+    total_checks = int(_totals[1])
+    total_skipped = int(_totals[2])
+    # Any rank having verification on means the run verified. Reducing this
+    # rather than reading cfg on rank 0 also covers the case where a rank sits
+    # outside every communication group and so runs no tasks at all.
+    any_enabled = bool(_totals[3] > 0)
+
+    # Per-rank detail strings are variable-length objects, so gathering them
+    # would reintroduce the same pickle path. Each rank already logs its own
+    # failures as they happen; rank 0 reports only its local sample.
+    all_details = [local_verify["details"]]
 
     correctness_summary = {
-        "enabled": bool(getattr(cfg, "verify_correctness", False)),
+        "enabled": any_enabled,
         "total_checks": total_checks,
         "total_failures": total_failures,
         "total_skipped": total_skipped,

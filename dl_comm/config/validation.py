@@ -86,7 +86,9 @@ def validate_and_calculate_buffer_size(payload_config, mode_name: str, log=None,
 
 def adjust_buffer_size_for_group_divisibility(buffer_bytes: int, group_size: int, collective_name: str, elem_size: int, log=None, mpi_rank: int = 0) -> tuple[int, str]:
     
-    collectives_needing_divisibility = ["alltoallsingle"]
+    # alltoallv splits the buffer across ranks just as alltoallsingle does, so
+    # it carries the same divisibility requirement.
+    collectives_needing_divisibility = ["alltoallsingle", "alltoallv"]
     
 
     if collective_name.lower() not in collectives_needing_divisibility:

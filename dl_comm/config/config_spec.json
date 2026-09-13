@@ -1,24 +1,103 @@
 {
-    "framework": ["pytorch", "jax", "tensorflow"],
-    "ccl_debug": ["on", "off"],
-  
-    "backend": {
-      "pytorch": ["xccl", "ccl", "mpi","nccl","gloo"],
-      "jax": ["xccl", "ccl", "mpi","nccl","gloo"],
-      "tensorflow": ["xccl"]
-    },
-    "collective": ["allreduce", "broadcast", "gather", "scatter", "allgather", "reduce", "barrier", "alltoall", "alltoallsingle"],
-    "op": {
-      "allreduce": ["sum", "max", "min", "prod"],
-      "reduce": ["sum", "max", "min", "prod"],
-      "broadcast": [null],
-      "gather": [null],
-      "scatter": [null],
-      "allgather": [null],
-      "barrier": [null],
-      "alltoall": [null],
-      "alltoallsingle": [null]
-    },
-    "dtype": ["float16", "bfloat16", "float32", "float64", "int32", "int64"]
-  }
-  
+  "framework": [
+    "pytorch",
+    "jax",
+    "tensorflow"
+  ],
+  "ccl_debug": [
+    "on",
+    "off"
+  ],
+  "backend": {
+    "pytorch": [
+      "xccl",
+      "ccl",
+      "mpi",
+      "nccl",
+      "gloo"
+    ],
+    "jax": [
+      "xccl",
+      "ccl",
+      "mpi",
+      "nccl",
+      "gloo"
+    ],
+    "tensorflow": [
+      "xccl"
+    ]
+  },
+  "collective": [
+    "allreduce",
+    "broadcast",
+    "gather",
+    "scatter",
+    "allgather",
+    "reduce",
+    "barrier",
+    "alltoall",
+    "alltoallsingle",
+    "reducescatter",
+    "alltoallv",
+    "sendrecv",
+    "sendrecv_async"
+  ],
+  "op": {
+    "allreduce": [
+      "sum",
+      "max",
+      "min",
+      "prod"
+    ],
+    "reduce": [
+      "sum",
+      "max",
+      "min",
+      "prod"
+    ],
+    "broadcast": [
+      null
+    ],
+    "gather": [
+      null
+    ],
+    "scatter": [
+      null
+    ],
+    "allgather": [
+      null
+    ],
+    "barrier": [
+      null
+    ],
+    "alltoall": [
+      null
+    ],
+    "alltoallsingle": [
+      null
+    ],
+    "reducescatter": [
+      "sum",
+      "max",
+      "min",
+      "prod"
+    ],
+    "alltoallv": [
+      null
+    ],
+    "sendrecv": [
+      null
+    ],
+    "sendrecv_async": [
+      null
+    ]
+  },
+  "dtype": [
+    "float16",
+    "bfloat16",
+    "float32",
+    "float64",
+    "int32",
+    "int64"
+  ]
+}
