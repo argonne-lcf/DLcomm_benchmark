@@ -179,7 +179,22 @@ def main(cfg: DictConfig):
             # ModuleNotFoundError before any collective executed. Import the
             # shims only when they exist, and only fail if the requested
             # backend is genuinely unavailable.
-            if ccl_backend in ["xccl", "ccl"]:
+            if ccl_backend == "torchcomms":
+                # torchcomms is a transport, not a framework: it carries the
+                # same torch.Tensor objects. Fail here with an actionable
+                # message rather than deep inside the first collective.
+                from dl_comm.comm import torchcomms_backend as _tcb
+                if not _tcb.is_available():
+                    raise RuntimeError(
+                        "ccl_backend 'torchcomms' requires the torchcomms "
+                        "module (PyTorch >= 2.8). On Aurora it ships with "
+                        "frameworks/2025.3.1; elsewhere `pip install "
+                        "torchcomms`.")
+                try:
+                    import intel_extension_for_pytorch  # noqa: F401
+                except ImportError:
+                    pass
+            elif ccl_backend in ["xccl", "ccl"]:
                 try:
                     import intel_extension_for_pytorch  # noqa: F401
                 except ImportError:
@@ -277,7 +292,36 @@ def main(cfg: DictConfig):
      
     MPI.COMM_WORLD.Barrier()
     with timer("init time"):
-        if framework == "pytorch":
+        if framework == "pytorch" and ccl_backend == "torchcomms":
+            # torchcomms derives rank/world size from RANK/WORLD_SIZE and
+            # bootstraps via MASTER_ADDR/MASTER_PORT, the way torchrun sets
+            # them. DLcomm launches under mpiexec, so export them from the MPI
+            # rank before creating the communicator.
+            from dl_comm.comm import torchcomms_backend as _tcb
+
+            os.environ.setdefault("RANK", str(mpi_rank))
+            os.environ.setdefault("WORLD_SIZE", str(mpi_size))
+
+            _tc_device_type = "gpu"
+            try:
+                _tc_device_type = cfg.device_type
+            except Exception:
+                pass
+
+            if _tc_device_type in ("gpu", "xpu"):
+                _tc_dev = torch.device("xpu", mpi_rank % torch.xpu.device_count())
+            else:
+                _tc_dev = torch.device("cpu")
+
+            # Replacing the module-level `dist` with the adapter is what makes
+            # all 13 collectives work unmodified: they already receive their
+            # comm module as a `dist=` parameter.
+            dist = _tcb.build(
+                _tc_dev,
+                device_type=_tc_device_type,
+                timeout=datetime.timedelta(seconds=3600),
+            )
+        elif framework == "pytorch":
             dist.init_process_group(
                 backend=ccl_backend,
                 init_method='env://',
@@ -311,6 +355,14 @@ def main(cfg: DictConfig):
     
     # Start multi-task execution loop
     for task_index, task_name in enumerate(tasks_to_run):
+        # Snapshot the tally so this task's own result can be reported when it
+        # finishes. The end-of-run summary is the only place passing checks
+        # were previously printed, so a hang in a later task erased the
+        # evidence for every task that had already succeeded (Aurora jobs
+        # 8824532 and 8824561 lost alltoallv and sendrecv results this way).
+        _task_start_tally = verify_failures.snapshot()
+        _task_coll_name = "?"
+
         if mpi_rank == 0 and len(tasks_to_run) > 1:
             log.info("")
             log.info("=" * 80)
@@ -363,6 +415,7 @@ def main(cfg: DictConfig):
 
             # Extract configuration
             coll_name          = coll_cfg.collective_name
+            _task_coll_name    = coll_name
             op_name            = coll_cfg.collective_op
             dtype_str          = coll_cfg.payload.dtype
             iters              = coll_cfg.iterations
@@ -772,6 +825,21 @@ def main(cfg: DictConfig):
                 else:
                     log.info("[EXIT] All Done.")
                 log.info("-------------------------------------------------------------------------")
+
+        # Per-task correctness line, emitted as soon as the task finishes.
+        # This is deliberately NOT the cross-rank verdict -- it is rank 0's own
+        # tally -- but it survives a hang in a later task, which the end-of-run
+        # summary does not.
+        if mpi_rank == 0:
+            _end = verify_failures.snapshot()
+            _d_checks = _end["checks"] - _task_start_tally["checks"]
+            _d_fail = _end["failures"] - _task_start_tally["failures"]
+            _d_skip = _end["skipped"] - _task_start_tally["skipped"]
+            _status = "FAILED" if _d_fail else ("NO-CHECKS" if _d_checks == 0 else "ok")
+            log.output(
+                f"[TASK-CORRECTNESS] {task_name} collective={_task_coll_name} "
+                f"checks={_d_checks} failures={_d_fail} skipped={_d_skip} [{_status}]"
+            )
  
     
     # ----------------------------------------------------------------------------

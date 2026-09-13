@@ -14,7 +14,8 @@
       "ccl",
       "mpi",
       "nccl",
-      "gloo"
+      "gloo",
+      "torchcomms"
     ],
     "jax": [
       "xccl",
