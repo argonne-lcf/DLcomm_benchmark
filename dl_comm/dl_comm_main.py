@@ -89,10 +89,19 @@ def main(cfg: DictConfig):
     # LOGGER INITIALIZATION
     # ----------------------------------------------------------------------------
 
-    if mpi_rank == 0:      
-         
-        log_dir = os.environ["RUN_LOG_DIR"]
- 
+    if mpi_rank == 0:
+        # RUN_LOG_DIR is exported by the bundled jobscripts, but the benchmark
+        # must not crash with a bare KeyError when it is launched any other way
+        # (a bare mpiexec, a CI harness, an interactive debug session). Fall
+        # back to a timestamped directory under the current working directory
+        # and say so, rather than dying before a single collective has run.
+        log_dir = os.environ.get("RUN_LOG_DIR") or os.environ.get("DL_COMM_LOG_DIR")
+        if not log_dir:
+            log_dir = os.path.join(
+                os.getcwd(), "logs", f"run_{time.strftime('%Y%m%d_%H%M%S')}")
+            print(f"[dl_comm] RUN_LOG_DIR not set; logging to {log_dir}",
+                  flush=True)
+        os.makedirs(log_dir, exist_ok=True)
     else:
         log_dir = None
     
@@ -139,10 +148,32 @@ def main(cfg: DictConfig):
             import torch.nn.parallel
             import torch.distributed as dist
             
-            # Intel-specific imports for CCL backends
+            # Intel-specific imports for CCL backends.
+            #
+            # torch 2.10 on Aurora (frameworks/2025.3.1) provides XCCL
+            # natively via torch.distributed, and the standalone
+            # `oneccl_bindings_for_pytorch` shim is no longer shipped.
+            # Importing it unconditionally made the benchmark unrunnable on
+            # the current module stack: every rank died with
+            # ModuleNotFoundError before any collective executed. Import the
+            # shims only when they exist, and only fail if the requested
+            # backend is genuinely unavailable.
             if ccl_backend in ["xccl", "ccl"]:
-                import intel_extension_for_pytorch
-                import oneccl_bindings_for_pytorch
+                try:
+                    import intel_extension_for_pytorch  # noqa: F401
+                except ImportError:
+                    pass
+                try:
+                    import oneccl_bindings_for_pytorch  # noqa: F401
+                except ImportError:
+                    native = getattr(dist, f"is_{ccl_backend}_available",
+                                     lambda: False)()
+                    if not native:
+                        raise RuntimeError(
+                            f"backend '{ccl_backend}' is not available: "
+                            f"oneccl_bindings_for_pytorch is not installed and "
+                            f"torch.distributed has no native {ccl_backend} "
+                            f"support in this build")
 
 
     elif framework == "jax":
@@ -773,14 +804,37 @@ def main(cfg: DictConfig):
     DLCOMMLogger.flush()
     DLCOMMLogger.reset()
     MPI.COMM_WORLD.Barrier()
+
+    # Decide the exit status BEFORE tearing down the communicators. XCCL
+    # teardown of subgroups created with use_local_synchronization=True can
+    # segfault on Aurora (observed: "rank 5 died from signal 11" after
+    # "[EXIT] All Done."), which turns a clean run into exit 143 and would
+    # equally mask a real correctness failure behind a signal. The verdict is
+    # already computed, so latch it here and make teardown non-fatal.
+    exit_code = 1 if total_failures else 0
+
     if framework == "pytorch":
-        dist.destroy_process_group()
+        try:
+            dist.destroy_process_group()
+        except Exception as exc:                       # pragma: no cover
+            print(f"[dl_comm] destroy_process_group raised (ignored): {exc}",
+                  flush=True)
     if framework == "jax":
-        jdist.shutdown()
+        try:
+            jdist.shutdown()
+        except Exception as exc:                       # pragma: no cover
+            print(f"[dl_comm] jax shutdown raised (ignored): {exc}", flush=True)
     reset_times()
 
-    if total_failures:
-        sys.exit(1)
+    # Flush stdio before _exit: os._exit skips atexit handlers and buffers.
+    sys.stdout.flush()
+    sys.stderr.flush()
+
+    # os._exit bypasses interpreter finalization, where the XCCL/oneCCL
+    # destructors run. Those destructors are what raise SIGSEGV on Aurora, and
+    # a signal death overrides our exit status -- the exact "job failed but
+    # reported success" class this work exists to remove.
+    os._exit(exit_code)
     
 if __name__ == "__main__":
     main()

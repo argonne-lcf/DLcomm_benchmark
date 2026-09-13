@@ -46,6 +46,22 @@ MOVEMENT = [
 
 ALL_CONFIGS = REDUCTIONS + MOVEMENT
 
+# Backend capability is version-dependent and can only be discovered by
+# calling: `dist.all_to_all` exists as a symbol even on builds whose gloo
+# backend raises "Backend gloo does not support alltoall" at call time
+# (observed on torch 2.10; older CPU builds accept it). So probe by result,
+# not by hasattr, and skip rather than fail -- a missing backend op is not a
+# defect in DLcomm. Any OTHER error must still fail the test.
+UNSUPPORTED = "does not support"
+
+
+def skip_if_backend_lacks_op(results):
+    """Skip when gloo itself refuses the op; re-raise anything else."""
+    for err in errors(results):
+        if UNSUPPORTED in err:
+            pytest.skip(f"gloo backend lacks this collective: "
+                        f"{err.strip().splitlines()[-1]}")
+
 
 @pytest.mark.gloo
 @pytest.mark.parametrize("collective,op", ALL_CONFIGS,
@@ -54,6 +70,7 @@ def test_healthy_collective_passes(collective, op):
     """A correctly functioning collective must verify clean."""
     results = run_gloo(collective, op, world_size=WORLD, num_elems=16,
                        mode="healthy")
+    skip_if_backend_lacks_op(results)
     assert not errors(results), errors(results)[:1]
     assert len(results) == WORLD, f"only {len(results)} of {WORLD} ranks reported"
     assert total_checks(results) > 0, "no verification actually ran"
@@ -74,6 +91,7 @@ def test_noop_collective_is_detected(collective, op):
     """
     results = run_gloo(collective, op, world_size=WORLD, num_elems=16,
                        mode="broken_noop")
+    skip_if_backend_lacks_op(results)
     assert not errors(results), errors(results)[:1]
     assert len(results) == WORLD, f"only {len(results)} of {WORLD} ranks reported"
     assert total_failures(results) > 0, (
@@ -91,6 +109,7 @@ def test_corrupted_rank_is_detected(collective, op):
     """Corrupting one rank's data after a real collective must be caught."""
     results = run_gloo(collective, op, world_size=WORLD, num_elems=16,
                        mode="broken_corrupt")
+    skip_if_backend_lacks_op(results)
     assert not errors(results), errors(results)[:1]
     assert total_failures(results) > 0, (
         f"{collective}/{op}: corruption on one rank went undetected")
