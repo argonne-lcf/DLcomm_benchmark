@@ -80,3 +80,47 @@ def test_measure_rejects_bad_input():
         h2d.measure(FakeTorch(), "cpu", nbytes=0)
     with pytest.raises(ValueError, match="iterations must be"):
         h2d.measure(FakeTorch(), "cpu", nbytes=1024, iterations=0)
+
+# --- d2d (device-to-device) -------------------------------------------------
+# d2d never crosses PCIe: it measures on-device HBM bandwidth and is the
+# ceiling against which h2d/d2h should be read.
+
+
+def test_d2d_is_measured_and_does_not_double_count():
+    """d2d moves one buffer per rank, like h2d -- not two like bidirectional."""
+    r = TransferResult(direction="d2d", pinned=False, nbytes=1 << 30,
+                       world_size=12, times_s=[0.01])
+    assert r.total_bytes == (1 << 30) * 12
+
+
+def test_d2d_in_default_directions():
+    import inspect
+    from dl_comm.transfer.h2d import measure
+    default = inspect.signature(measure).parameters["directions"].default
+    assert "d2d" in default, "goal requires h2d, d2d and d2h"
+    assert "h2d" in default and "d2h" in default
+
+
+def test_unknown_direction_names_d2d_in_error():
+    """The error text must list d2d so a typo points at the real options."""
+    import inspect
+
+    from dl_comm.transfer import h2d as mod
+    src = inspect.getsource(mod.measure)
+    assert "expected h2d, d2h, d2d, or bidirectional" in src
+
+def test_fill_does_not_use_randperm():
+    """randperm at 2^28 elements hung the PyTorch layer of job 8824725.
+
+    It is O(n) single-threaded on host tensors; the fill must stay parallel.
+    """
+    import inspect
+
+    from dl_comm.transfer import h2d as mod
+    src = inspect.getsource(mod.fill_shuffled)
+    # Strip the docstring: it legitimately mentions randperm to explain why
+    # the function avoids it.
+    doc = mod.fill_shuffled.__doc__ or ""
+    code = src.replace(doc, "")
+    assert "randperm" not in code, "randperm hangs at 1 GiB; use random_"
+    assert "random_" in code

@@ -43,7 +43,7 @@ from typing import Any
 class TransferResult:
     """One measured transfer pattern."""
 
-    direction: str          # "h2d" | "d2h" | "bidirectional"
+    direction: str          # "h2d" | "d2h" | "d2d" | "bidirectional"
     pinned: bool
     nbytes: int             # per rank, per copy
     world_size: int
@@ -91,14 +91,20 @@ class TransferResult:
 
 
 def fill_shuffled(tensor: Any, torch_mod: Any) -> None:
-    """Fill with a shuffled iota.
+    """Fill with pseudo-random, incompressible data.
 
     A constant fill lets compression or zero-page handling anywhere in the
     path report a bandwidth the hardware cannot sustain.
+
+    The reference uses std::shuffle on an iota. torch.randperm is the direct
+    equivalent but is O(n) single-threaded on host tensors and effectively
+    hangs at 2^28 elements: job 8824725's PyTorch layer timed out at 600 s
+    filling four 1 GiB buffers this way. random_ produces data that is just
+    as incompressible for the purpose of defeating link compression, and is
+    parallel on both host and device.
     """
-    n = tensor.numel()
-    perm = torch_mod.randperm(n, device=tensor.device, dtype=tensor.dtype)
-    tensor.copy_(perm.view(tensor.shape))
+    iinfo = torch_mod.iinfo(tensor.dtype)
+    tensor.random_(iinfo.min, iinfo.max)
 
 
 def _sync(torch_mod: Any, device: Any) -> None:
@@ -123,7 +129,7 @@ def measure(
     pinned: bool = True,
     dist: Any = None,
     world_size: int = 1,
-    directions: tuple[str, ...] = ("h2d", "d2h", "bidirectional"),
+    directions: tuple[str, ...] = ("h2d", "d2h", "d2d", "bidirectional"),
 ) -> list[TransferResult]:
     """Measure host-device transfer bandwidth.
 
@@ -170,10 +176,15 @@ def measure(
                 # Both copies are issued before the wait so they overlap.
                 dev_a.copy_(host_a, non_blocking=pinned)
                 host_b.copy_(dev_b, non_blocking=pinned)
+            elif direction == "d2d":
+                # On-device copy. This never crosses PCIe, so it measures HBM
+                # bandwidth and forms the ceiling the host-device numbers
+                # should be read against.
+                dev_b.copy_(dev_a, non_blocking=True)
             else:
                 raise ValueError(
                     f"unknown direction {direction!r}; "
-                    "expected h2d, d2h, or bidirectional"
+                    "expected h2d, d2h, d2d, or bidirectional"
                 )
             _sync(torch_mod, device)
             res.times_s.append(time.perf_counter() - t0)
