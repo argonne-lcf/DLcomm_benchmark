@@ -27,6 +27,8 @@
 #include <cstring>
 #include <iostream>
 #include <string>
+#include <set>
+#include <sstream>
 #include <vector>
 
 #include <mpi.h>
@@ -99,7 +101,39 @@ int main(int argc, char **argv) {
 
   const int iters = argc > 1 ? std::atoi(argv[1]) : 20;
   const int warmup = 5;
-  std::vector<size_t> sizes = {1 << 20, 1 << 21, 1 << 22};
+
+  // Sizes and ops are overridable so a sweep can locate a threshold without
+  // recompiling. DLCOMM_SIZES is a comma-separated byte list; DLCOMM_OPS is a
+  // comma-separated op list. Unset means the default three-point sweep and
+  // all ops.
+  std::vector<size_t> sizes;
+  if (const char* env_sizes = std::getenv("DLCOMM_SIZES")) {
+    std::stringstream ss(env_sizes);
+    std::string tok;
+    while (std::getline(ss, tok, ',')) {
+      if (!tok.empty()) {
+        sizes.push_back(static_cast<size_t>(std::stoull(tok)));
+      }
+    }
+  }
+  if (sizes.empty()) {
+    sizes = {1 << 20, 1 << 21, 1 << 22};
+  }
+
+  std::set<std::string> only_ops;
+  if (const char* env_ops = std::getenv("DLCOMM_OPS")) {
+    std::stringstream ss(env_ops);
+    std::string tok;
+    while (std::getline(ss, tok, ',')) {
+      if (!tok.empty()) {
+        only_ops.insert(tok);
+      }
+    }
+  }
+  // Empty set means "run everything"; a non-empty set restricts the run.
+  auto want = [&only_ops](const std::string& op) {
+    return only_ops.empty() || only_ops.count(op) > 0;
+  };
 
   if (rank == 0) {
     std::cout << "LAYER=cpp_ccl BACKEND=" << BACKEND_NAME
@@ -131,89 +165,105 @@ int main(int argc, char **argv) {
     float *sbuf = sycl::malloc_device<float>(count, q);
     float *rbuf = sycl::malloc_device<float>(count * world, q);
     q.memset(sbuf, 1, nbytes).wait();
+    std::vector<double> ts;
 
     // ---- allreduce ----
-    std::vector<double> ts;
-    for (int i = 0; i < warmup + iters; i++) {
-      MPI_Barrier(MPI_COMM_WORLD);
-      auto t0 = clk::now();
-      ccl::allreduce(sbuf, rbuf, count, ccl::reduction::sum, comm, stream)
-          .wait();
-      auto t1 = clk::now();
-      if (i >= warmup)
-        ts.push_back(std::chrono::duration<double>(t1 - t0).count());
-    }
-    emit({"allreduce", nbytes, median(ts)}, world, rank);
-
-    // ---- allgather ----
-    ts.clear();
-    for (int i = 0; i < warmup + iters; i++) {
-      MPI_Barrier(MPI_COMM_WORLD);
-      auto t0 = clk::now();
-      ccl::allgather(sbuf, rbuf, count, comm, stream).wait();
-      auto t1 = clk::now();
-      if (i >= warmup)
-        ts.push_back(std::chrono::duration<double>(t1 - t0).count());
-    }
-    emit({"allgather", nbytes, median(ts)}, world, rank);
-
-    // ---- alltoall ----
-    ts.clear();
-    size_t per = count / world;
-    if (per > 0) {
+    if (want("allreduce")) {
+      // (timing vector hoisted below the buffer allocation)
       for (int i = 0; i < warmup + iters; i++) {
         MPI_Barrier(MPI_COMM_WORLD);
         auto t0 = clk::now();
-        ccl::alltoall(sbuf, rbuf, per, comm, stream).wait();
-        auto t1 = clk::now();
-        if (i >= warmup)
-          ts.push_back(std::chrono::duration<double>(t1 - t0).count());
-      }
-      emit({"alltoall", nbytes, median(ts)}, world, rank);
-    }
-
-    // ---- broadcast ----
-    ts.clear();
-    for (int i = 0; i < warmup + iters; i++) {
-      MPI_Barrier(MPI_COMM_WORLD);
-      auto t0 = clk::now();
-      ccl::broadcast(sbuf, count, 0, comm, stream).wait();
-      auto t1 = clk::now();
-      if (i >= warmup)
-        ts.push_back(std::chrono::duration<double>(t1 - t0).count());
-    }
-    emit({"broadcast", nbytes, median(ts)}, world, rank);
-
-    // ---- reduce ----
-    ts.clear();
-    for (int i = 0; i < warmup + iters; i++) {
-      MPI_Barrier(MPI_COMM_WORLD);
-      auto t0 = clk::now();
-      ccl::reduce(sbuf, rbuf, count, ccl::reduction::sum, 0, comm, stream)
-          .wait();
-      auto t1 = clk::now();
-      if (i >= warmup)
-        ts.push_back(std::chrono::duration<double>(t1 - t0).count());
-    }
-    emit({"reduce", nbytes, median(ts)}, world, rank);
-
-    // ---- reduce_scatter ----
-    ts.clear();
-    if (per > 0) {
-      for (int i = 0; i < warmup + iters; i++) {
-        MPI_Barrier(MPI_COMM_WORLD);
-        auto t0 = clk::now();
-        ccl::reduce_scatter(sbuf, rbuf, per, ccl::reduction::sum, comm, stream)
+        ccl::allreduce(sbuf, rbuf, count, ccl::reduction::sum, comm, stream)
             .wait();
         auto t1 = clk::now();
         if (i >= warmup)
           ts.push_back(std::chrono::duration<double>(t1 - t0).count());
       }
-      emit({"reduce_scatter", nbytes, median(ts)}, world, rank);
+      emit({"allreduce", nbytes, median(ts)}, world, rank);
+    }
+
+    // ---- allgather ----
+    if (want("allgather")) {
+      ts.clear();
+      for (int i = 0; i < warmup + iters; i++) {
+        MPI_Barrier(MPI_COMM_WORLD);
+        auto t0 = clk::now();
+        ccl::allgather(sbuf, rbuf, count, comm, stream).wait();
+        auto t1 = clk::now();
+        if (i >= warmup)
+          ts.push_back(std::chrono::duration<double>(t1 - t0).count());
+      }
+      emit({"allgather", nbytes, median(ts)}, world, rank);
+    }
+
+    // ---- alltoall ----
+    if (want("alltoall")) {
+      ts.clear();
+      size_t per = count / world;
+      if (per > 0) {
+        for (int i = 0; i < warmup + iters; i++) {
+          MPI_Barrier(MPI_COMM_WORLD);
+          auto t0 = clk::now();
+          ccl::alltoall(sbuf, rbuf, per, comm, stream).wait();
+          auto t1 = clk::now();
+          if (i >= warmup)
+            ts.push_back(std::chrono::duration<double>(t1 - t0).count());
+        }
+        emit({"alltoall", nbytes, median(ts)}, world, rank);
+    }
+    }
+
+    // ---- broadcast ----
+    if (want("broadcast")) {
+      ts.clear();
+      for (int i = 0; i < warmup + iters; i++) {
+        MPI_Barrier(MPI_COMM_WORLD);
+        auto t0 = clk::now();
+        ccl::broadcast(sbuf, count, 0, comm, stream).wait();
+        auto t1 = clk::now();
+        if (i >= warmup)
+          ts.push_back(std::chrono::duration<double>(t1 - t0).count());
+      }
+      emit({"broadcast", nbytes, median(ts)}, world, rank);
+    }
+
+    // ---- reduce ----
+    if (want("reduce")) {
+      ts.clear();
+      for (int i = 0; i < warmup + iters; i++) {
+        MPI_Barrier(MPI_COMM_WORLD);
+        auto t0 = clk::now();
+        ccl::reduce(sbuf, rbuf, count, ccl::reduction::sum, 0, comm, stream)
+            .wait();
+        auto t1 = clk::now();
+        if (i >= warmup)
+          ts.push_back(std::chrono::duration<double>(t1 - t0).count());
+      }
+      emit({"reduce", nbytes, median(ts)}, world, rank);
+    }
+
+    // ---- reduce_scatter ----
+    if (want("reduce_scatter")) {
+      ts.clear();
+      // Per-rank output count. Declared here because the want() guard scopes
+      // this block; it was previously shared with the loop above.
+      const size_t per = count / static_cast<size_t>(world);
+      if (per > 0) {
+        for (int i = 0; i < warmup + iters; i++) {
+          MPI_Barrier(MPI_COMM_WORLD);
+          auto t0 = clk::now();
+          ccl::reduce_scatter(sbuf, rbuf, per, ccl::reduction::sum, comm, stream)
+              .wait();
+          auto t1 = clk::now();
+          if (i >= warmup)
+            ts.push_back(std::chrono::duration<double>(t1 - t0).count());
+        }
+        emit({"reduce_scatter", nbytes, median(ts)}, world, rank);
+    }
     }
 
     // ---- point-to-point: rank 0 <-> rank 1 ----
-    if (world >= 2) {
+    if (world >= 2 && want("sendrecv")) {
       ts.clear();
       for (int i = 0; i < warmup + iters; i++) {
         MPI_Barrier(MPI_COMM_WORLD);
@@ -301,7 +351,7 @@ int main(int argc, char **argv) {
     }
     emit({"broadcast", nbytes, median(ts)}, world, rank);
 
-    if (world >= 2) {
+    if (world >= 2 && want("sendrecv")) {
       ts.clear();
       for (int i = 0; i < warmup + iters; i++) {
         MPI_Barrier(MPI_COMM_WORLD);
