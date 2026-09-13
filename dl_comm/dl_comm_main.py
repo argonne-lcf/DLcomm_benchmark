@@ -26,6 +26,8 @@ import re
 import sys
 import json
 import time
+import signal
+import faulthandler
 import pytz
 import hydra
 import socket
@@ -59,6 +61,24 @@ def main(cfg: DictConfig):
 
     mpi_rank = MPI.COMM_WORLD.Get_rank()
     mpi_size = MPI.COMM_WORLD.Get_size()
+
+    # ----------------------------------------------------------------------------
+    #  HANG WATCHDOG
+    # ----------------------------------------------------------------------------
+    # A benchmark that hangs consumes its whole walltime allocation and reports
+    # nothing at all, which is strictly worse than a wrong number: the evidence
+    # is destroyed along with the run. faulthandler.dump_traceback_later fires
+    # from a dedicated thread and prints the Python stack of EVERY thread on
+    # EVERY rank, so a deadlock names its own location instead of requiring a
+    # debugger on a compute node (which is air-gapped and has no gdb/py-spy).
+    #
+    # DLCOMM_WATCHDOG=0 disables it. See docs/fixes/12-hang-watchdog.md
+    _watchdog_s = float(os.environ.get("DLCOMM_WATCHDOG", "600"))
+    if _watchdog_s > 0:
+        faulthandler.enable()
+        faulthandler.dump_traceback_later(_watchdog_s, exit=True)
+        # SIGABRT/SIGSEGV/SIGBUS handlers so a native crash also yields a stack
+        faulthandler.register(signal.SIGUSR1, all_threads=True, chain=False)
 
 
 
@@ -749,6 +769,25 @@ def main(cfg: DictConfig):
     # See docs/fixes/04-fail-loudly.md
 
     local_verify = verify_failures.snapshot()
+
+    # Reaching this point is itself collective state: every rank must arrive or
+    # the reduce below hangs. A non-blocking barrier with a bounded wait turns
+    # that silent deadlock into a diagnosable error naming the missing ranks.
+    # See docs/fixes/11-verdict-barrier-timeout.md
+    _VERDICT_TIMEOUT_S = float(os.environ.get("DLCOMM_VERDICT_TIMEOUT", "120"))
+    _req = MPI.COMM_WORLD.Ibarrier()
+    _deadline = time.time() + _VERDICT_TIMEOUT_S
+    while not _req.Test():
+        if time.time() > _deadline:
+            sys.stderr.write(
+                f"[CORRECTNESS] rank {mpi_rank} timed out after "
+                f"{_VERDICT_TIMEOUT_S:.0f}s waiting for all {mpi_size} ranks to "
+                f"reach the verdict barrier. At least one rank exited the task "
+                f"loop early; the cross-rank reduce cannot complete.\n")
+            sys.stderr.flush()
+            MPI.COMM_WORLD.Abort(3)
+        time.sleep(0.05)
+
     total_failures = MPI.COMM_WORLD.allreduce(local_verify["failures"], op=MPI.SUM)
     total_checks = MPI.COMM_WORLD.allreduce(local_verify["checks"], op=MPI.SUM)
     total_skipped = MPI.COMM_WORLD.allreduce(local_verify["skipped"], op=MPI.SUM)

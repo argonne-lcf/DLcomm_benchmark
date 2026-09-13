@@ -42,6 +42,11 @@ MOVEMENT = [
     ("gather", None),
     ("scatter", None),
     ("alltoallsingle", None),
+    # Vector and point-to-point additions; see
+    # docs/fixes/10-p2p-and-vector-collectives.md
+    ("alltoallv", None),
+    ("sendrecv", None),
+    ("sendrecv_async", None),
 ]
 
 ALL_CONFIGS = REDUCTIONS + MOVEMENT

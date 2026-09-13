@@ -343,6 +343,88 @@ def _check_alltoallsingle(context, t, op, group, gid, result, dist, torch, label
                     label, extra=f"chunk={chunk}, index={my_index}")
 
 
+def _check_alltoallv(context, t, op, group, gid, result, dist, torch, label):
+    """Verify the uneven-split exchange.
+
+    Rank r receives, from every peer j, the slice of j's payload that j
+    assigned to r. Because all ranks compute the same split table, the
+    expected content of each received chunk is fully determined.
+    """
+    from dl_comm.comm.collectives import _uneven_splits
+
+    group_ranks, world_size, root, my_index = _group_info(dist, group)
+    if result is None:
+        _skip(context, label, "collective returned no result data")
+        return
+    if my_index is None:
+        _skip(context, label, "rank index within group is unknown")
+        return
+
+    rank_mod, pos_mod = choose_moduli(t.dtype, world_size, None)
+    rtol, atol = tolerance_for(t.dtype)
+
+    splits = _uneven_splits(t.numel(), world_size, my_index)
+    my_share = splits[my_index]
+
+    if result.numel() != my_share * world_size:
+        _reduce_verdict(context, dist, torch, t, group, group_ranks, root,
+                        False, label,
+                        extra=(f"received {result.numel()} elems, expected "
+                               f"{my_share * world_size} "
+                               f"({world_size} peers x {my_share})"))
+        return
+
+    # chunk j of the output is peer j's elements [offset : offset+my_share],
+    # where offset is the sum of the shares j assigned to ranks before us
+    offset = sum(splits[:my_index])
+    parts = []
+    for j in range(world_size):
+        sig = rank_signature(j, world_size, rank_mod, None)
+        parts.append(position_term(torch, my_share, pos_mod, offset=offset) + sig)
+
+    expected = torch.cat(parts).to(result.dtype).to(result.device)
+    local_ok = bool(torch.allclose(result.to(expected.dtype), expected,
+                                   rtol=rtol, atol=atol))
+    _reduce_verdict(context, dist, torch, t, group, group_ranks, root, local_ok,
+                    label, extra=f"uneven splits={splits}, my_share={my_share}")
+
+
+def _check_sendrecv(context, t, op, group, gid, result, dist, torch, label):
+    """Verify the pairwise exchange: each rank must hold its partner's payload.
+
+    A rank left idle by an odd group size records a skip rather than a pass,
+    so an all-idle configuration cannot look like a clean verification.
+    """
+    group_ranks, world_size, root, my_index = _group_info(dist, group)
+    if my_index is None:
+        _skip(context, label, "rank index within group is unknown")
+        return
+
+    if world_size < 2:
+        _skip(context, label, f"group of {world_size} has no pairs")
+        return
+
+    if world_size % 2 and my_index == world_size - 1:
+        _skip(context, label, f"odd group size {world_size}; this rank is idle")
+        return
+
+    if result is None:
+        _skip(context, label, "collective returned no result data")
+        return
+
+    rank_mod, pos_mod = choose_moduli(t.dtype, world_size, None)
+    rtol, atol = tolerance_for(t.dtype)
+
+    partner = my_index + 1 if my_index % 2 == 0 else my_index - 1
+    expected = build_payload(torch, result.numel(), result.dtype, partner,
+                             world_size, None, device=result.device,
+                             rank_modulus=rank_mod, position_modulus=pos_mod)
+
+    local_ok = bool(torch.allclose(result, expected, rtol=rtol, atol=atol))
+    _reduce_verdict(context, dist, torch, t, group, group_ranks, root, local_ok,
+                    label, extra=f"partner={partner}")
+
+
 _HANDLERS = {
     "allreduce": _check_allreduce,
     "reduce": _check_reduce,
@@ -353,4 +435,7 @@ _HANDLERS = {
     "scatter": _check_scatter,
     "alltoall": _check_alltoall,
     "alltoallsingle": _check_alltoallsingle,
+    "alltoallv": _check_alltoallv,
+    "sendrecv": _check_sendrecv,
+    "sendrecv_async": _check_sendrecv,
 }

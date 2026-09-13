@@ -97,10 +97,19 @@ def busbw_factor(collective_name, n):
     if name == "allreduce":
         return 2.0 * (n - 1) / n
     if name in ("allgather", "reducescatter", "reduce_scatter",
-                "alltoall", "alltoallsingle", "gather", "scatter"):
+                "alltoall", "alltoallsingle", "alltoallv", "gather", "scatter"):
         return (n - 1) / n
     if name in ("reduce", "broadcast", "bcast"):
         return 1.0
+    # Point-to-point: the measurement is a single pair, so the group size is
+    # irrelevant to the traffic multiplier. Every byte in the buffer crosses
+    # the wire exactly once per direction, making busbw equal to algbw.
+    # sendrecv_async has both directions in flight, so the bus carries twice
+    # the payload in the same elapsed time.
+    if name in ("sendrecv", "send", "recv", "p2p"):
+        return 1.0
+    if name in ("sendrecv_async", "sendrecv_bidir"):
+        return 2.0
     return 1.0
 
 

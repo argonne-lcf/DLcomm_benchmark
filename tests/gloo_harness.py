@@ -52,7 +52,7 @@ def _worker(rank, world_size, port, collective, op_name, num_elems, mode,
             # The collective is simply not performed. Every rank keeps its own
             # input. This is the exact failure the all-ones payload could not
             # detect for 12 of 15 configurations.
-            result = _shape_only_result(collective, x, world_size)
+            result = _shape_only_result(collective, x, world_size, rank)
         elif mode == "broken_corrupt" and rank == world_size - 1:
             # Perform the collective, then corrupt the result on the last rank.
             result = _run(collective, x, op, world_size)
@@ -78,13 +78,25 @@ def _worker(rank, world_size, port, collective, op_name, num_elems, mode,
         return_queue.put({"rank": rank, "error": traceback.format_exc()})
 
 
-def _shape_only_result(collective, x, world_size):
+def _shape_only_result(collective, x, world_size, rank=0):
     """Result object of the right shape for a collective that never ran."""
     if collective in ("allgather", "alltoall", "gather"):
         return [x.clone() for _ in range(world_size)]
     if collective in ("reducescatter",):
         return x[: x.numel() // world_size].clone()
     if collective in ("alltoallsingle",):
+        return x.clone()
+    if collective in ("alltoallv",):
+        # Correct shape for the uneven exchange, but filled with this rank's
+        # own data. Returning None here would make the checker record a skip
+        # rather than a failure, which would let a dead collective look clean.
+        from dl_comm.comm.collectives import _uneven_splits
+        splits = _uneven_splits(x.numel(), world_size, rank)
+        my_share = splits[rank]
+        return x[: my_share * world_size].clone()
+    if collective in ("sendrecv", "sendrecv_async"):
+        # A pairwise exchange that never happened leaves the rank holding its
+        # own payload instead of its partner's.
         return x.clone()
     return None
 

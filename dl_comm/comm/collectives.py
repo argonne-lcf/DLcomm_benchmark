@@ -258,5 +258,162 @@ def _barrier(tensor, op=None, group=None, dist=None,log=None, framework="pytorch
     elif framework == 'jax':
         pass
 
+
+# ---------------------------------------------------------------------------
+# Vector and point-to-point operations
+#
+# See docs/fixes/10-p2p-and-vector-collectives.md
+#
+# alltoallv exercises the uneven-split path that alltoall/alltoallsingle
+# cannot: real workloads (MoE routing, unbalanced sharding) send a different
+# element count to every peer, and that path has different performance and
+# different failure modes from the equal-split case.
+#
+# sendrecv is not a collective but is the standard pairwise
+# latency/bandwidth measurement (the osu_latency / osu_bw equivalent), which
+# the tool previously had no way to express.
+# ---------------------------------------------------------------------------
+
+
+def _uneven_splits(total_elems, world_size, group_rank):
+    """Deterministic, rank-dependent, non-uniform split of `total_elems`.
+
+    Every rank computes the identical split table, so the send and receive
+    sides agree without extra communication. The distribution is deliberately
+    skewed: rank i's share grows with i, so an implementation that silently
+    assumes equal chunks produces wrong sizes rather than passing by luck.
+    """
+    if world_size == 1:
+        return [total_elems]
+    weights = [i + 1 for i in range(world_size)]
+    wsum = sum(weights)
+    splits = [max(1, (total_elems * w) // wsum) for w in weights]
+    # absorb the rounding remainder into the last entry
+    splits[-1] += total_elems - sum(splits)
+    if splits[-1] < 1:
+        # fall back to an equal split when the buffer is too small to skew
+        base = total_elems // world_size
+        splits = [base] * world_size
+        splits[-1] += total_elems - base * world_size
+    return splits
+
+
+@register_collective("alltoallv", needs_op=False)
+def _all_to_all_v(tensor, op=None, group=None, dist=None, log=None,
+                  framework="pytorch"):
+    """all_to_all_single with uneven input/output split sizes."""
+    if framework == 'pytorch':
+        world_size = dist.get_world_size(group)
+        group_rank = dist.get_rank(group)
+
+        total = tensor.numel()
+        # what this rank sends to each peer
+        out_splits = _uneven_splits(total, world_size, group_rank)
+        # what this rank receives is peer j's share destined for us; because
+        # every rank uses the same table, rank i receives out_splits[group_rank]
+        # elements from each peer j
+        in_splits = [out_splits[group_rank]] * world_size
+
+        send = tensor[:sum(out_splits)].contiguous()
+        recv = torch.empty(sum(in_splits), dtype=tensor.dtype,
+                           device=tensor.device)
+
+        dist.all_to_all_single(recv, send,
+                               output_split_sizes=in_splits,
+                               input_split_sizes=out_splits,
+                               group=group)
+        return recv
+    elif framework == 'jax':
+        pass
+
+
+@register_collective("sendrecv", needs_op=False)
+def _send_recv(tensor, op=None, group=None, dist=None, log=None,
+               framework="pytorch"):
+    """Pairwise point-to-point exchange.
+
+    Ranks are paired (0,1), (2,3), ... within the group. The even member sends
+    then receives; the odd member receives then sends. This ordering avoids the
+    deadlock that symmetric blocking send-first would cause. A group with an
+    odd rank count leaves the final rank idle, which is reported rather than
+    silently ignored.
+    """
+    if framework == 'pytorch':
+        world_size = dist.get_world_size(group)
+        group_rank = dist.get_rank(group)
+
+        if world_size < 2:
+            if log is not None:
+                log.warning("[SENDRECV] group has fewer than 2 ranks; nothing to do")
+            return None
+
+        # translate group-local rank to the global rank dist.send/recv expect
+        if group is None:
+            global_of = lambda r: r          # noqa: E731
+        else:
+            ranks = dist.get_process_group_ranks(group)
+            global_of = lambda r: ranks[r]   # noqa: E731
+
+        if world_size % 2 and group_rank == world_size - 1:
+            if log is not None and group_rank == world_size - 1:
+                log.warning(
+                    f"[SENDRECV] odd group size {world_size}; rank {group_rank} idle")
+            return None
+
+        partner_local = group_rank + 1 if group_rank % 2 == 0 else group_rank - 1
+        partner = global_of(partner_local)
+        recv = torch.empty_like(tensor)
+
+        if group_rank % 2 == 0:
+            dist.send(tensor, dst=partner, group=group)
+            dist.recv(recv, src=partner, group=group)
+        else:
+            dist.recv(recv, src=partner, group=group)
+            dist.send(tensor, dst=partner, group=group)
+
+        return recv
+    elif framework == 'jax':
+        pass
+
+
+@register_collective("sendrecv_async", needs_op=False)
+def _send_recv_async(tensor, op=None, group=None, dist=None, log=None,
+                     framework="pytorch"):
+    """Non-blocking pairwise exchange via isend/irecv.
+
+    Measures the same pairing as `sendrecv` but with both directions in flight
+    simultaneously, which is the bidirectional-bandwidth case.
+    """
+    if framework == 'pytorch':
+        world_size = dist.get_world_size(group)
+        group_rank = dist.get_rank(group)
+
+        if world_size < 2:
+            if log is not None:
+                log.warning("[SENDRECV_ASYNC] group has fewer than 2 ranks")
+            return None
+
+        if group is None:
+            global_of = lambda r: r          # noqa: E731
+        else:
+            ranks = dist.get_process_group_ranks(group)
+            global_of = lambda r: ranks[r]   # noqa: E731
+
+        if world_size % 2 and group_rank == world_size - 1:
+            return None
+
+        partner_local = group_rank + 1 if group_rank % 2 == 0 else group_rank - 1
+        partner = global_of(partner_local)
+        recv = torch.empty_like(tensor)
+
+        reqs = [dist.isend(tensor, dst=partner, group=group),
+                dist.irecv(recv, src=partner, group=group)]
+        for r in reqs:
+            r.wait()
+
+        return recv
+    elif framework == 'jax':
+        pass
+
  
  
