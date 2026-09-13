@@ -406,8 +406,25 @@ def _send_recv_async(tensor, op=None, group=None, dist=None, log=None,
         partner = global_of(partner_local)
         recv = torch.empty_like(tensor)
 
-        reqs = [dist.isend(tensor, dst=partner, group=group),
-                dist.irecv(recv, src=partner, group=group)]
+        # Order by rank parity, exactly as the blocking _send_recv does.
+        #
+        # XCCL's isend/irecv are not async at enqueue: the first call blocks
+        # until its peer posts the matching operation. Two jobs proved this --
+        # 8824532 had every rank call isend first and all 22 participants hung
+        # in isend; 8824561 swapped to irecv first and all 22 hung in irecv.
+        # The failing property is not which call comes first, it is that BOTH
+        # peers issue the SAME call first, so nothing can ever match.
+        #
+        # Parity ordering pairs an isend on one peer with an irecv on the
+        # other. Both requests are still outstanding before either wait(), so
+        # the two directions remain in flight together and this is still the
+        # bidirectional case rather than a blocking exchange.
+        if group_rank % 2 == 0:
+            reqs = [dist.isend(tensor, dst=partner, group=group),
+                    dist.irecv(recv, src=partner, group=group)]
+        else:
+            reqs = [dist.irecv(recv, src=partner, group=group),
+                    dist.isend(tensor, dst=partner, group=group)]
         for r in reqs:
             r.wait()
 
