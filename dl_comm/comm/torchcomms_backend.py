@@ -164,15 +164,40 @@ class TorchCommsDist:
             return list(group.ranks)
         return list(range(self.get_world_size(group)))
 
-    def new_group(self, ranks: Sequence[int], name: str | None = None):
-        """Create a subcommunicator. Mirrors ``dist.new_group``."""
+    def new_group(self, ranks: Sequence[int], name: str | None = None,
+                  backend=None, timeout=None,
+                  use_local_synchronization: bool = False,
+                  group_desc: str | None = None, pg_options=None):
+        """Create a subcommunicator. Mirrors ``dist.new_group``.
+
+        The torch.distributed-only keywords (``backend``, ``timeout``,
+        ``use_local_synchronization``, ``group_desc``, ``pg_options``) are
+        accepted and ignored: torchcomms' ``split`` has no equivalent knobs,
+        and callers such as ``comm_setup.setup_communication_groups`` pass
+        ``use_local_synchronization=True`` unconditionally. Rejecting them
+        crashed job 8824643 on all 24 ranks at group-creation time.
+        """
         key = tuple(sorted(int(r) for r in ranks))
         if key not in self._splits:
-            label = name or ("dlcomm_" + "_".join(str(r) for r in key))
+            label = name or group_desc or (
+                "dlcomm_" + "_".join(str(r) for r in key))
             self._splits[key] = TorchCommsGroup(
                 self._comm.split(list(key), label), list(key)
             )
         return self._splits[key]
+
+    # -- capability probes --------------------------------------------------
+    def is_mpi_available(self) -> bool:
+        """torchcomms has no MPI transport; report that honestly."""
+        return False
+
+    def is_nccl_available(self) -> bool:
+        tc = _tc
+        if tc is None:
+            return False
+        # torchcomms exposes nccl/ncclx as transports rather than as a
+        # torch.distributed backend flag.
+        return "nccl" in SUPPORTED_TRANSPORTS or "ncclx" in SUPPORTED_TRANSPORTS
 
     # -- dense collectives ------------------------------------------------
     def all_reduce(self, tensor, op=None, group=None, async_op=False):
@@ -226,7 +251,9 @@ class TorchCommsDist:
             w = c.all_to_all_v_single(output, input, osz, isz, async_op)
         return _Work(w) if async_op else None
 
-    def barrier(self, group=None, async_op=False):
+    def barrier(self, group=None, async_op=False, device_ids=None):  # noqa: ARG002
+        """Barrier. ``device_ids`` is torch.distributed-only and ignored:
+        the torchcomms communicator is already bound to its device."""
         w = self._c(group).barrier(async_op)
         return _Work(w) if async_op else None
 
