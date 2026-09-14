@@ -1,5 +1,7 @@
 # Fix 4 — Correctness failures did not fail the job
 
+**Status:** fixed; verified on hardware (job 8824490 run C exits non-zero)
+
 **Severity:** high — a silent corruption at 8192 nodes was a log line nobody greps
 **Files:** `dl_comm/verify/failures.py` (new), `dl_comm/analysis/results.py` (new), `dl_comm/analysis/correctness.py`, `dl_comm/dl_comm_main.py`
 **Tests:** `tests/test_failures_and_results.py`
@@ -64,4 +66,4 @@ exact while the detail list stays capped.
 
 On-hardware validation additionally runs a deliberately sabotaged collective
 and asserts the job exits **non-zero** — see
-`validation/` and `docs/fixes/00-overview.md`.
+`validation/` and `docs/INDEX.md`.

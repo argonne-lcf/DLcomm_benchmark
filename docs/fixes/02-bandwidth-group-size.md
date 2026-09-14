@@ -1,5 +1,7 @@
 # Fix 2 — Across-node bandwidth group size
 
+**Status:** fixed; confirmed on hardware (job 8824234)
+
 **Severity:** high — reported across-node bandwidth was wrong by a factor of `nodes / devices_per_node`
 **Files:** `dl_comm/analysis/bandwidth.py`
 **Tests:** `tests/test_bandwidth.py`

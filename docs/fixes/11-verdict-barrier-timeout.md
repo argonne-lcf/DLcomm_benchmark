@@ -1,5 +1,7 @@
 # Fix 11 — Silent deadlock at the correctness verdict
 
+**Status:** fixed; found by job 8824276
+
 **Severity:** high — a hang consumes the full walltime and reports nothing
 **File:** `dl_comm/dl_comm_main.py`
 **Found by:** Aurora validation job 8824276

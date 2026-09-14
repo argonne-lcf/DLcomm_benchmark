@@ -1,6 +1,6 @@
-# Finding 02 — alltoall degrades across the node boundary in all three layers
+# Finding 02 — alltoall degrades across the node boundary in every layer measured
 
-**Status:** open. Reproduced independently in three implementations, so it is a property
+**Status:** open. Reproduced independently in four implementations, so it is a property
 of the machine at this scale rather than a defect in any one benchmark.
 
 ## Observation

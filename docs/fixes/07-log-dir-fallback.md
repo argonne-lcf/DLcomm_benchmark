@@ -1,5 +1,7 @@
 # Fix 7 — `RUN_LOG_DIR` KeyError outside the bundled jobscripts
 
+**Status:** fixed; found by job 8824221
+
 **Severity:** medium — the benchmark was unrunnable except via its own jobscripts
 **File:** `dl_comm/dl_comm_main.py`
 **Found by:** Aurora validation job 8824221, not by code review

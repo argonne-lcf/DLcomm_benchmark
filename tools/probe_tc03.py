@@ -10,6 +10,7 @@ body is a throw, which is exactly how 0.1.0 failed.
 
 import faulthandler
 import os
+import time
 import sys
 
 # No mpi4py. Probe 8825011 showed the Abort(16) came from pals_env.sh
@@ -113,9 +114,11 @@ def probe(name, fn):
         fn()
         torch.xpu.synchronize()
         results[name] = ("yes", "")
+        print(f"PROBE {name} yes", flush=True)
     except Exception as e:  # noqa: BLE001
         msg = str(e).split("\n")[0][:90]
         results[name] = ("NO ", msg)
+        print(f"PROBE {name} NO {results[name][1]}", flush=True)
 
 
 t = lambda: torch.ones(N, device=dev)          # noqa: E731
@@ -129,7 +132,12 @@ probe("all_gather", lambda: comm.all_gather([t() for _ in range(world)], t(), Fa
 probe("all_gather_single", lambda: comm.all_gather_single(tbig(), t(), False))
 probe("reduce_scatter_single",
       lambda: comm.reduce_scatter_single(t(), tbig(), tc.ReduceOp.SUM, False))
-probe("all_to_all_single", lambda: comm.all_to_all_single(t(), t(), False))
+# all_to_all_single requires dim 0 divisible by world size. N=1024 leaves
+# a remainder of 4 at 12 ranks and 16 at 24, so trim to a multiple.
+_n_a2a = (N // world) * world
+def _t_a2a():
+    return torch.ones(_n_a2a, dtype=torch.float32, device=dev)
+probe("all_to_all_single", lambda: comm.all_to_all_single(_t_a2a(), _t_a2a(), False))
 probe("scatter",
       lambda: comm.scatter(t(), [t() for _ in range(world)] if rank == 0 else [], 0, False))
 probe("gather",
@@ -166,7 +174,8 @@ def _sendrecv_async():
 
 
 probe("send_recv_async", _sendrecv_async)
-probe("split", lambda: comm.split([0], "probe-split"))
+if os.environ.get("DLCOMM_TC_SPLIT", "0") == "1":
+    probe("split", lambda: comm.split([0], "probe-split"))
 
 if rank == 0:
     import importlib.metadata as md
@@ -183,6 +192,71 @@ if rank == 0:
     stubs = [n for n, (s, m) in results.items()
              if "not supported now" in m]
     print(f"TC_STUB_OPS={len(stubs)} {stubs}")
+
+
+# ---------------------------------------------------------------------------
+# Timed sweep. Emits the record shape used by every other layer so the results
+# are comparable. Only ops the matrix marked "yes" are measured.
+# ---------------------------------------------------------------------------
+import statistics  # noqa: E402
+
+WARMUP, ITERS = 5, 20
+
+
+def _busbw_factor(op, n):
+    if n < 2:
+        return 1.0
+    if op == "all_reduce":
+        return 2.0 * (n - 1) / n
+    if op in ("all_gather_single", "reduce_scatter_single", "all_to_all_single"):
+        return (n - 1) / n
+    # broadcast and reduce are root-bottlenecked: nccl-tests uses 1.
+    return 1.0
+
+
+def _bench(op, call, nbytes, moved_multiplier=1):
+    for _ in range(WARMUP):
+        call()
+    torch.xpu.synchronize()
+    ts = []
+    for _ in range(ITERS):
+        torch.xpu.synchronize()
+        t0 = time.perf_counter()
+        call()
+        torch.xpu.synchronize()
+        ts.append(time.perf_counter() - t0)
+    if rank == 0:
+        t = statistics.median(ts)
+        algbw = (nbytes * moved_multiplier) / t
+        print(f"LAYER=torchcomms BACKEND=xccl OP={op} BYTES={nbytes} "
+              f"RANKS={world} T_MED={t:.6g} ALGBW={algbw:.6g} "
+              f"BUSBW={algbw * _busbw_factor(op, world):.6g}", flush=True)
+
+
+if os.environ.get("DLCOMM_TC_BENCH", "1") == "1":
+    for _mib in (1, 2, 4):
+        _nb = _mib * 1024 * 1024
+        _ne = _nb // 4
+        _ne_div = (_ne // world) * world
+        _x = torch.ones(_ne, dtype=torch.float32, device=dev)
+        _xd = torch.ones(_ne_div, dtype=torch.float32, device=dev)
+        _big = torch.ones(_ne * world, dtype=torch.float32, device=dev)
+        if results.get("all_reduce", ("NO",))[0] == "yes":
+            _bench("all_reduce", lambda: comm.all_reduce(_x, tc.ReduceOp.SUM, False), _nb)
+        if results.get("all_gather_single", ("NO",))[0] == "yes":
+            _bench("all_gather_single", lambda: comm.all_gather_single(_big, _x, False),
+                   _nb, world)
+        if results.get("reduce_scatter_single", ("NO",))[0] == "yes":
+            _bench("reduce_scatter_single",
+                   lambda: comm.reduce_scatter_single(_x, _big, tc.ReduceOp.SUM, False),
+                   _nb, world)
+        if results.get("all_to_all_single", ("NO",))[0] == "yes":
+            _bench("all_to_all_single",
+                   lambda: comm.all_to_all_single(_xd, _xd, False), _ne_div * 4)
+        if results.get("broadcast", ("NO",))[0] == "yes":
+            _bench("broadcast", lambda: comm.broadcast(_x, 0, False), _nb)
+        if results.get("reduce", ("NO",))[0] == "yes":
+            _bench("reduce", lambda: comm.reduce(_x, 0, tc.ReduceOp.SUM, False), _nb)
 
 try:
     fin = getattr(comm, "finalize", None)

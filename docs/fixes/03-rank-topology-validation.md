@@ -1,5 +1,7 @@
 # Fix 3 — Orphaned ranks silently excluded from all groups
 
+**Status:** fixed; unit-tested
+
 **Severity:** high — a misconfigured launch produced a clean, plausible, meaningless result
 **Files:** `dl_comm/config/topology.py` (new), `dl_comm/config/mpi_utils.py`, `dl_comm/config/validation.py`, `dl_comm/dl_comm_main.py`
 **Tests:** `tests/test_topology_validation.py`

@@ -1,5 +1,7 @@
 # Fix 24 — pals_env.sh must not set PMI_RANK/PMI_SIZE
 
+**Status:** fixed; found by job 8824800
+
 **Symptom:** every MPI-backed Python layer aborted at startup on Aurora.
 
 ```

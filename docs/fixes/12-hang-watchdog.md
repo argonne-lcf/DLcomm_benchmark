@@ -1,5 +1,7 @@
 # Fix 12 — Hang watchdog
 
+**Status:** implemented; located the sendrecv_async deadlock (job 8824532)
+
 **Severity:** high — a hang destroys the evidence a benchmark run exists to produce
 **File:** `dl_comm/dl_comm_main.py`, `validate_on_aurora.sh`
 **Found by:** Aurora validation jobs 8824276 and 8824405

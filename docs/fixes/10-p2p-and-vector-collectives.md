@@ -1,5 +1,7 @@
 # Feature 10 — Point-to-point and vector collectives
 
+**Status:** implemented; sendrecv and alltoallv run on hardware
+
 **Type:** feature
 **Files:** `dl_comm/comm/collectives.py`, `dl_comm/analysis/correctness.py`,
 `dl_comm/analysis/bandwidth.py`, `tests/gloo_harness.py`,

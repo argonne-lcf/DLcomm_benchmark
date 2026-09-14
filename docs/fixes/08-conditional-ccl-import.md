@@ -1,5 +1,7 @@
 # Fix 8 — Unconditional `oneccl_bindings_for_pytorch` import
 
+**Status:** fixed; found by job 8824229
+
 **Severity:** critical — the benchmark could not start on Aurora's current module stack
 **File:** `dl_comm/dl_comm_main.py`
 **Found by:** Aurora validation job 8824229

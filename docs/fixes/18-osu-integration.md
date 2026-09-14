@@ -1,5 +1,7 @@
 # Feature 18 — OSU Micro-Benchmarks integration
 
+**Status:** implemented; OSU 7.1 builds and runs at both scales
+
 **Files:** `dl_comm/osu/{__init__,runner,compare}.py` (new),
 `tests/test_osu_integration.py`, `tests/test_osu_compare.py` (new),
 `run_osu.sh`

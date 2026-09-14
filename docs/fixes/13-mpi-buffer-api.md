@@ -1,5 +1,7 @@
 # Fix 13 — Pickle-based MPI reduce deadlocks after XCCL initialisation
 
+**Status:** fixed; found by job 8824457
+
 **Severity:** critical — the correctness verdict never executed on hardware
 **File:** `dl_comm/dl_comm_main.py`
 **Found by:** Aurora validation job 8824457, located by the fix 12 watchdog

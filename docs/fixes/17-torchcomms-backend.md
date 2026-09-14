@@ -1,5 +1,7 @@
 # Feature 17 — torchcomms as a `ccl_backend`
 
+**Status:** complete; proven on Aurora with torchcomms 0.3.0 (12/12 ops)
+
 **Files:** `dl_comm/comm/torchcomms_backend.py` (new), `dl_comm/dl_comm_main.py`,
 `dl_comm/config/config_spec.json`, `tests/test_torchcomms_backend.py` (new)
 
@@ -127,12 +129,14 @@ Restored: `10 passed`. Full suite: **159 passed**.
 
 ## Status
 
-The adapter is complete and unit-tested on CPU (187 tests). On Aurora it has
-been executed and **blocked by an upstream gap**: the torchcomms XCCL backend
-implements only `all_reduce`; the other thirteen operations DLcomm needs raise
-`XCCL <op> is not supported now and will be added later`. See
-`19-xccl-torchcomms-capability.md` for the measured support matrix (job
-`8824688`).
+The adapter is complete and unit-tested on CPU (187 tests), and is proven on
+Aurora. The stack that ships with `frameworks/2025.3.1` (torchcomms 0.1.0)
+implements only `all_reduce` and stubs the rest with `XCCL <op> is not
+supported now and will be added later`, which blocked this layer for several
+jobs. That limit is a property of the shipped build, not of torchcomms: the
+0.3.0 build implements 12 of 12 probed operations, including point-to-point.
+See `26-torchcomms-abi-pairing-and-stub-backend.md` for the stack comparison
+and `../findings/04-torchcomms-measured.md` for the measured bandwidth.
 
 The adapter itself reached group creation, built both 12-rank within-node
 subcommunicators, and entered the timing loop, so the bootstrap, group, and

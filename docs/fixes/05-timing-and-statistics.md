@@ -1,5 +1,7 @@
 # Fix 5 — Timing measured enqueue, not completion
 
+**Status:** fixed; confirmed on hardware (job 8824234)
+
 **Severity:** medium-high — correctness of the measurement depended on an environment variable set outside the tool
 **Files:** `dl_comm/timer/timer.py`, `dl_comm/analysis/bandwidth.py`, `dl_comm/dl_comm_main.py`
 **Tests:** `tests/test_timer_sync.py`, `tests/test_bandwidth.py`

@@ -1,5 +1,7 @@
 # Finding 04 — torchcomms XCCL measured, and two caveats on the numbers
 
+**Status:** measured (job 8825248), reproduced (job 8825296); one cell unstable
+
 **Source:** job 8825248, `validation/allscales_20260914_044215`, torchcomms 0.3.0 on
 torch 2.13.0a0+git3300461, XCCL backend, Aurora.
 

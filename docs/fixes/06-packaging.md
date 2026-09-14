@@ -1,5 +1,7 @@
 # Fix 6 — Packaging and dependency metadata
 
+**Status:** fixed; Apache-2.0 metadata in place, copyright holder still unset
+
 **Severity:** low — blocks clean installation and misstates the license
 **Files:** `requirements.txt`, `pyproject.toml`, `pytest.ini` (new)
 

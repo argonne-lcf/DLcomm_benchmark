@@ -1,5 +1,7 @@
 # Fix 15 — `sendrecv_async` deadlocks at `isend` on XCCL
 
+**Status:** parity-ordering patch written; passes on torchcomms 0.3.0, unproven on the shipped stack
+
 **Severity:** critical — hung the job; the collective never completed one call
 **File:** `dl_comm/comm/collectives.py`
 **Found by:** Aurora job 8824532, the first run of these collectives on XPUs

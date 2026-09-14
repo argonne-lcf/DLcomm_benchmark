@@ -1,5 +1,7 @@
 # Fix 9 — Teardown segfault overrode the exit status
 
+**Status:** fixed; not recurred since, but unproven
+
 **Severity:** high — a signal death can mask a correctness failure
 **File:** `dl_comm/dl_comm_main.py`
 **Found by:** Aurora validation job 8824234

@@ -1,5 +1,7 @@
 # Fix 14 — `results.json` reported `"enabled": false` on verified runs
 
+**Status:** fixed; verified by job 8824490
+
 **Severity:** medium — the structured record contradicted the run, and a
 safety check could never fire
 **File:** `dl_comm/dl_comm_main.py`

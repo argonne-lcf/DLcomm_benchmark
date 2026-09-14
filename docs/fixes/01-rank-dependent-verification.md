@@ -1,5 +1,7 @@
 # Fix 1 — Rank-dependent verification payloads
 
+**Status:** fixed; verified on hardware (job 8824490, 480 checks fail under sabotage)
+
 **Severity:** critical — verification reported broken collectives as correct
 **Files:** `dl_comm/verify/payload.py` (new), `dl_comm/analysis/correctness.py`, `dl_comm/comm/collectives.py`, `dl_comm/dl_comm_main.py`
 **Tests:** `tests/test_payload.py`, `tests/test_correctness_detects_breakage.py`
