@@ -84,6 +84,9 @@ def resolve_transport(device_type: str, requested: str | None = None) -> str:
     return "gloo"
 
 
+_ACTIVE_DIST = None
+
+
 class _Work:
     """Wraps a ``TorchWork`` so callers can use torch.distributed's ``.wait()``.
 
@@ -432,4 +435,19 @@ def build(device, device_type: str = "gpu", transport: str | None = None,
     )
     # backend/device are retained so new_group can fall back to new_comm on
     # transports where split is unimplemented (XCCL).
-    return TorchCommsDist(comm, backend=resolved, device=device)
+    dist = TorchCommsDist(comm, backend=resolved, device=device)
+    global _ACTIVE_DIST
+    _ACTIVE_DIST = dist
+    return dist
+
+
+def active_dist() -> "TorchCommsDist | None":
+    """Return the adapter built for this process, if there is one.
+
+    Correctness checking imports ``torch.distributed`` directly, but under
+    ``ccl_backend: torchcomms`` the collectives ran through this adapter and
+    produced ``TorchCommsGroup`` objects that ``torch.distributed`` cannot
+    introspect. The checker uses this to reach the same facade the run used
+    instead of being handed it through every call site.
+    """
+    return _ACTIVE_DIST

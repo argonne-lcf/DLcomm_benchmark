@@ -43,12 +43,25 @@ def _op_to_name(op, dist):
 
 
 def _group_info(dist, group):
-    """Return ``(group_ranks, world_size, root_rank, my_index)``."""
-    world_size = dist.get_world_size(group)
-    if group is None:
-        group_ranks = list(range(world_size))
+    """Return ``(group_ranks, world_size, root_rank, my_index)``.
+
+    ``group`` is normally a ``torch.distributed`` ProcessGroup, but the
+    torchcomms backend passes a ``TorchCommsGroup``, which is a plain object
+    holding a communicator and its rank list. It is not registered with
+    ``torch.distributed``, so ``dist.get_world_size`` reaches
+    ``group.size()`` and raises AttributeError. Read the rank list directly
+    when it is present.
+    """
+    ranks_attr = getattr(group, "ranks", None)
+    if ranks_attr is not None:
+        group_ranks = list(ranks_attr)
+        world_size = len(group_ranks)
     else:
-        group_ranks = list(dist.get_process_group_ranks(group))
+        world_size = dist.get_world_size(group)
+        if group is None:
+            group_ranks = list(range(world_size))
+        else:
+            group_ranks = list(dist.get_process_group_ranks(group))
     root = min(group_ranks)
     my_rank = dist.get_rank()
     my_index = group_ranks.index(my_rank) if my_rank in group_ranks else None
@@ -67,7 +80,13 @@ def _reduce_verdict(context, dist, torch, tensor_like, group, group_ranks, root,
     if hasattr(tensor_like, "device"):
         flag = flag.to(tensor_like.device)
 
-    dist.all_reduce(flag, op=dist.ReduceOp.MIN, group=group)
+    # `dist` is the torchcomms adapter when the group is a TorchCommsGroup
+    # (resolved in check_collective_correctness), so the same call works for
+    # both backends. The adapter maps a string op to its own ReduceOp.
+    if getattr(group, "comm", None) is not None:
+        dist.all_reduce(flag, op="min", group=group)
+    else:
+        dist.all_reduce(flag, op=dist.ReduceOp.MIN, group=group)
     group_ok = bool(flag.item() == 1)
 
     iteration = context.get("iteration", "?")
@@ -103,6 +122,17 @@ def check_collective_correctness(context, tensor_after, collective_name, op=None
 
     import torch
     import torch.distributed as dist
+
+    # Under ccl_backend: torchcomms the collectives run through the adapter,
+    # not torch.distributed, and the groups they produce are TorchCommsGroup
+    # objects that torch.distributed cannot introspect or reduce over. Use the
+    # same adapter the run used, so the checker talks to the communicator that
+    # actually carried the data.
+    if getattr(group, "comm", None) is not None:
+        from dl_comm.comm import torchcomms_backend as _tcb
+        active = _tcb.active_dist()
+        if active is not None:
+            dist = active
 
     handler = _HANDLERS.get(collective_name)
     if handler is None:
