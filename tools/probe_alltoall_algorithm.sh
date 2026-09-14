@@ -35,7 +35,7 @@ export PALS_PMI=pmix
 export FI_MR_CACHE_MONITOR=userfaultfd
 
 # The point of the probe: make oneCCL report its algorithm choice.
-export CCL_LOG_LEVEL=info
+export CCL_LOG_LEVEL="${CCL_LOG_LEVEL:-info}"
 
 NNODES=$(wc -l < "$PBS_NODEFILE")
 RANKS_PER_NODE=12
@@ -46,9 +46,16 @@ export MASTER_ADDR=$(head -1 "$PBS_NODEFILE")
 export MASTER_PORT=29517
 export WORLD_SIZE=$NRANKS
 
-echo "=== SCALE: ${NNODES} node(s), ${NRANKS} ranks ==="
+FULL_LOG="$PBS_O_WORKDIR/tools/a2a_algo_full_${NNODES}node_${CCL_LOG_LEVEL}.log"
+echo "=== SCALE: ${NNODES} node(s), ${NRANKS} ranks, CCL_LOG_LEVEL=$CCL_LOG_LEVEL ==="
+echo "full log: $FULL_LOG"
 
-cat > /tmp/a2a_algo.py <<'PYEOF'
+# NOTE: /tmp on Aurora compute nodes is node-local tmpfs, so a heredoc written
+# here is visible only on the node that runs the jobscript. Ranks on every
+# other node would fail with 'No such file or directory'. Write to the shared
+# filesystem ($PBS_O_WORKDIR, on flare) so all ranks can read it.
+PROBE_PY="$PBS_O_WORKDIR/tools/_a2a_algo_generated.py"
+cat > "$PROBE_PY" <<'PYEOF'
 import os
 
 import torch
@@ -90,10 +97,14 @@ if rank == 0:
     print(f"[probe] completed at world={world}, {per_rank * 4} bytes per rank")
 PYEOF
 
+export PROBE_PY
+
 "$MPIEXEC" --np ${NRANKS} --ppn ${RANKS_PER_NODE} \
+    --envall \
     --cpu-bind=list:1-8:9-16:17-24:25-32:33-40:41-48:53-60:61-68:69-76:77-84:85-92:93-100 \
-    bash -c 'export RANK=$PALS_RANKID; export LOCAL_RANK=$PALS_LOCAL_RANKID; exec python /tmp/a2a_algo.py' 2>&1 \
-  | grep -iE "alltoall|all_to_all|algo|selection|topo|scaleout|scaleup|\[probe\]" \
+    bash -c 'export RANK=$PALS_RANKID; export LOCAL_RANK=$PALS_LOCAL_RANKID; exec python "$PROBE_PY"' 2>&1 \
+  | tee "$FULL_LOG" \
+  | grep -iE "selected algo|alltoall|all_to_all|algo|selection|topo|scaleout|scaleup|\[probe\]" \
   | sort -u
 
 echo "=== end ${NNODES}-node selection dump ==="

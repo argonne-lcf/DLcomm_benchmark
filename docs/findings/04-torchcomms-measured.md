@@ -11,6 +11,14 @@ capability matrix.
 
 ## Measured bus bandwidth (GB/s)
 
+> **Caveat 3 applies to the first two rows.** `all_gather_single` and
+> `reduce_scatter_single` are measured here with `bytes` set to the gathered
+> output buffer (`per-rank × world`), not to the per-rank contribution that
+> nccl-tests and the rest of DLcomm use. Those two rows are therefore likely
+> inflated by the group size — 12× at 12 ranks, 24× at 24. See
+> `06-allgather-busbw-harness-disagreement.md`. The other four rows pass
+> `bytes` unmultiplied and are unaffected.
+
 | op | 1 MiB @12 | 2 MiB @12 | 4 MiB @12 | 1 MiB @24 | 2 MiB @24 | 4 MiB @24 |
 |---|---|---|---|---|---|---|
 | all_gather_single | 50.45 | 73.69 | 94.46 | 32.96 | 39.34 | 41.79 |
@@ -58,6 +66,38 @@ of 20 iterations does not stabilise it, so a point value would be misleading. Th
 The cause is open. The cell sits exactly where the message crosses 4 MiB at two nodes,
 which is also where `docs/findings/01` records an OSU allgather knee, but no common
 mechanism has been demonstrated.
+
+## Verified two-scale measurement from example 17
+
+The table above predates the correctness fixes and comes from `probe_tc03.py`.
+The figures below come from the full DLcomm runner with verification enabled,
+and are the first torchcomms numbers taken from runs where every collective was
+actually checked: jobs 8826362 (1 node) and 8826378 (2 nodes) each report
+`checks=20 failures=0 skipped=0` for all five collectives, 100 checks per run.
+
+Bus bandwidth in GB/s, 4 MiB per rank, median of 20 iterations with iteration 0
+excluded. DLcomm's convention throughout (`bytes` = the configured per-rank
+buffer), so these are *not* comparable to the `all_gather_single` and
+`reduce_scatter_single` rows above — see caveat 3.
+
+| collective | 12 ranks (1 node) | 24 ranks (2 nodes) | change |
+|---|---:|---:|---|
+| allreduce | 13.04 | 3.38 | 3.9× worse |
+| sendrecv | 8.77 | 1.47 | 6.0× worse |
+| reducescatter | 4.62 | 3.15 | 1.5× worse |
+| allgather | 3.96 | 0.93 | 4.2× worse |
+| alltoall | 0.44 | 0.059 | **7.5× worse** |
+
+alltoall degrades the most of the five, consistent with `docs/findings/02`.
+The 7.5× drop measured here is steeper than the 3.6× recorded above from
+`probe_tc03`, and steeper than the 6.7× seen in torch.distributed.
+
+Note that the reducescatter buffer is adjusted for divisibility at both
+scales — 4194304 → 4194288 bytes at 12 ranks and → 4194336 at 24 — because the
+configured 4 MiB is not divisible by either group size. The guard rounds to
+whichever multiple is nearer, so the direction differs between the two scales.
+Before that guard existed the remainder was silently dropped while bandwidth
+was computed from the full 4 MiB.
 
 ## Caveat 2 — the torchcomms layer runs a different torch build
 

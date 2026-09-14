@@ -1,7 +1,8 @@
 # Finding 02 — alltoall degrades across the node boundary in every layer measured
 
-**Status:** open. Reproduced independently in four implementations, so it is a property
-of the machine at this scale rather than a defect in any one benchmark.
+**Status:** mechanism established (jobs 8826409, 8826417). Reproduced independently in
+four implementations, so it is a property of the machine and of the oneCCL `scatter`
+schedule at this scale rather than a defect in any one benchmark.
 
 ## Observation
 
@@ -37,21 +38,56 @@ torch broadcast (10.38 → 6.14) and OSU broadcast (1080 → 972) do not. That d
 is unexplained and is tracked as part of this investigation rather than asserted as a
 second finding.
 
-## Mechanism, not yet established
+## Mechanism — measured, job 8826409 (2 nodes) and 8826417 (1 node)
 
-alltoall moves `(world − 1)/world` of each rank's buffer off-node once a second node is
-involved, whereas allreduce and broadcast are tree- or ring-structured and can exploit
-intra-node links for most of their traffic. The candidate explanation is therefore
-Slingshot injection bandwidth per node, or the oneCCL algorithm switching away from a
-topology-aware path at 2 nodes.
+`tools/probe_alltoall_algorithm.sh` runs the same alltoall at both scales with
+`CCL_LOG_LEVEL=debug` and reads oneCCL's own selection log. Findings:
 
-This has not been measured. Confirming it requires:
+**The algorithm does not change at the node boundary.** oneCCL selects
+`algo scatter` for alltoall at 12 ranks and at 24 ranks alike:
 
-1. A rank-count sweep at fixed per-rank bytes (12, 24, 48) to see whether the loss is a
-   one-time step at the node boundary or continues with scale.
-2. `CCL_LOG_LEVEL=info` to record which algorithm oneCCL selects at each scale.
-3. The p2p layer as a control: `sendrecv` was flat across the boundary (25.9 → 26.2 GB/s
-   in C++), which already suggests the raw off-node path is not itself degraded.
+```
+selector_impl.hpp:355 get: selected algo: coll alltoall, count 1048576, algo scatter   (1 node)
+selector_impl.hpp:355 get: selected algo: coll alltoall, count 1048576, algo scatter   (2 nodes)
+```
+
+The candidate explanation in the previous revision of this document — that
+oneCCL switches away from a topology-aware path at 2 nodes — is therefore
+**wrong**, and so is a second guess made while investigating: the library does
+ship `alltoall_sycl_single_node` with no `alltoall_sycl_multi_node` counterpart
+(every other collective has one), but the debug log shows no SYCL alltoall
+kernel is invoked at *either* scale, so that asymmetry is not what is acting
+here.
+
+**What actually changes is the size of the schedule.** The `scatter` algorithm
+posts a send and a receive per peer, so its entry count grows as `n(n−1)`:
+
+| scale | SEND entries | RECV entries | n(n−1) |
+|---|---:|---:|---:|
+| 12 ranks, 1 node | 1764 | 1764 | 132 |
+| 24 ranks, 2 nodes | 6694 | 6694 | 552 |
+
+Doubling the rank count multiplies the point-to-point entries by 3.8×, close to
+the 4.2× that `n(n−1)` predicts. On top of that, 12 of each rank's 23 peers are
+now off-node, where 0 of 11 were before.
+
+Against the measured 7.5× fall in bus bandwidth (example 17, 4 MiB), the entry
+count accounts for 3.8× and the remaining 2.0× is consistent with the off-node
+hop cost on those entries. The two effects together are sufficient; no
+algorithm change is needed to explain the collapse.
+
+This also resolves why `sendrecv` stays flat across the boundary: it is a
+single pair, so its schedule does not grow at all, and the log confirms it
+takes the `topo sycl` path rather than `scatter`.
+
+## Superseded hypothesis
+
+The original mechanism section proposed Slingshot injection bandwidth or an
+oneCCL algorithm switch, with three suggested measurements. Step 2 of that plan
+(`CCL_LOG_LEVEL=info`) has now been carried out and disproves the algorithm
+switch. Steps 1 and 3 remain useful: a rank sweep at 12/24/48 would confirm the
+`n(n−1)` shape continues, and the p2p control has already behaved as predicted.
+
 
 ## Status of the earlier allgather claim
 
