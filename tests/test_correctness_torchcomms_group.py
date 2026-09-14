@@ -28,7 +28,9 @@ class _FakeComm:
 
 
 class _AdapterDist:
-    """Stands in for TorchCommsDist: records calls, no ReduceOp attribute."""
+    """Stands in for TorchCommsDist: records calls, exposes its own ReduceOp."""
+
+    ReduceOp = types.SimpleNamespace(MIN="MIN_SENTINEL", SUM="SUM_SENTINEL")
 
     def __init__(self):
         self.calls = []
@@ -102,14 +104,23 @@ def test_group_info_still_uses_torch_distributed_for_process_groups():
     assert root == 0
 
 
-def test_verdict_reduction_uses_a_string_op_for_torchcomms(context, tc_group):
-    """The adapter has no ReduceOp; dist.ReduceOp.MIN would raise."""
+def test_verdict_reduction_uses_the_adapters_reduceop(context, tc_group):
+    """The adapter exposes ReduceOp, so the call is identical for both."""
     dist = _AdapterDist()
     ok = C._reduce_verdict(
         context, dist, torch, torch.zeros(1), tc_group, [0, 1, 2, 3], 0, True, "t"
     )
     assert ok is True
-    assert dist.calls == [("all_reduce", "min")]
+    assert dist.calls == [("all_reduce", "MIN_SENTINEL")]
+
+
+def test_adapter_exposes_reduceop_for_op_name_lookup():
+    """_op_to_name reads dist.ReduceOp.SUM; job 8826084 died here."""
+    from dl_comm.comm.torchcomms_backend import TorchCommsDist
+
+    assert hasattr(TorchCommsDist, "ReduceOp"), (
+        "correctness._op_to_name reads dist.ReduceOp off the facade"
+    )
 
 
 def test_verdict_reduction_keeps_reduceop_for_process_groups(context):

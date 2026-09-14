@@ -118,6 +118,15 @@ class TorchCommsDist:
     preferable to silently degrading to a different transport.
     """
 
+    # Callers that were written against torch.distributed read ops off the
+    # module as ``dist.ReduceOp.SUM``. Correctness checking does exactly that,
+    # and torchcomms exposes its own ReduceOp enum, so surface it here rather
+    # than making every call site branch on the backend. ``_op`` accepts
+    # either this enum or a plain string.
+    @property
+    def ReduceOp(self):  # noqa: N802 - matches the torch.distributed name
+        return _require().ReduceOp
+
     def __init__(self, comm: Any, op_map: dict | None = None,
                  backend: str | None = None, device: Any = None):
         self._comm = comm

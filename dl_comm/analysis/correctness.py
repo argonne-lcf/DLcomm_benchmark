@@ -80,13 +80,9 @@ def _reduce_verdict(context, dist, torch, tensor_like, group, group_ranks, root,
     if hasattr(tensor_like, "device"):
         flag = flag.to(tensor_like.device)
 
-    # `dist` is the torchcomms adapter when the group is a TorchCommsGroup
-    # (resolved in check_collective_correctness), so the same call works for
-    # both backends. The adapter maps a string op to its own ReduceOp.
-    if getattr(group, "comm", None) is not None:
-        dist.all_reduce(flag, op="min", group=group)
-    else:
-        dist.all_reduce(flag, op=dist.ReduceOp.MIN, group=group)
+    # Works for both backends: the torchcomms adapter exposes ReduceOp and
+    # unwraps a TorchCommsGroup itself.
+    dist.all_reduce(flag, op=dist.ReduceOp.MIN, group=group)
     group_ok = bool(flag.item() == 1)
 
     iteration = context.get("iteration", "?")
