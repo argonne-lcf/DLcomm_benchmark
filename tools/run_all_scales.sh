@@ -156,9 +156,15 @@ for nbytes in (1 << 20, 1 << 21, 1 << 22):
                 ts.append(t1 - t0)
         if rank == 0:
             t = statistics.median(ts)
-            moved = nbytes * world if op in ("allgather", "reduce_scatter") else nbytes
+            # alltoall runs on the trimmed buffer xa (count_div elements), so
+            # the record must report the bytes actually moved, not the bytes
+            # requested. At 24 ranks count=262144 trims to 262128; reporting
+            # nbytes would overstate the transfer and inflate the bandwidth.
+            nbytes_eff = count_div * 4 if op == "alltoall" else nbytes
+            moved = (nbytes_eff * world
+                     if op in ("allgather", "reduce_scatter") else nbytes_eff)
             algbw = moved / t
-            print(f"LAYER=torch_dist BACKEND=xccl OP={op} BYTES={nbytes} "
+            print(f"LAYER=torch_dist BACKEND=xccl OP={op} BYTES={nbytes_eff} "
                   f"RANKS={world} T_MED={t:.6g} ALGBW={algbw:.6g} "
                   f"BUSBW={algbw * busbw_factor(op, world):.6g}", flush=True)
 dist.destroy_process_group()
@@ -242,6 +248,24 @@ run_scale () {
     # Separate conda env with the locally built torchcomms. The launcher is
     # already resolved to PALS above; activating the env here would shadow it,
     # so only the interpreter comes from the env.
+    # Stack selection for the torchcomms layer.
+    #
+    #   DLCOMM_TC_STACK=frameworks : stock module torchcomms 0.1.0. Bootstraps
+    #       correctly but its XCCL backend stubs out 16 operations, so only
+    #       all_reduce is measurable (verified by job 8825144: TC_SUPPORTED=1/13).
+    #   DLCOMM_TC_STACK=pshukla    : torchcomms 0.3.0 paired with the matching
+    #       custom torch build. `strings` on its _comms_xccl .so shows zero
+    #       "is not supported" markers, so the remaining collectives and p2p
+    #       ops are implemented there.
+    #
+    # The two must be used as a matched pair. Mixing a custom torch with an
+    # independently built extension is what broke env2 (undefined symbol
+    # urDeviceWaitExp, unresolved libc10.so) and produced the new_comm
+    # segfault; see docs/fixes/26.
+    local TC_STACK="${DLCOMM_TC_STACK:-frameworks}"
+    local PSHUKLA_TORCH=/lus/flare/projects/datascience_collab/pshukla/pytorch_c10d_torchcomms/pytorch
+    local PSHUKLA_TC=/lus/flare/projects/datascience_collab/pshukla/torchcomms_custom_torch
+
     # Default to the frameworks-provided torchcomms. The working Aurora
     # reference harnesses import plain `torchcomms` under the module, which
     # ships torch 2.10.0a0+git449b176 and a matching torchcomms build. The
@@ -250,16 +274,24 @@ run_scale () {
     # devices, PMIx bootstrap and ZE_AFFINITY_MASK, which is the signature
     # of an ABI mismatch rather than a configuration error.
     # DLCOMM_TC_ENV=1 selects env2 instead, to compare the two.
-    local TCPY
+    local TCPY TC_PYTHONPATH="" TC_LDPATH=""
     if [ "${DLCOMM_TC_ENV:-0}" = "1" ]; then
         TCPY="$TCENV/bin/python"
+        TC_LDPATH="$TCENV/lib:$TCENV/lib/python3.12/site-packages/torch/lib:"
+    elif [ "$TC_STACK" = "pshukla" ]; then
+        # Matched pair: torchcomms 0.3.0 + the torch it was built against.
+        TCPY="$PY_FW"
+        TC_PYTHONPATH="$PSHUKLA_TC:$PSHUKLA_TORCH"
+        TC_LDPATH="$PSHUKLA_TORCH/torch/lib:"
     else
         TCPY="$PY_FW"
     fi
+    echo "TORCHCOMMS_STACK=$TC_STACK"
     if [ -x "$TCPY" ]; then
         cd DLcomm_benchmark
         # shellcheck disable=SC2086
-        LD_LIBRARY_PATH="$([ "${DLCOMM_TC_ENV:-0}" = "1" ] && printf %s "$TCENV/lib:$TCENV/lib/python3.12/site-packages/torch/lib:")${LD_LIBRARY_PATH:-}" \
+        PYTHONPATH="${TC_PYTHONPATH:+$TC_PYTHONPATH:}${PYTHONPATH:-}" \
+        LD_LIBRARY_PATH="${TC_LDPATH}${LD_LIBRARY_PATH:-}" \
         MASTER_PORT=29533 \
         CCL_PROCESS_LAUNCHER=pmix CCL_ATL_TRANSPORT=mpi CCL_KVS_MODE=mpi FI_MR_CACHE_MONITOR=userfaultfd \
         ZE_FLAT_DEVICE_HIERARCHY=FLAT ONEAPI_DEVICE_SELECTOR=level_zero:gpu \
@@ -283,10 +315,15 @@ run_scale () {
         tc_sup=$(grep -oE "^TC_SUPPORTED=[0-9]+/[0-9]+" "$out/torchcomms.txt" | head -1)
         if [ -z "$tc_sup" ]; then
             echo "TORCHCOMMS_VERDICT=NO_MATRIX (probe produced no support matrix)"
-        elif [ "${tc_sup#TC_SUPPORTED=}" = "0/${tc_sup##*/}" ]; then
-            echo "TORCHCOMMS_VERDICT=FAIL_ALL_OPS $tc_sup"
         else
-            echo "TORCHCOMMS_VERDICT=OK $tc_sup"
+            tc_num=${tc_sup#TC_SUPPORTED=}; tc_den=${tc_num#*/}; tc_num=${tc_num%%/*}
+            if [ "$tc_num" -eq 0 ]; then
+                echo "TORCHCOMMS_VERDICT=FAIL_ALL_OPS $tc_sup"
+            elif [ "$tc_num" -lt "$tc_den" ]; then
+                echo "TORCHCOMMS_VERDICT=PARTIAL $tc_sup (backend implements $tc_num of $tc_den probed ops)"
+            else
+                echo "TORCHCOMMS_VERDICT=OK $tc_sup"
+            fi
         fi
         grep -vE "^(I|W)[0-9]{8} |WARNING: Logging|^\s*$" "$out/torchcomms.txt" \
             | grep -iE "error|not supported|Traceback|world size" | head -6
