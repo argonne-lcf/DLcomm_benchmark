@@ -81,19 +81,22 @@ static double busbw_factor(const std::string &op, int n) {
 
 // Bytes that belong in the algbw numerator for a given collective.
 //
-// `nbytes` is the PER-RANK buffer size. For allgather the operation produces
-// nbytes*world of output, and the standard (NCCL/OSU) convention divides the
-// total moved volume by time -- not the per-rank slice. Reporting the per-rank
-// size understated allgather by exactly world_size (12x at 12 ranks) and made
-// it look like the slowest collective on the machine by two orders of
-// magnitude. reduce_scatter is the mirror case: nbytes*world of input is
-// consumed to produce nbytes per rank.
+// `nbytes` is the buffer size the caller asked for. Whether that is the
+// per-rank slice or the total volume depends on how each call below is
+// parameterised, so this must be read against the call sites:
+//
+//   allgather:      passes `count` (per-rank input) and produces count*world
+//                   of output -> total volume is nbytes*world.
+//   reduce_scatter: passes `count/world` (per-rank OUTPUT), so the operation
+//                   consumes `count` == nbytes of input -> nbytes is ALREADY
+//                   the total volume. Multiplying again over-reported it by
+//                   world (242 GB/s at 12 ranks, physically impossible).
+//   alltoall:       passes `count/world` per peer, total moved is nbytes.
 //
 // Flagged by A-Bot-CELS review point 10 (verify the busbw numerator uses the
 // intended per-rank vs aggregate byte definition).
 static size_t traffic_bytes(const std::string &op, size_t nbytes, int n) {
-  if (op == "allgather" || op == "reduce_scatter")
-    return nbytes * static_cast<size_t>(n);
+  if (op == "allgather") return nbytes * static_cast<size_t>(n);
   return nbytes;
 }
 

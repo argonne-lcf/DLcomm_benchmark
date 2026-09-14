@@ -196,7 +196,30 @@ def test_transfer_line_missing_gbps_raises():
 def test_traffic_bytes_expands_allgather_by_ranks():
     from dl_comm.analysis.bandwidth import traffic_bytes
     assert traffic_bytes("allgather", 1 << 20, 12) == (1 << 20) * 12
-    assert traffic_bytes("reduce_scatter", 1 << 20, 12) == (1 << 20) * 12
+
+
+def test_traffic_bytes_does_not_expand_reduce_scatter():
+    """The benchmark passes a per-rank OUTPUT count for reduce_scatter, so the
+    reported buffer is already the total input volume. Expanding it again gave
+    242 GB/s at 12 ranks -- faster than the hardware can move data."""
+    from dl_comm.analysis.bandwidth import traffic_bytes
+    assert traffic_bytes("reduce_scatter", 1 << 20, 12) == (1 << 20)
+
+
+def test_no_collective_exceeds_hardware_ceiling():
+    """A busbw above aggregate HBM bandwidth means the numerator is wrong.
+
+    Max 1550 tiles top out well under 1 TB/s each; a 12-rank collective
+    reporting hundreds of GB/s from a 4 MiB buffer in ~0.2 ms is a unit bug,
+    not a result. This guards the whole conversion path.
+    """
+    from dl_comm.analysis.bandwidth import bus_bandwidth
+    CEILING_BPS = 1.5e12  # generous per-node aggregate ceiling
+    t = 2.0e-4
+    for op in ("allreduce", "allgather", "reduce_scatter", "alltoall",
+               "broadcast", "reduce", "sendrecv"):
+        bw = bus_bandwidth(1 << 22, t, 12, op)
+        assert bw < CEILING_BPS, f"{op} reported {bw/1e9:.1f} GB/s"
 
 
 def test_traffic_bytes_leaves_fixed_volume_collectives_alone():

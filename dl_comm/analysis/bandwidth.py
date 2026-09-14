@@ -123,15 +123,19 @@ def algorithmic_bandwidth(buffer_size, time_seconds):
 def traffic_bytes(collective_name, buffer_size, group_size):
     """Bytes belonging in the algbw numerator for ``collective_name``.
 
-    ``buffer_size`` is the PER-RANK buffer. allgather produces
-    ``buffer_size * group_size`` of output and reduce_scatter consumes that
-    much input, so the standard (NCCL/OSU) convention divides the total moved
-    volume by time rather than the per-rank slice. Using the per-rank size
-    understated allgather by exactly ``group_size``.
+    ``buffer_size`` is the per-rank buffer as reported by the measuring
+    layer. allgather produces ``buffer_size * group_size`` of output, so the
+    standard (NCCL/OSU) convention divides the total moved volume by time
+    rather than the per-rank slice.
+
+    reduce_scatter is deliberately NOT expanded: the C++ benchmark passes a
+    per-rank output count, which makes the reported buffer size already the
+    total input volume. Expanding it again produced 242 GB/s at 12 ranks --
+    above what the hardware can do, which is how the double-count was caught.
     """
     if not collective_name or not group_size or group_size < 2:
         return buffer_size
-    if collective_name.lower() in ("allgather", "reducescatter", "reduce_scatter"):
+    if collective_name.lower() == "allgather":
         return buffer_size * group_size
     return buffer_size
 
