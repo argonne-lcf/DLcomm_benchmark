@@ -30,6 +30,7 @@ from dl_comm.analysis.parse_layers import (
     group_by_op_size,
     parse_kv_lines,
     parse_osu,
+    parse_transfer,
 )
 
 
@@ -47,6 +48,9 @@ def collect(results_dir: pathlib.Path, ranks: int):
             found = parse_osu(text, binary, ranks=ranks)
         elif "LAYER=cpp_ccl" in text:
             found = parse_kv_lines(text, "cpp_ccl")
+        elif "PATTERN=" in text:
+            # Transfer output (h2d/d2h/d2d/bidirectional), not a collective.
+            found = parse_transfer(text, ranks=ranks)
         elif "LAYER=torch_dist" in text:
             found = parse_kv_lines(text, "torch_dist")
         elif "LAYER=torchcomms" in text:

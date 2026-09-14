@@ -118,6 +118,38 @@ def parse_osu(text: str, binary: str, ranks: int,
     return out
 
 
+def parse_transfer(text: str, ranks: int) -> list[LayerMeasurement]:
+    """Parse `LAYER=cpp PATTERN=h2d BYTES=... GBPS=...` transfer records.
+
+    Transfer patterns are not collectives: there is no group traffic pattern,
+    so bus bandwidth equals the measured rate. They are recorded as their own
+    pseudo-collectives (h2d, d2h, d2d, bidirectional) and compared only
+    against the same pattern at another layer.
+    """
+    out: list[LayerMeasurement] = []
+    for line in text.splitlines():
+        if not line.startswith("LAYER="):
+            continue
+        kv = dict(_KV.findall(line))
+        pattern = kv.get("PATTERN")
+        if pattern is None:
+            continue  # device/header line
+        if "BYTES" not in kv or "GBPS" not in kv:
+            raise ValueError(f"transfer line missing fields: {line!r}")
+        gbps = float(kv["GBPS"])
+        # d2d never crosses PCIe, so it is labelled device-to-device rather
+        # than sharing the "device" bucket with the host-crossing patterns.
+        buffer = "d2d" if pattern == "d2d" else "pinned-host"
+        out.append(LayerMeasurement(
+            layer=kv.get("LAYER", "cpp"), collective=pattern,
+            size_bytes=int(kv["BYTES"]),
+            busbw_bps=gbps * 1e9 if gbps > 0 else None,
+            buffer=buffer, ranks=int(kv.get("RANKS", ranks)),
+            note="" if gbps > 0 else "zero/NA",
+        ))
+    return out
+
+
 def group_by_op_size(
     measurements: list[LayerMeasurement],
 ) -> dict[tuple[str, int], list[LayerMeasurement]]:

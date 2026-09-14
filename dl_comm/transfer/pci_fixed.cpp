@@ -131,6 +131,11 @@ int main(int argc, char **argv) {
   u64 t_bi = datatransfer(Q, N_byte, {{a_gpu, a_cpu}, {b_cpu, b_gpu}}, iters);
   if (world_rank == 0) report("bidirectional", N_byte, world_size, t_bi, 2);
 
+  // Device-to-device: the HBM ceiling the PCIe numbers above should be read
+  // against. Both endpoints are device allocations, so nothing crosses PCIe.
+  u64 t_d2d = datatransfer(Q, N_byte, {{b_gpu, a_gpu}}, iters);
+  if (world_rank == 0) report("d2d", N_byte, world_size, t_d2d, 1);
+
   sycl::free(a_cpu, Q); sycl::free(b_cpu, Q);
   sycl::free(a_gpu, Q); sycl::free(b_gpu, Q);
 #ifndef NO_MPI

@@ -145,3 +145,44 @@ def test_group_by_op_size_buckets_for_comparison():
     key = ("allreduce", 1048576)
     assert key in buckets
     assert {m.layer for m in buckets[key]} == {"cpp_ccl", "osu"}
+
+
+# --- transfer patterns -------------------------------------------------------
+
+TRANSFER_OUT = """\
+LAYER=cpp DEVICE=Intel(R) Data Center GPU Max 1550 RANKS=12 BUFFER_BYTES=1073741824
+LAYER=cpp PATTERN=h2d BYTES=12884901888 TIME_NS=303971886 GBPS=42.3885
+LAYER=cpp PATTERN=d2h BYTES=12884901888 TIME_NS=259728500 GBPS=49.6091
+LAYER=cpp PATTERN=bidirectional BYTES=25769803776 TIME_NS=468429033 GBPS=55.0133
+LAYER=cpp PATTERN=d2d BYTES=12884901888 TIME_NS=99999999 GBPS=128.5
+"""
+
+
+def test_transfer_header_skipped_patterns_kept():
+    from dl_comm.analysis.parse_layers import parse_transfer
+    ms = parse_transfer(TRANSFER_OUT, ranks=12)
+    assert len(ms) == 4
+    assert {m.collective for m in ms} == {"h2d", "d2h", "bidirectional", "d2d"}
+
+
+def test_transfer_gbps_converted_to_bytes_per_second():
+    from dl_comm.analysis.parse_layers import parse_transfer
+    ms = parse_transfer(TRANSFER_OUT, ranks=12)
+    h2d = next(m for m in ms if m.collective == "h2d")
+    assert h2d.busbw_bps == pytest.approx(42.3885e9)
+
+
+def test_d2d_is_a_separate_buffer_class_from_pcie_patterns():
+    """d2d never crosses PCIe; bucketing it with h2d would invite a false ratio."""
+    from dl_comm.analysis.parse_layers import parse_transfer
+    ms = parse_transfer(TRANSFER_OUT, ranks=12)
+    by = {m.collective: m.buffer for m in ms}
+    assert by["d2d"] == "d2d"
+    assert by["h2d"] == by["d2h"] == "pinned-host"
+    assert by["d2d"] != by["h2d"]
+
+
+def test_transfer_line_missing_gbps_raises():
+    from dl_comm.analysis.parse_layers import parse_transfer
+    with pytest.raises(ValueError, match="missing fields"):
+        parse_transfer("LAYER=cpp PATTERN=h2d BYTES=123\n", ranks=12)
