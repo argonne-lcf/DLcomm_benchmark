@@ -1,0 +1,124 @@
+framework        : pytorch
+ccl_backend      : torchcomms
+extended_logging : off
+barrier          : on
+device_type      : gpu
+memory_source    : gpu
+
+# torchcomms through the standard DLcomm runner (fix 17).
+#
+# torchcomms is Meta's experimental replacement for torch.distributed. It is
+# selected here exactly like any other backend -- ccl_backend: torchcomms --
+# so the same YAML shape used by the other examples drives a different
+# communication library underneath.
+#
+# IMPORTANT -- which torchcomms build is on PYTHONPATH decides what runs:
+#
+#   0.1.0  ships with frameworks/2025.3.1. Implements all_reduce and raises
+#          "XCCL <op> is not supported now and will be added later" for the
+#          rest, so only the first section below will pass.
+#   0.3.0  implements 12 of 12 probed operations including point-to-point.
+#          All five sections pass.
+#
+# The jobscript selects the build. See docs/fixes/26 for the stack comparison
+# and docs/findings/04 for measured bandwidth.
+#
+# Ordering is deliberate: the two operations that work on every build come
+# first, so a stub backend still produces results before it starts refusing.
+
+order_of_run: [allreduce-tc, allgather-tc, reducescatter-tc, alltoall-tc, sendrecv-tc]
+
+allreduce-tc:
+  comm_group: within_node
+  num_compute_nodes: 1
+  num_devices_per_node: 12
+  device_ids_per_node: [0,1,2,3,4,5,6,7,8,9,10,11]
+  verify_correctness: on
+  collective:
+    collective_name: allreduce
+    collective_op: sum
+    scale_up_algorithm: default
+    scale_out_algorithm: default
+    iterations: 20
+    warmup_iterations: 5
+    add_mxm_compute: off
+    payload:
+      dtype: float32
+      count:
+      buffer_size: 4MB
+
+allgather-tc:
+  comm_group: within_node
+  num_compute_nodes: 1
+  num_devices_per_node: 12
+  device_ids_per_node: [0,1,2,3,4,5,6,7,8,9,10,11]
+  verify_correctness: on
+  collective:
+    collective_name: allgather
+    collective_op: sum
+    scale_up_algorithm: default
+    scale_out_algorithm: default
+    iterations: 20
+    warmup_iterations: 5
+    add_mxm_compute: off
+    payload:
+      dtype: float32
+      count:
+      buffer_size: 4MB
+
+reducescatter-tc:
+  comm_group: within_node
+  num_compute_nodes: 1
+  num_devices_per_node: 12
+  device_ids_per_node: [0,1,2,3,4,5,6,7,8,9,10,11]
+  verify_correctness: on
+  collective:
+    collective_name: reducescatter
+    collective_op: sum
+    scale_up_algorithm: default
+    scale_out_algorithm: default
+    iterations: 20
+    warmup_iterations: 5
+    add_mxm_compute: off
+    payload:
+      dtype: float32
+      count:
+      buffer_size: 4MB
+
+alltoall-tc:
+  comm_group: within_node
+  num_compute_nodes: 1
+  num_devices_per_node: 12
+  device_ids_per_node: [0,1,2,3,4,5,6,7,8,9,10,11]
+  verify_correctness: on
+  collective:
+    collective_name: alltoall
+    collective_op: sum
+    scale_up_algorithm: default
+    scale_out_algorithm: default
+    iterations: 20
+    warmup_iterations: 5
+    add_mxm_compute: off
+    payload:
+      dtype: float32
+      count:
+      buffer_size: 4MB
+
+sendrecv-tc:
+  comm_group: within_node
+  num_compute_nodes: 1
+  num_devices_per_node: 12
+  device_ids_per_node: [0,1,2,3,4,5,6,7,8,9,10,11]
+  verify_correctness: on
+  collective:
+    collective_name: sendrecv
+    collective_op: sum
+    scale_up_algorithm: default
+    scale_out_algorithm: default
+    iterations: 20
+    warmup_iterations: 5
+    add_mxm_compute: off
+    payload:
+      dtype: float32
+      count:
+      buffer_size: 4MB
