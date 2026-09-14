@@ -253,29 +253,36 @@ run_scale () {
     #   DLCOMM_TC_STACK=frameworks : stock module torchcomms 0.1.0. Bootstraps
     #       correctly but its XCCL backend stubs out 16 operations, so only
     #       all_reduce is measurable (verified by job 8825144: TC_SUPPORTED=1/13).
-    #   DLCOMM_TC_STACK=pshukla    : torchcomms 0.3.0 paired with the matching
-    #       custom torch build. `strings` on its _comms_xccl .so shows zero
-    #       "is not supported" markers, so the remaining collectives and p2p
-    #       ops are implemented there.
+    #   DLCOMM_TC_STACK=local      : torchcomms 0.3.0 paired with the matching
+    #       custom torch build, copied into this project. `strings` on its
+    #       _comms_xccl .so shows zero "is not supported" markers, so the
+    #       remaining collectives and p2p ops are implemented there.
+    #
+    #       `pshukla` is accepted as a deprecated alias for `local`, so jobs
+    #       submitted with the old value keep working.
     #
     # The two must be used as a matched pair. Mixing a custom torch with an
     # independently built extension is what broke env2 (undefined symbol
     # urDeviceWaitExp, unresolved libc10.so) and produced the new_comm
     # segfault; see docs/fixes/26.
     local TC_STACK="${DLCOMM_TC_STACK:-frameworks}"
-    # Local copy of the 0.3.0 stack, under this project rather than another
-    # user's directory. Byte-identical to the original: the three torchcomms
-    # .so files and libc10.so all md5-match. Falls back to the upstream paths
-    # if the copy is missing, so the harness keeps working either way.
+    if [ "$TC_STACK" = "pshukla" ]; then
+        echo "TC_STACK_NOTE=pshukla is a deprecated alias for local"
+        TC_STACK=local
+    fi
+    # The 0.3.0 stack lives under this project rather than another user's
+    # directory. Byte-identical to the build it was copied from: the three
+    # torchcomms .so files and libc10.so all md5-match. The original paths
+    # remain as a fallback so the harness keeps working if the copy is gone.
     local LOCAL_STACK=/lus/flare/projects/datascience/kaushik/stacks/torchcomms_0.3.0
-    local PSHUKLA_TORCH PSHUKLA_TC
+    local TC03_TORCH TC03_TC
     if [ -d "$LOCAL_STACK/torchcomms" ] && [ -d "$LOCAL_STACK/pytorch" ]; then
-        PSHUKLA_TC="$LOCAL_STACK/torchcomms"
-        PSHUKLA_TORCH="$LOCAL_STACK/pytorch"
+        TC03_TC="$LOCAL_STACK/torchcomms"
+        TC03_TORCH="$LOCAL_STACK/pytorch"
     else
         echo "TC_STACK_WARN=local copy missing, falling back to datascience_collab/pshukla"
-        PSHUKLA_TORCH=/lus/flare/projects/datascience_collab/pshukla/pytorch_c10d_torchcomms/pytorch
-        PSHUKLA_TC=/lus/flare/projects/datascience_collab/pshukla/torchcomms_custom_torch
+        TC03_TORCH=/lus/flare/projects/datascience_collab/pshukla/pytorch_c10d_torchcomms/pytorch
+        TC03_TC=/lus/flare/projects/datascience_collab/pshukla/torchcomms_custom_torch
     fi
 
     # Default to the frameworks-provided torchcomms. The working Aurora
@@ -290,11 +297,11 @@ run_scale () {
     if [ "${DLCOMM_TC_ENV:-0}" = "1" ]; then
         TCPY="$TCENV/bin/python"
         TC_LDPATH="$TCENV/lib:$TCENV/lib/python3.12/site-packages/torch/lib:"
-    elif [ "$TC_STACK" = "pshukla" ]; then
+    elif [ "$TC_STACK" = "local" ]; then
         # Matched pair: torchcomms 0.3.0 + the torch it was built against.
         TCPY="$PY_FW"
-        TC_PYTHONPATH="$PSHUKLA_TC:$PSHUKLA_TORCH"
-        TC_LDPATH="$PSHUKLA_TORCH/torch/lib:"
+        TC_PYTHONPATH="$TC03_TC:$TC03_TORCH"
+        TC_LDPATH="$TC03_TORCH/torch/lib:"
     else
         TCPY="$PY_FW"
     fi

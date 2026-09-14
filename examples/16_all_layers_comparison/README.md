@@ -13,7 +13,7 @@ produces the cross-layer comparison.
 
 ```
 qsub jobscript_all_layers.sh                          # shipped torchcomms (0.1.0)
-qsub -v DLCOMM_TC_STACK=pshukla jobscript_all_layers.sh   # torchcomms 0.3.0
+qsub -v DLCOMM_TC_STACK=local jobscript_all_layers.sh     # torchcomms 0.3.0
 ```
 
 Results are written to
@@ -42,7 +42,7 @@ implements `all_reduce` and stubs the remaining operations with
 `XCCL <op> is not supported now and will be added later`, so a default run
 produces one torchcomms column.
 
-`DLCOMM_TC_STACK=pshukla` selects the 0.3.0 build, which implements 12 of 12
+`DLCOMM_TC_STACK=local` selects the 0.3.0 build, which implements 12 of 12
 probed operations including point-to-point. That build pairs with torch
 2.13, while the other layers run torch 2.10, so a torchcomms-versus-PyTorch
 gap carries a version difference as well as a library difference. See

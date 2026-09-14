@@ -58,6 +58,19 @@ Expect `2.13.0a0+git3300461` and a path under this directory. A torch version
 of `2.10.0a0+git449b176` means the module's torch won the import and the stack
 is not in effect.
 
+## Selecting this stack
+
+DLcomm selects it with `DLCOMM_TC_STACK=local`:
+
+```bash
+qsub -v DLCOMM_TC_STACK=local examples/17_torchcomms/jobscript_torchcomms.sh
+```
+
+The value was previously `pshukla`, after the directory the build was copied
+from. That name is still accepted as a deprecated alias and maps to `local`,
+printing `TC_STACK_NOTE=pshukla is a deprecated alias for local`, so
+submissions written against the old name keep working.
+
 ## The two halves are a matched pair
 
 torchcomms is a C++ extension compiled against a specific torch ABI. Using the

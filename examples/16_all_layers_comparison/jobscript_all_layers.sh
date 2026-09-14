@@ -25,9 +25,9 @@
 # torchcomms stack selection:
 #   default          the torchcomms shipped with frameworks/2025.3.1 (0.1.0),
 #                    which implements only all_reduce and stubs the rest
-#   pshukla          the 0.3.0 build, which implements 12 of 12 probed ops
+#   local            the 0.3.0 build, which implements 12 of 12 probed ops
 #
-# Select with: qsub -v DLCOMM_TC_STACK=pshukla jobscript_all_layers.sh
+# Select with: qsub -v DLCOMM_TC_STACK=local jobscript_all_layers.sh
 # ============================================================================
 
 if [[ -n "${PBS_O_WORKDIR:-}" && "${PBS_ENVIRONMENT:-}" == "PBS_BATCH" ]]; then

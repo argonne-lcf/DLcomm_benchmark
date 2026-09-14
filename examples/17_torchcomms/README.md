@@ -14,7 +14,7 @@ YAML like every other example. One Aurora node, 12 XPU ranks.
 
 ```
 qsub jobscript_torchcomms.sh                              # torchcomms 0.1.0
-qsub -v DLCOMM_TC_STACK=pshukla jobscript_torchcomms.sh   # torchcomms 0.3.0
+qsub -v DLCOMM_TC_STACK=local jobscript_torchcomms.sh     # torchcomms 0.3.0
 ```
 
 Results are written to `logs/run_<timestamp>/`.
@@ -37,7 +37,7 @@ This is the single most important variable in this example.
 | Stack | Version | Behaviour |
 |---|---|---|
 | `frameworks` (default) | 0.1.0 | implements `all_reduce`; other operations raise `XCCL <op> is not supported now and will be added later` |
-| `pshukla` | 0.3.0 | 12 of 12 probed operations work, including point-to-point |
+| `local` | 0.3.0 | 12 of 12 probed operations work, including point-to-point |
 
 With the default stack, expect one of the five sections to pass and four to
 report the operation as unsupported. That is the shipped build's limitation,

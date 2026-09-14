@@ -92,7 +92,9 @@ The 0.3.0 build carries no unsupported-operation markers, including
 `all_to_all_v_single`. Stack selection is therefore explicit:
 
 - `DLCOMM_TC_STACK=frameworks` (default) — bootstraps, `all_reduce` only
-- `DLCOMM_TC_STACK=pshukla` — torchcomms 0.3.0 with its matching torch
+- `DLCOMM_TC_STACK=local` — torchcomms 0.3.0 with its matching torch,
+  copied into `stacks/torchcomms_0.3.0/` under this project (`pshukla` is
+  accepted as a deprecated alias)
 
 ## Probe defects found by inspecting live signatures
 

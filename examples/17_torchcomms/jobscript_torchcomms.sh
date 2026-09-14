@@ -23,13 +23,13 @@
 #                                "XCCL <op> is not supported now and will be
 #                                added later". Expect 1 of 5 sections to pass.
 #
-#   DLCOMM_TC_STACK=pshukla      torchcomms 0.3.0 paired with the torch build
+#   DLCOMM_TC_STACK=local        torchcomms 0.3.0 paired with the torch build
 #                                it was compiled against. 12 of 12 probed ops
 #                                work. Expect all 5 sections to pass.
 #
 # Submit as:
 #   qsub jobscript_torchcomms.sh                          # 0.1.0, default
-#   qsub -v DLCOMM_TC_STACK=pshukla jobscript_torchcomms.sh   # 0.3.0
+#   qsub -v DLCOMM_TC_STACK=local jobscript_torchcomms.sh     # 0.3.0
 #
 # The two components of a stack must be used as a matched pair. Mixing a
 # custom torch with an independently built torchcomms produces a segfault
@@ -55,29 +55,36 @@ cd "$WORKDIR"
 # ----------------------------------------------------------------------------
 TC_STACK="${DLCOMM_TC_STACK:-frameworks}"
 
-# Local copy of the 0.3.0 stack, under this project rather than another user's
-# directory. Byte-identical to the original (md5-verified on the torchcomms
-# .so files and libc10.so). The upstream paths remain as a fallback so the
-# example keeps working if the copy is absent.
+# `pshukla` named the directory the 0.3.0 build was originally copied from.
+# The build now lives under this project, so the value is `local`; the old
+# name is still accepted so previously written submissions keep working.
+if [[ "$TC_STACK" == "pshukla" ]]; then
+    echo "TC_STACK_NOTE=pshukla is a deprecated alias for local"
+    TC_STACK=local
+fi
+
+# The 0.3.0 stack, byte-identical to the build it was copied from (md5-verified
+# on the torchcomms .so files and libc10.so). The original paths remain as a
+# fallback so the example keeps working if the copy is absent.
 LOCAL_STACK=/lus/flare/projects/datascience/kaushik/stacks/torchcomms_0.3.0
 if [[ -d "$LOCAL_STACK/torchcomms" && -d "$LOCAL_STACK/pytorch" ]]; then
-    PSHUKLA_TC="$LOCAL_STACK/torchcomms"
-    PSHUKLA_TORCH="$LOCAL_STACK/pytorch"
+    TC03_TC="$LOCAL_STACK/torchcomms"
+    TC03_TORCH="$LOCAL_STACK/pytorch"
 else
     echo "TC_STACK_WARN=local copy missing, falling back to datascience_collab/pshukla"
-    PSHUKLA_TORCH=/lus/flare/projects/datascience_collab/pshukla/pytorch_c10d_torchcomms/pytorch
-    PSHUKLA_TC=/lus/flare/projects/datascience_collab/pshukla/torchcomms_custom_torch
+    TC03_TORCH=/lus/flare/projects/datascience_collab/pshukla/pytorch_c10d_torchcomms/pytorch
+    TC03_TC=/lus/flare/projects/datascience_collab/pshukla/torchcomms_custom_torch
 fi
 
 TC_PYTHONPATH=""
 TC_LDPATH=""
-if [[ "$TC_STACK" == "pshukla" ]]; then
-    if [[ ! -d "$PSHUKLA_TC" || ! -d "$PSHUKLA_TORCH" ]]; then
+if [[ "$TC_STACK" == "local" ]]; then
+    if [[ ! -d "$TC03_TC" || ! -d "$TC03_TORCH" ]]; then
         echo "VERDICT=STACK_MISSING ($TC_STACK paths not readable)"
         exit 1
     fi
-    TC_PYTHONPATH="$PSHUKLA_TC:$PSHUKLA_TORCH"
-    TC_LDPATH="$PSHUKLA_TORCH/torch/lib:"
+    TC_PYTHONPATH="$TC03_TC:$TC03_TORCH"
+    TC_LDPATH="$TC03_TORCH/torch/lib:"
 fi
 echo "TORCHCOMMS_STACK=$TC_STACK"
 
