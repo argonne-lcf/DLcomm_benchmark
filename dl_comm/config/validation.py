@@ -86,9 +86,18 @@ def validate_and_calculate_buffer_size(payload_config, mode_name: str, log=None,
 
 def adjust_buffer_size_for_group_divisibility(buffer_bytes: int, group_size: int, collective_name: str, elem_size: int, log=None, mpi_rank: int = 0) -> tuple[int, str]:
     
-    # alltoallv splits the buffer across ranks just as alltoallsingle does, so
-    # it carries the same divisibility requirement.
-    collectives_needing_divisibility = ["alltoallsingle", "alltoallv"]
+    # reducescatter splits the input into one chunk per rank with integer
+    # division (collectives.py: chunk_size = tensor.numel() // world_size).
+    # A non-divisible buffer silently drops the remainder: the collective moves
+    # less data than the configured buffer size, and the reported bandwidth is
+    # computed from the size that was asked for rather than the size that was
+    # transferred. That is a wrong number rather than a visible failure, so the
+    # buffer is adjusted here for the same reason alltoall is.
+    #
+    # allgather is deliberately NOT in this list. Every rank contributes its
+    # whole buffer and the output is world_size times that, so any buffer size
+    # is valid and no remainder exists to lose.
+    collectives_needing_divisibility = ["alltoallsingle", "alltoallv", "reducescatter"]
     
 
     if collective_name.lower() not in collectives_needing_divisibility:

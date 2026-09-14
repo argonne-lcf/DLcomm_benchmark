@@ -29,7 +29,7 @@ TORCHCOMM_XCCL_BOOTSTRAP_UNIQUEID_EXCHANGE_METHOD
 mechanism would have been recorded as the fix.
 
 Hypothesis 3 was adopted because **81 of 81** torchcomms launchers under
-`datascience_collab/pshukla` use the mask pattern. Unanimity across a corpus is still
+the reference trees under `datascience_collab` use the mask pattern. Unanimity across a corpus is still
 correlation: job 8825078 applied the mask correctly on every rank and segfaulted
 identically. The reference harnesses in `torch_and_comm_reference` do not use the mask at
 all — they index the device by local rank, exactly as this benchmark already did.
@@ -93,7 +93,7 @@ The 0.3.0 build carries no unsupported-operation markers, including
 
 - `DLCOMM_TC_STACK=frameworks` (default) — bootstraps, `all_reduce` only
 - `DLCOMM_TC_STACK=local` — torchcomms 0.3.0 with its matching torch,
-  copied into `stacks/torchcomms_0.3.0/` under this project (`pshukla` is
+  copied into `stacks/torchcomms_0.3.0/` under this project (the origin is
   accepted as a deprecated alias)
 
 ## Probe defects found by inspecting live signatures

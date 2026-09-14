@@ -16,7 +16,7 @@ import sys
 # No mpi4py. Probe 8825011 showed the Abort(16) came from pals_env.sh
 # clobbering PMI_RANK/PMI_SIZE, which corrupts MPICH's own bootstrap -- not
 # from MPI being uninitialized. The working Aurora reference
-# (pshukla/torchcomms_custom_torch/.../aurora_xccl_lifecycle_rank.py) reads
+# (the Aurora XCCL lifecycle reference, aurora_xccl_lifecycle_rank.py) reads
 # the launcher variables directly and never imports mpi4py.
 
 # Dump a C-level traceback on signal 11. Job 8824800 reported only

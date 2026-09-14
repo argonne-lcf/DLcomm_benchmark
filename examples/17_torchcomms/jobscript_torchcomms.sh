@@ -55,32 +55,19 @@ cd "$WORKDIR"
 # ----------------------------------------------------------------------------
 TC_STACK="${DLCOMM_TC_STACK:-frameworks}"
 
-# `pshukla` named the directory the 0.3.0 build was originally copied from.
-# The build now lives under this project, so the value is `local`; the old
-# name is still accepted so previously written submissions keep working.
-if [[ "$TC_STACK" == "pshukla" ]]; then
-    echo "TC_STACK_NOTE=pshukla is a deprecated alias for local"
-    TC_STACK=local
-fi
-
-# The 0.3.0 stack, byte-identical to the build it was copied from (md5-verified
-# on the torchcomms .so files and libc10.so). The original paths remain as a
-# fallback so the example keeps working if the copy is absent.
+# The 0.3.0 stack lives under this project. It is byte-identical to the build
+# it was copied from (md5-verified on the torchcomms .so files and libc10.so).
+# There is deliberately no fallback to another user's directory: a stack that
+# silently moves out from under a benchmark makes its numbers unattributable.
 LOCAL_STACK=/lus/flare/projects/datascience/kaushik/stacks/torchcomms_0.3.0
-if [[ -d "$LOCAL_STACK/torchcomms" && -d "$LOCAL_STACK/pytorch" ]]; then
-    TC03_TC="$LOCAL_STACK/torchcomms"
-    TC03_TORCH="$LOCAL_STACK/pytorch"
-else
-    echo "TC_STACK_WARN=local copy missing, falling back to datascience_collab/pshukla"
-    TC03_TORCH=/lus/flare/projects/datascience_collab/pshukla/pytorch_c10d_torchcomms/pytorch
-    TC03_TC=/lus/flare/projects/datascience_collab/pshukla/torchcomms_custom_torch
-fi
+TC03_TC="$LOCAL_STACK/torchcomms"
+TC03_TORCH="$LOCAL_STACK/pytorch"
 
 TC_PYTHONPATH=""
 TC_LDPATH=""
 if [[ "$TC_STACK" == "local" ]]; then
     if [[ ! -d "$TC03_TC" || ! -d "$TC03_TORCH" ]]; then
-        echo "VERDICT=STACK_MISSING ($TC_STACK paths not readable)"
+        echo "VERDICT=STACK_MISSING ($LOCAL_STACK not readable)"
         exit 1
     fi
     TC_PYTHONPATH="$TC03_TC:$TC03_TORCH"
@@ -123,11 +110,24 @@ export TERMINAL_LOG_FILE="$RUN_LOG_DIR/terminal_output.log"
 export DL_COMM_LOG_DIR="$RUN_LOG_DIR"
 mkdir -p "$RUN_LOG_DIR"
 
-CONFIG_NAME="17_torchcomms_xccl"
+# Which YAML to run. Defaults to the single-node configuration; override with
+#   qsub -l select=2:ncpus=208 -v DLCOMM_CONFIG=17_torchcomms_xccl_2node ...
+# The single-node file is deliberately not parameterised by node count: its
+# tasks declare 12 ranks, and the launch-geometry validator correctly rejects
+# it under a 2-node allocation rather than leaving 12 ranks idle.
+CONFIG_NAME="${DLCOMM_CONFIG:-17_torchcomms_xccl}"
 
 NNODES=`wc -l < $PBS_NODEFILE`
 RANKS_PER_NODE=12
 NRANKS=$(( NNODES * RANKS_PER_NODE ))
+
+# Absolute PALS launcher. A `mpiexec` picked up from PATH can come from an
+# activated environment rather than from PALS, which silently degrades the job
+# to a single rank instead of failing.
+MPIEXEC=/opt/cray/pals/1.8/bin/mpiexec
+[[ -x "$MPIEXEC" ]] || MPIEXEC=$(command -v mpiexec)
+
+echo "SCALE=${NNODES}node_${NRANKS}rank" | tee -a "$TERMINAL_LOG_FILE"
 
 # Report which torchcomms actually loaded, before measuring anything. A run
 # that silently picks up a different build than intended is the failure this
@@ -139,7 +139,7 @@ print('TORCH_VERSION=' + torch.__version__)
 print('TC_PATH=' + torchcomms.__file__)
 " 2>&1 | tee -a "$TERMINAL_LOG_FILE"
 
-mpiexec --np ${NRANKS} \
+"$MPIEXEC" --np ${NRANKS} \
         -ppn ${RANKS_PER_NODE} \
         --depth 16 \
         --cpu-bind depth \

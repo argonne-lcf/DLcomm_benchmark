@@ -76,7 +76,7 @@ at the site so they are not reinstated.
 ## Related corrections adopted at the same time
 
 From a working Aurora reference harness
-(`datascience_collab/pshukla/torchcomms_custom_torch/.../aurora_xccl_lifecycle_rank.py`):
+(the Aurora XCCL lifecycle reference, `aurora_xccl_lifecycle_rank.py`):
 
 - Do not import mpi4py; read `RANK` / `WORLD_SIZE` / `LOCAL_RANK` from the
   environment with `PALS_*` fallbacks.

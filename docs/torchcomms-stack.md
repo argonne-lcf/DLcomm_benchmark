@@ -19,7 +19,7 @@ extension, from `strings <so> | grep -c "is not supported now"`. The shipped
 build raises `XCCL <op> is not supported now and will be added later` for
 everything except `all_reduce`; the 0.3.0 build contains no such string.
 
-The original was built by user `pshukla` under `datascience_collab`. That
+The original was built under `datascience_collab` by another user. That
 directory is readable today but is outside this project's control: if it is
 moved, rebuilt or cleaned, every run pointing at it breaks. This copy removes
 that dependency.
@@ -66,10 +66,10 @@ DLcomm selects it with `DLCOMM_TC_STACK=local`:
 qsub -v DLCOMM_TC_STACK=local examples/17_torchcomms/jobscript_torchcomms.sh
 ```
 
-The value was previously `pshukla`, after the directory the build was copied
-from. That name is still accepted as a deprecated alias and maps to `local`,
-printing `TC_STACK_NOTE=pshukla is a deprecated alias for local`, so
-submissions written against the old name keep working.
+The selector takes `frameworks` (default) or `local`. No other value is
+accepted, and there is no fallback to the directory the build came from:
+a benchmark whose stack can silently change is a benchmark whose numbers
+cannot be attributed.
 
 ## The two halves are a matched pair
 
@@ -114,11 +114,46 @@ The PyTorch source and build trees were not copied either; only the installed
 `torch/` package, which is what `PYTHONPATH` needs. This copy is for running,
 not for rebuilding. Rebuilding requires the upstream sources and the log above.
 
-## Known limitation
+## Known limitations
 
-`split()` hangs at 12 ranks on this build: oneCCL `split_communicator` →
-`onecclCommSplit` → `DefaultXcclApi::commSplit` does not return. DLcomm gates
-the call behind `DLCOMM_TC_SPLIT` and leaves it off by default.
+### `split()` hangs at 12 ranks
+
+oneCCL `split_communicator` → `onecclCommSplit` → `DefaultXcclApi::commSplit`
+does not return. DLcomm gates the call behind `DLCOMM_TC_SPLIT` and leaves it
+off by default, building subcommunicators with `new_comm` over a `PrefixStore`
+instead (`TorchCommsDist._new_comm_for`).
+
+### SIGSEGV during interpreter teardown
+
+Runs can exit with signal 11 or 15 *after* all work has completed and all
+results have been written. The stack trace is always in exit handlers:
+
+```
+TorchCommXCCL::timeoutWatchdog()
+  -> TorchWorkXCCLQueue::garbageCollect()
+    -> ~TorchWorkXCCL() -> ~TorchCommXCCL() -> getRank()
+      -> DefaultXcclApi::commUserRank() -> onecclCommUserRank()
+oneCCL could not be initialized! Could not load any plugin.
+```
+
+The watchdog thread garbage-collects work objects after oneCCL has already
+finalized, and the destructor calls back into the torn-down library. A second
+variant appears in `torch::detail::TorchLibraryInit::~TorchLibraryInit()` via
+`c10::Dispatcher::deregisterFallback_`, and a third inside
+`libze_intel_gpu.so` during `_dl_fini`.
+
+Consequences for anything reading these runs:
+
+- **A non-zero exit status does not mean the measurements are invalid.** Job
+  8826293 produced eight correct reductions and then died in teardown with
+  exit 139. Job 8826319 exited 143 for an unrelated reason — a genuine
+  failure — so the exit code alone cannot distinguish the two cases.
+- **Judge a run by its verdicts, not its exit code.** The authoritative signal
+  is the `[TASK-CORRECTNESS]` line per task (`checks=N failures=0 skipped=0`)
+  together with the bandwidth tables. Absence of those lines means the run
+  really did fail.
+- The race is in the stack, not in DLcomm, and it cannot corrupt results: it
+  fires strictly after the last collective has completed and been verified.
 
 ## Version confound
 

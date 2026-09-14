@@ -1,0 +1,122 @@
+framework        : pytorch
+ccl_backend      : torchcomms
+extended_logging : off
+barrier          : on
+device_type      : gpu
+memory_source    : gpu
+
+# torchcomms across two nodes: 2 x 12 = 24 ranks in one flat communicator.
+#
+# This is the cross-node companion to 17_torchcomms_xccl.yaml, which is
+# single-node by design and stays that way. Running that file under a 2-node
+# allocation is correctly rejected by the launch-geometry validator: its tasks
+# describe 12 ranks, so 12 of the 24 would sit idle and unreported.
+#
+# The comm group is flatview rather than within_node so every collective
+# crosses the node boundary. That is the point of this configuration: the
+# alltoall collapse recorded in docs/findings/02 only appears off-node.
+#
+# Submit with:
+#   qsub -l select=2:ncpus=208 -v DLCOMM_CONFIG=17_torchcomms_xccl_2node \
+#        jobscript_torchcomms.sh
+#
+# Requires the 0.3.0 stack; see docs/torchcomms-stack.md. Judge the run by its
+# [TASK-CORRECTNESS] lines, not by its exit status -- that stack has a teardown
+# race that can report a signal death after a complete, correct run.
+
+order_of_run: [allreduce-tc, allgather-tc, reducescatter-tc, alltoall-tc, sendrecv-tc]
+
+allreduce-tc:
+  comm_group: flatview
+  num_compute_nodes: 2
+  num_devices_per_node: 12
+  device_ids_per_node: [0,1,2,3,4,5,6,7,8,9,10,11]
+  verify_correctness: on
+  collective:
+    collective_name: allreduce
+    collective_op: sum
+    scale_up_algorithm: default
+    scale_out_algorithm: default
+    iterations: 20
+    warmup_iterations: 5
+    add_mxm_compute: off
+    payload:
+      dtype: float32
+      count:
+      buffer_size: 4MB
+
+allgather-tc:
+  comm_group: flatview
+  num_compute_nodes: 2
+  num_devices_per_node: 12
+  device_ids_per_node: [0,1,2,3,4,5,6,7,8,9,10,11]
+  verify_correctness: on
+  collective:
+    collective_name: allgather
+    collective_op: sum
+    scale_up_algorithm: default
+    scale_out_algorithm: default
+    iterations: 20
+    warmup_iterations: 5
+    add_mxm_compute: off
+    payload:
+      dtype: float32
+      count:
+      buffer_size: 4MB
+
+reducescatter-tc:
+  comm_group: flatview
+  num_compute_nodes: 2
+  num_devices_per_node: 12
+  device_ids_per_node: [0,1,2,3,4,5,6,7,8,9,10,11]
+  verify_correctness: on
+  collective:
+    collective_name: reducescatter
+    collective_op: sum
+    scale_up_algorithm: default
+    scale_out_algorithm: default
+    iterations: 20
+    warmup_iterations: 5
+    add_mxm_compute: off
+    payload:
+      dtype: float32
+      count:
+      buffer_size: 4MB
+
+alltoall-tc:
+  comm_group: flatview
+  num_compute_nodes: 2
+  num_devices_per_node: 12
+  device_ids_per_node: [0,1,2,3,4,5,6,7,8,9,10,11]
+  verify_correctness: on
+  collective:
+    collective_name: alltoall
+    collective_op: sum
+    scale_up_algorithm: default
+    scale_out_algorithm: default
+    iterations: 20
+    warmup_iterations: 5
+    add_mxm_compute: off
+    payload:
+      dtype: float32
+      count:
+      buffer_size: 4MB
+
+sendrecv-tc:
+  comm_group: flatview
+  num_compute_nodes: 2
+  num_devices_per_node: 12
+  device_ids_per_node: [0,1,2,3,4,5,6,7,8,9,10,11]
+  verify_correctness: on
+  collective:
+    collective_name: sendrecv
+    collective_op: sum
+    scale_up_algorithm: default
+    scale_out_algorithm: default
+    iterations: 20
+    warmup_iterations: 5
+    add_mxm_compute: off
+    payload:
+      dtype: float32
+      count:
+      buffer_size: 4MB

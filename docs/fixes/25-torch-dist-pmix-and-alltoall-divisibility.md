@@ -17,7 +17,7 @@ during bootstrap.
 ```
 
 Applied to all five launch sites. This matches the working Aurora reference launchers
-under `datascience_collab/pshukla`.
+under `datascience_collab`.
 
 ## Defect 2 — alltoall tensor not divisible by the group size
 

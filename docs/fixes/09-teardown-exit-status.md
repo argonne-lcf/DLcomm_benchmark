@@ -68,3 +68,13 @@ the CPU gloo suite; it is confirmed only by the Aurora job output quoted above.
 The underlying XCCL teardown crash is not fixed here — it is upstream, in the
 backend's subgroup destructors. This change ensures the crash cannot corrupt
 the benchmark's reported result.
+
+The torchcomms 0.3.0 stack has its own variant of the same upstream defect,
+with a different stack trace: `TorchCommXCCL::timeoutWatchdog()` →
+`TorchWorkXCCLQueue::garbageCollect()` → `~TorchCommXCCL()` →
+`onecclCommUserRank()`, reaching oneCCL after it has finalized. It is described
+in `docs/torchcomms-stack.md`. The `os._exit` latch here protects DLcomm's own
+runs from it: example 17 at 12 ranks exits 0 (job 8826362). Standalone probes
+that do not route through `dl_comm_main` are unprotected and can still report a
+signal death after producing complete, correct output — judge those by their
+printed verdicts, not their exit status.

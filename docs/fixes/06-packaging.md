@@ -61,6 +61,6 @@ UChicago Argonne, LLC, in the usual ALCF form. Choosing that text is a legal
 decision for the project, not a mechanical fix. Add the file and re-enable the
 commented `license = { file = "LICENSE" }` line in `pyproject.toml`.
 
-**`tests/test.sh` still hardcodes `datascience_collab/mcim/` paths** and cannot
+**`tests/test.sh` previously hardcoded another user's `datascience_collab` paths** and could not
 run for anyone outside that project. It is left untouched; the new suite under
 `tests/` supersedes it and runs anywhere.

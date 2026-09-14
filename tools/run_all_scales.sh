@@ -258,32 +258,19 @@ run_scale () {
     #       _comms_xccl .so shows zero "is not supported" markers, so the
     #       remaining collectives and p2p ops are implemented there.
     #
-    #       `pshukla` is accepted as a deprecated alias for `local`, so jobs
-    #       submitted with the old value keep working.
-    #
     # The two must be used as a matched pair. Mixing a custom torch with an
     # independently built extension is what broke env2 (undefined symbol
     # urDeviceWaitExp, unresolved libc10.so) and produced the new_comm
     # segfault; see docs/fixes/26.
     local TC_STACK="${DLCOMM_TC_STACK:-frameworks}"
-    if [ "$TC_STACK" = "pshukla" ]; then
-        echo "TC_STACK_NOTE=pshukla is a deprecated alias for local"
-        TC_STACK=local
-    fi
-    # The 0.3.0 stack lives under this project rather than another user's
-    # directory. Byte-identical to the build it was copied from: the three
-    # torchcomms .so files and libc10.so all md5-match. The original paths
-    # remain as a fallback so the harness keeps working if the copy is gone.
+    # The 0.3.0 stack lives under this project. Byte-identical to the build it
+    # was copied from: the three torchcomms .so files and libc10.so all
+    # md5-match. There is deliberately no fallback to another user's directory
+    # -- a stack that can move out from under the harness makes its numbers
+    # unattributable, and a hard failure is the honest outcome.
     local LOCAL_STACK=/lus/flare/projects/datascience/kaushik/stacks/torchcomms_0.3.0
-    local TC03_TORCH TC03_TC
-    if [ -d "$LOCAL_STACK/torchcomms" ] && [ -d "$LOCAL_STACK/pytorch" ]; then
-        TC03_TC="$LOCAL_STACK/torchcomms"
-        TC03_TORCH="$LOCAL_STACK/pytorch"
-    else
-        echo "TC_STACK_WARN=local copy missing, falling back to datascience_collab/pshukla"
-        TC03_TORCH=/lus/flare/projects/datascience_collab/pshukla/pytorch_c10d_torchcomms/pytorch
-        TC03_TC=/lus/flare/projects/datascience_collab/pshukla/torchcomms_custom_torch
-    fi
+    local TC03_TORCH="$LOCAL_STACK/pytorch"
+    local TC03_TC="$LOCAL_STACK/torchcomms"
 
     # Default to the frameworks-provided torchcomms. The working Aurora
     # reference harnesses import plain `torchcomms` under the module, which
@@ -318,7 +305,7 @@ run_scale () {
             bash -c '
               # Mask each rank down to ONE visible XPU, then declare local
               # rank 0. This is the pattern in all 81 working torchcomms
-              # launchers under datascience_collab/pshukla. Exposing all 12
+              # reference launchers. Exposing all 12
               # tiles and indexing by local rank works for oneCCL and SYCL
               # but segfaults inside the XCCL bootstrap in new_comm.
               # No ZE_AFFINITY_MASK: job 8825078 applied it correctly and

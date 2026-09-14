@@ -166,10 +166,36 @@ class TorchCommsDist:
                     f"{[o for o in dir(tc.ReduceOp) if o.isupper()]}"
                 )
             return getattr(tc.ReduceOp, name)
-        # torch.distributed.ReduceOp -> match by name
+        # Already a torchcomms ReduceOp: hand it straight back.
+        #
+        # The verdict path in analysis/correctness.py calls
+        # ``dist.all_reduce(flag, op=dist.ReduceOp.MIN)`` where ``dist`` is this
+        # adapter, so ``dist.ReduceOp`` is already tc.ReduceOp and the value
+        # arrives here pre-converted. These are opaque pybind11 objects whose
+        # str() is "<torchcomms.ReduceOp object at 0x...>" -- there is no name
+        # to parse, so the name-matching branch below derived garbage and (once
+        # the silent SUM default was removed) raised. Job 8826319 died on the
+        # first timed allreduce for exactly this reason.
+        if isinstance(op, tc.ReduceOp):
+            return op
+        # torch.distributed.ReduceOp -> match by name.
+        #
+        # This previously ended in `getattr(tc.ReduceOp, text, tc.ReduceOp.SUM)`.
+        # The SUM default meant any name that did not line up was silently
+        # executed as a sum instead of raising: job 8826159 measured MIN over
+        # twelve ones returning 12, and MIN with one rank at zero returning 11.
+        # Every reduction in the torchcomms layer was really a SUM, so the
+        # collective ran, produced plausible numbers, and compared wrong
+        # against the expected reduction. A missing op now raises.
         text = str(op).rsplit(".", 1)[-1].upper()
         text = {"PROD": "PRODUCT", "MEAN": "AVG"}.get(text, text)
-        return getattr(tc.ReduceOp, text, tc.ReduceOp.SUM)
+        if not hasattr(tc.ReduceOp, text):
+            raise ValueError(
+                f"torchcomms has no reduce op matching {op!r} (derived name "
+                f"{text!r}). Available: "
+                f"{[o for o in dir(tc.ReduceOp) if o.isupper()]}"
+            )
+        return getattr(tc.ReduceOp, text)
 
     # -- rank / topology -------------------------------------------------
     def get_rank(self, group=None) -> int:

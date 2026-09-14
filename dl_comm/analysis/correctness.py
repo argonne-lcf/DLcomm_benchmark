@@ -28,18 +28,53 @@ _OP_NAMES = ("sum", "max", "min", "prod")
 
 
 def _op_to_name(op, dist):
+    """Map a reduction op to its canonical DLcomm name.
+
+    Compared by name rather than identity. OP_MAP always holds
+    ``torch.distributed`` ReduceOp values (collectives.init_framework_constants
+    builds it from torch), but under ``ccl_backend: torchcomms`` ``dist`` is
+    the adapter, whose ReduceOp is the separate torchcomms enum. Identity
+    comparison across those two never matched, so every reduction check
+    returned None and was skipped as "no reduction op supplied" -- a silent
+    loss of verification, not a visible failure (job 8826104: allreduce and
+    reducescatter both NO-CHECKS over 20 iterations).
+    """
     if op is None:
         return None
-    mapping = {
-        dist.ReduceOp.SUM: "sum",
-        dist.ReduceOp.MAX: "max",
-        dist.ReduceOp.MIN: "min",
-        dist.ReduceOp.PRODUCT: "prod",
+    # A torchcomms ReduceOp is an opaque pybind11 object: str() gives
+    # "<torchcomms.ReduceOp object at 0x...>" with no name in it, so the
+    # text parse below silently yields None and the check is skipped. Under
+    # ccl_backend: torchcomms the ops reaching here can already be converted,
+    # so identify those by comparing against the enum members directly.
+    try:
+        import torchcomms as _tc
+
+        tc_ops = getattr(_tc, "ReduceOp", None)
+        if tc_ops is not None and isinstance(op, tc_ops):
+            for member, canonical_name in (
+                ("SUM", "sum"), ("MIN", "min"), ("MAX", "max"),
+                ("PRODUCT", "prod"),
+            ):
+                if getattr(tc_ops, member, None) == op:
+                    return canonical_name
+            # AVG and the bitwise ops have no closed-form expectation; they
+            # skip explicitly rather than being guessed at.
+            return None
+    except ImportError:
+        pass
+    # "RedOpType.SUM", "ReduceOp.SUM", "RO.SUM" -> "SUM"
+    # AVG/MEAN are deliberately absent: _expected_reduced has no closed form
+    # for them and raises ValueError, so naming them here would turn a silent
+    # skip into a crash. They stay unmapped and skip explicitly.
+    text = str(op).rsplit(".", 1)[-1].strip().upper()
+    canonical = {
+        "SUM": "sum",
+        "MAX": "max",
+        "MIN": "min",
+        "PRODUCT": "prod",
+        "PROD": "prod",
     }
-    for key, name in mapping.items():
-        if op == key:
-            return name
-    return None
+    return canonical.get(text)
 
 
 def _group_info(dist, group):
@@ -107,6 +142,69 @@ def _skip(context, label, reason):
     failures.record_skip(detail)
 
 
+def _check_barrier(context, group=None, group_type=None, group_id=None):
+    """Verify that every rank met at the same barrier.
+
+    A barrier moves no payload, so there is no buffer to compare and it was
+    previously skipped outright -- reported as [NO-CHECKS], which by the
+    project's own standard means untested rather than passing.
+
+    There is still a checkable property. A barrier is a rendezvous: when it
+    returns, every rank in the group must have arrived at the *same* one. Each
+    rank contributes its iteration number and the group takes both the MIN and
+    the MAX. If they disagree, the ranks were at different barriers, which is
+    precisely the desynchronisation a barrier exists to prevent.
+
+    This catches a barrier that returned early on some rank, or one applied to
+    the wrong subgroup. It cannot catch a barrier that is a no-op on every rank
+    simultaneously -- no collective-level check can, since the observable state
+    is identical.
+    """
+    import torch
+
+    # Same adapter selection as check_collective_correctness: under
+    # ccl_backend: torchcomms the group is a TorchCommsGroup that
+    # torch.distributed cannot reduce over.
+    import torch.distributed as dist
+    if getattr(group, "comm", None) is not None:
+        from dl_comm.comm import torchcomms_backend as _tcb
+        active = _tcb.active_dist()
+        if active is not None:
+            dist = active
+
+    iteration = context.get("iteration", 0)
+    label = f"[{group_type}-Group-{group_id}] barrier"
+
+    try:
+        seq = int(iteration)
+    except (TypeError, ValueError):
+        _skip(context, label, "iteration is not an integer, cannot verify rendezvous")
+        return
+
+    group_ranks, _world, _root, _idx = _group_info(dist, group)
+
+    # Match the device the run is using; the reference tensor comes from the
+    # same place every other check gets one.
+    lo = torch.tensor([seq], dtype=torch.int32)
+    ref = context.get("tensor_like")
+    if ref is not None and hasattr(ref, "device"):
+        lo = lo.to(ref.device)
+    hi = lo.clone()
+
+    dist.all_reduce(lo, op=dist.ReduceOp.MIN, group=group)
+    dist.all_reduce(hi, op=dist.ReduceOp.MAX, group=group)
+
+    lo_v, hi_v = int(lo.item()), int(hi.item())
+    local_ok = lo_v == seq and hi_v == seq
+    extra = ""
+    if not local_ok:
+        extra = (f"ranks met at different barriers: this rank at {seq}, "
+                 f"group spans [{lo_v}, {hi_v}]")
+
+    _reduce_verdict(context, dist, torch, lo, group, group_ranks, None,
+                    local_ok, label, extra)
+
+
 def check_collective_correctness(context, tensor_after, collective_name, op=None,
                                  group=None, result_data=None, group_type=None,
                                  group_id=None):
@@ -114,6 +212,8 @@ def check_collective_correctness(context, tensor_after, collective_name, op=None
     if framework != "pytorch":
         return
     if collective_name == "barrier":
+        _check_barrier(context, group=group, group_type=group_type,
+                       group_id=group_id)
         return
 
     import torch
