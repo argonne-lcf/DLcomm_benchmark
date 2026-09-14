@@ -1,5 +1,19 @@
 """Locate, build, run, and parse OSU Micro-Benchmarks.
 
+Buffer placement -- OSU numbers are not same-path with the other layers
+----------------------------------------------------------------------
+OSU Micro-Benchmarks allocate **host** buffers and move data through the host
+path. DLcomm's oneCCL, torch.distributed and torchcomms layers allocate
+**device** buffers and move data device-to-device. A ratio between an OSU
+figure and a DLcomm figure therefore mixes interconnect performance with PCIe
+transfer cost and does not describe either one.
+
+``dl_comm.analysis.compare_layers`` tags every row with its buffer placement
+and declines to compute a ratio across placements. OSU rows serve as a
+host-path reference and an independent check on trends, not as a bound on the
+device-path layers. Stating an OSU-to-DLcomm ratio requires a host-buffer
+DLcomm configuration so both sides measure the same path.
+
 Design note -- why not a git submodule
 --------------------------------------
 The initial request was for OSU as a dependent package or submodule. Probing
