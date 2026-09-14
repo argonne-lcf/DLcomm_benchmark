@@ -263,8 +263,20 @@ run_scale () {
     # urDeviceWaitExp, unresolved libc10.so) and produced the new_comm
     # segfault; see docs/fixes/26.
     local TC_STACK="${DLCOMM_TC_STACK:-frameworks}"
-    local PSHUKLA_TORCH=/lus/flare/projects/datascience_collab/pshukla/pytorch_c10d_torchcomms/pytorch
-    local PSHUKLA_TC=/lus/flare/projects/datascience_collab/pshukla/torchcomms_custom_torch
+    # Local copy of the 0.3.0 stack, under this project rather than another
+    # user's directory. Byte-identical to the original: the three torchcomms
+    # .so files and libc10.so all md5-match. Falls back to the upstream paths
+    # if the copy is missing, so the harness keeps working either way.
+    local LOCAL_STACK=/lus/flare/projects/datascience/kaushik/stacks/torchcomms_0.3.0
+    local PSHUKLA_TORCH PSHUKLA_TC
+    if [ -d "$LOCAL_STACK/torchcomms" ] && [ -d "$LOCAL_STACK/pytorch" ]; then
+        PSHUKLA_TC="$LOCAL_STACK/torchcomms"
+        PSHUKLA_TORCH="$LOCAL_STACK/pytorch"
+    else
+        echo "TC_STACK_WARN=local copy missing, falling back to datascience_collab/pshukla"
+        PSHUKLA_TORCH=/lus/flare/projects/datascience_collab/pshukla/pytorch_c10d_torchcomms/pytorch
+        PSHUKLA_TC=/lus/flare/projects/datascience_collab/pshukla/torchcomms_custom_torch
+    fi
 
     # Default to the frameworks-provided torchcomms. The working Aurora
     # reference harnesses import plain `torchcomms` under the module, which

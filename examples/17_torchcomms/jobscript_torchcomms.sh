@@ -54,8 +54,20 @@ cd "$WORKDIR"
 # Stack selection
 # ----------------------------------------------------------------------------
 TC_STACK="${DLCOMM_TC_STACK:-frameworks}"
-PSHUKLA_TORCH=/lus/flare/projects/datascience_collab/pshukla/pytorch_c10d_torchcomms/pytorch
-PSHUKLA_TC=/lus/flare/projects/datascience_collab/pshukla/torchcomms_custom_torch
+
+# Local copy of the 0.3.0 stack, under this project rather than another user's
+# directory. Byte-identical to the original (md5-verified on the torchcomms
+# .so files and libc10.so). The upstream paths remain as a fallback so the
+# example keeps working if the copy is absent.
+LOCAL_STACK=/lus/flare/projects/datascience/kaushik/stacks/torchcomms_0.3.0
+if [[ -d "$LOCAL_STACK/torchcomms" && -d "$LOCAL_STACK/pytorch" ]]; then
+    PSHUKLA_TC="$LOCAL_STACK/torchcomms"
+    PSHUKLA_TORCH="$LOCAL_STACK/pytorch"
+else
+    echo "TC_STACK_WARN=local copy missing, falling back to datascience_collab/pshukla"
+    PSHUKLA_TORCH=/lus/flare/projects/datascience_collab/pshukla/pytorch_c10d_torchcomms/pytorch
+    PSHUKLA_TC=/lus/flare/projects/datascience_collab/pshukla/torchcomms_custom_torch
+fi
 
 TC_PYTHONPATH=""
 TC_LDPATH=""
