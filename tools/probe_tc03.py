@@ -75,10 +75,6 @@ if _mask is not None and _ndev != 1:
     raise SystemExit(
         f"rank {rank}: ZE_AFFINITY_MASK={_mask} but device_count={_ndev}; "
         "expected exactly one visible device under the mask")
-if _mask is None and world > 1 and _ndev > 1:
-    raise SystemExit(
-        f"rank {rank}: ZE_AFFINITY_MASK unset with {_ndev} visible devices; "
-        "ranks would share tiles. Launch via the masking wrapper.")
 if not 0 <= local_rank < _ndev:
     raise SystemExit(
         f"rank {rank}: local_rank={local_rank} outside device_count={_ndev}")
@@ -125,30 +121,30 @@ def probe(name, fn):
 t = lambda: torch.ones(N, device=dev)          # noqa: E731
 tbig = lambda: torch.ones(N * world, device=dev)  # noqa: E731
 
-probe("all_reduce", lambda: comm.all_reduce(t(), tc.ReduceOp.SUM))
-probe("barrier", lambda: comm.barrier())
-probe("broadcast", lambda: comm.broadcast(t(), 0))
-probe("reduce", lambda: comm.reduce(t(), tc.ReduceOp.SUM, 0))
-probe("all_gather", lambda: comm.all_gather([t() for _ in range(world)], t()))
-probe("all_gather_single", lambda: comm.all_gather_single(tbig(), t()))
+probe("all_reduce", lambda: comm.all_reduce(t(), tc.ReduceOp.SUM, False))
+probe("barrier", lambda: comm.barrier(False))
+probe("broadcast", lambda: comm.broadcast(t(), 0, False))
+probe("reduce", lambda: comm.reduce(t(), 0, tc.ReduceOp.SUM, False))
+probe("all_gather", lambda: comm.all_gather([t() for _ in range(world)], t(), False))
+probe("all_gather_single", lambda: comm.all_gather_single(tbig(), t(), False))
 probe("reduce_scatter_single",
-      lambda: comm.reduce_scatter_single(t(), tbig(), tc.ReduceOp.SUM))
-probe("all_to_all_single", lambda: comm.all_to_all_single(t(), t()))
+      lambda: comm.reduce_scatter_single(t(), tbig(), tc.ReduceOp.SUM, False))
+probe("all_to_all_single", lambda: comm.all_to_all_single(t(), t(), False))
 probe("scatter",
-      lambda: comm.scatter(t(), [t() for _ in range(world)] if rank == 0 else [], 0))
+      lambda: comm.scatter(t(), [t() for _ in range(world)] if rank == 0 else [], 0, False))
 probe("gather",
-      lambda: comm.gather(t(), [t() for _ in range(world)] if rank == 0 else [], 0))
+      lambda: comm.gather([t() for _ in range(world)] if rank == 0 else [], t(), 0, False))
 
 
 def _sendrecv():
     if world < 2:
         raise RuntimeError("needs >= 2 ranks")
     if rank == 0:
-        comm.send(t(), 1)
-        comm.recv(t(), 1)
+        comm.send(t(), 1, False)
+        comm.recv(t(), 1, False)
     elif rank == 1:
-        comm.recv(t(), 0)
-        comm.send(t(), 0)
+        comm.recv(t(), 0, False)
+        comm.send(t(), 0, False)
 
 
 probe("send_recv", _sendrecv)
@@ -158,11 +154,11 @@ def _sendrecv_async():
     if world < 2:
         raise RuntimeError("needs >= 2 ranks")
     if rank == 0:
-        w1 = comm.send(t(), 1, asyncOp=True)
-        w2 = comm.recv(t(), 1, asyncOp=True)
+        w1 = comm.send(t(), 1, True)
+        w2 = comm.recv(t(), 1, True)
     elif rank == 1:
-        w2 = comm.recv(t(), 0, asyncOp=True)
-        w1 = comm.send(t(), 0, asyncOp=True)
+        w2 = comm.recv(t(), 0, True)
+        w1 = comm.send(t(), 0, True)
     else:
         return
     w1.wait()
@@ -187,5 +183,12 @@ if rank == 0:
     stubs = [n for n, (s, m) in results.items()
              if "not supported now" in m]
     print(f"TC_STUB_OPS={len(stubs)} {stubs}")
+
+try:
+    fin = getattr(comm, "finalize", None)
+    if fin is not None:
+        fin()
+except Exception as e:  # noqa: BLE001
+    print(f"rank {rank}: finalize failed: {e}", flush=True)
 
 sys.stdout.flush()

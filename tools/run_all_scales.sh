@@ -242,11 +242,24 @@ run_scale () {
     # Separate conda env with the locally built torchcomms. The launcher is
     # already resolved to PALS above; activating the env here would shadow it,
     # so only the interpreter comes from the env.
-    local TCPY="$TCENV/bin/python"
+    # Default to the frameworks-provided torchcomms. The working Aurora
+    # reference harnesses import plain `torchcomms` under the module, which
+    # ships torch 2.10.0a0+git449b176 and a matching torchcomms build. The
+    # custom env2 stack (torch 2.13.0+xpu with a separately built
+    # torchcomms) segfaults inside new_comm even with correct per-rank
+    # devices, PMIx bootstrap and ZE_AFFINITY_MASK, which is the signature
+    # of an ABI mismatch rather than a configuration error.
+    # DLCOMM_TC_ENV=1 selects env2 instead, to compare the two.
+    local TCPY
+    if [ "${DLCOMM_TC_ENV:-0}" = "1" ]; then
+        TCPY="$TCENV/bin/python"
+    else
+        TCPY="$PY_FW"
+    fi
     if [ -x "$TCPY" ]; then
         cd DLcomm_benchmark
         # shellcheck disable=SC2086
-        LD_LIBRARY_PATH="$TCENV/lib:$TCENV/lib/python3.12/site-packages/torch/lib:${LD_LIBRARY_PATH:-}" \
+        LD_LIBRARY_PATH="$([ "${DLCOMM_TC_ENV:-0}" = "1" ] && printf %s "$TCENV/lib:$TCENV/lib/python3.12/site-packages/torch/lib:")${LD_LIBRARY_PATH:-}" \
         MASTER_PORT=29533 \
         CCL_PROCESS_LAUNCHER=pmix CCL_ATL_TRANSPORT=mpi CCL_KVS_MODE=mpi FI_MR_CACHE_MONITOR=userfaultfd \
         ZE_FLAT_DEVICE_HIERARCHY=FLAT ONEAPI_DEVICE_SELECTOR=level_zero:gpu \
@@ -257,18 +270,24 @@ run_scale () {
               # launchers under datascience_collab/pshukla. Exposing all 12
               # tiles and indexing by local rank works for oneCCL and SYCL
               # but segfaults inside the XCCL bootstrap in new_comm.
-              export ZE_AFFINITY_MASK=${PALS_LOCAL_RANKID}
-              export DLCOMM_REAL_LOCAL_RANK=${PALS_LOCAL_RANKID}
-              export LOCAL_RANK=0
-              export PALS_LOCAL_RANKID=0
-              export PMI_LOCAL_RANK=0
+              # No ZE_AFFINITY_MASK: job 8825078 applied it correctly and
+              # still segfaulted, and the reference harnesses do not use it.
+              export LOCAL_RANK=${PALS_LOCAL_RANKID}
               echo "RANK_MAP: RANK=${PALS_RANKID} HOST=$(hostname)" \
-                   "REAL_LOCAL_RANK=${DLCOMM_REAL_LOCAL_RANK}" \
-                   "ZE_AFFINITY_MASK=${ZE_AFFINITY_MASK}"
+                   "LOCAL_RANK=${LOCAL_RANK}"
               exec "$@"
             ' _ "$WRAP" "$TCPY" ../probe_tc03.py > "$out/torchcomms.txt" 2>&1
         echo "TORCHCOMMS_RUN_EXIT=$?"
-        grep -E "^LAYER=torchcomms|^\[(yes|NO )\]|^MATRIX" "$out/torchcomms.txt" | head -20
+        grep -E "^LAYER=torchcomms|^\[(yes|NO )\]|^MATRIX|^TC_" "$out/torchcomms.txt" | head -24
+        # Exit status alone does not prove the layer measured anything.
+        tc_sup=$(grep -oE "^TC_SUPPORTED=[0-9]+/[0-9]+" "$out/torchcomms.txt" | head -1)
+        if [ -z "$tc_sup" ]; then
+            echo "TORCHCOMMS_VERDICT=NO_MATRIX (probe produced no support matrix)"
+        elif [ "${tc_sup#TC_SUPPORTED=}" = "0/${tc_sup##*/}" ]; then
+            echo "TORCHCOMMS_VERDICT=FAIL_ALL_OPS $tc_sup"
+        else
+            echo "TORCHCOMMS_VERDICT=OK $tc_sup"
+        fi
         grep -vE "^(I|W)[0-9]{8} |WARNING: Logging|^\s*$" "$out/torchcomms.txt" \
             | grep -iE "error|not supported|Traceback|world size" | head -6
         cd ..
