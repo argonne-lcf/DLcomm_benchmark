@@ -120,8 +120,25 @@ def algorithmic_bandwidth(buffer_size, time_seconds):
     return buffer_size / time_seconds
 
 
+def traffic_bytes(collective_name, buffer_size, group_size):
+    """Bytes belonging in the algbw numerator for ``collective_name``.
+
+    ``buffer_size`` is the PER-RANK buffer. allgather produces
+    ``buffer_size * group_size`` of output and reduce_scatter consumes that
+    much input, so the standard (NCCL/OSU) convention divides the total moved
+    volume by time rather than the per-rank slice. Using the per-rank size
+    understated allgather by exactly ``group_size``.
+    """
+    if not collective_name or not group_size or group_size < 2:
+        return buffer_size
+    if collective_name.lower() in ("allgather", "reducescatter", "reduce_scatter"):
+        return buffer_size * group_size
+    return buffer_size
+
+
 def bus_bandwidth(buffer_size, time_seconds, group_size, collective_name):
-    return algorithmic_bandwidth(buffer_size, time_seconds) * busbw_factor(
+    moved = traffic_bytes(collective_name, buffer_size, group_size)
+    return algorithmic_bandwidth(moved, time_seconds) * busbw_factor(
         collective_name, group_size)
 
 

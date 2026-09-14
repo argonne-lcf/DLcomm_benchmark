@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import re
 
-from dl_comm.analysis.bandwidth import busbw_factor
+from dl_comm.analysis.bandwidth import busbw_factor, traffic_bytes
 from dl_comm.analysis.bottleneck import LayerMeasurement
 
 # "LAYER=cpp_ccl BACKEND=xccl OP=allreduce BYTES=1048576 RANKS=12 ..."
@@ -49,10 +49,16 @@ OSU_ALIAS = {
 
 def busbw_from_latency(collective: str, size_bytes: int, latency_s: float,
                        ranks: int) -> float | None:
-    """Convert a latency measurement to bus bandwidth in bytes/second."""
+    """Convert a latency measurement to bus bandwidth in bytes/second.
+
+    ``size_bytes`` is the per-rank buffer, matching what OSU prints in its
+    size column. ``traffic_bytes`` expands it to the volume the collective
+    actually moves, so allgather is not understated by ``ranks``.
+    """
     if latency_s <= 0 or ranks < 2:
         return None
-    return (size_bytes / latency_s) * busbw_factor(collective, ranks)
+    moved = traffic_bytes(collective, size_bytes, ranks)
+    return (moved / latency_s) * busbw_factor(collective, ranks)
 
 
 def parse_kv_lines(text: str, layer: str, buffer: str = "device",

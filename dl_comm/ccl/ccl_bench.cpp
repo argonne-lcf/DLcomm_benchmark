@@ -30,6 +30,8 @@
 #include <set>
 #include <sstream>
 #include <vector>
+#include <cstdlib>
+#include <unistd.h>
 
 #include <mpi.h>
 
@@ -77,6 +79,24 @@ static double busbw_factor(const std::string &op, int n) {
   return 1.0;  // broadcast, reduce, barrier, sendrecv
 }
 
+// Bytes that belong in the algbw numerator for a given collective.
+//
+// `nbytes` is the PER-RANK buffer size. For allgather the operation produces
+// nbytes*world of output, and the standard (NCCL/OSU) convention divides the
+// total moved volume by time -- not the per-rank slice. Reporting the per-rank
+// size understated allgather by exactly world_size (12x at 12 ranks) and made
+// it look like the slowest collective on the machine by two orders of
+// magnitude. reduce_scatter is the mirror case: nbytes*world of input is
+// consumed to produce nbytes per rank.
+//
+// Flagged by A-Bot-CELS review point 10 (verify the busbw numerator uses the
+// intended per-rank vs aggregate byte definition).
+static size_t traffic_bytes(const std::string &op, size_t nbytes, int n) {
+  if (op == "allgather" || op == "reduce_scatter")
+    return nbytes * static_cast<size_t>(n);
+  return nbytes;
+}
+
 struct Row {
   std::string op;
   size_t bytes;
@@ -85,10 +105,14 @@ struct Row {
 
 static void emit(const Row &r, int world, int rank) {
   if (rank != 0) return;
-  double algbw = r.t_med > 0 ? double(r.bytes) / r.t_med : 0.0;
+  size_t moved = traffic_bytes(r.op, r.bytes, world);
+  double algbw = r.t_med > 0 ? double(moved) / r.t_med : 0.0;
   double busbw = algbw * busbw_factor(r.op, world);
+  // BYTES stays the per-rank buffer size (what the caller asked for);
+  // MOVED_BYTES is the volume the algbw numerator actually used.
   std::cout << "LAYER=cpp_ccl BACKEND=" << BACKEND_NAME << " OP=" << r.op
-            << " BYTES=" << r.bytes << " RANKS=" << world
+            << " BYTES=" << r.bytes << " MOVED_BYTES=" << moved
+            << " RANKS=" << world
             << " T_MED=" << r.t_med << " ALGBW=" << algbw
             << " BUSBW=" << busbw << std::endl;
 }
@@ -142,7 +166,50 @@ int main(int argc, char **argv) {
 
 #ifdef DLCOMM_XCCL
   ccl::init();
-  sycl::queue q{sycl::gpu_selector_v};
+  // Device selection must be per-rank. `sycl::queue{sycl::gpu_selector_v}`
+  // returns the SAME device on every rank, so all 12 ranks on a node drove
+  // tile 0 while the other 11 tiles idled: every "collective" was really a
+  // self-copy contending on one tile's memory. Aurora runs with
+  // ZE_FLAT_DEVICE_HIERARCHY=FLAT, so get_devices() lists all 12 tiles as
+  // separate root devices and indexing by node-local rank is correct.
+  //
+  // The local rank comes from PALS (PALS_LOCAL_RANKID), with an MPI
+  // shared-memory split as the fallback so the binary is not tied to one
+  // launcher. Pattern follows argonne-lcf/HPC-Patterns (concurency/bench_ccl.cpp,
+  // p2p/tile_mapping.sh).
+  int local_rank = -1;
+  if (const char *p = std::getenv("PALS_LOCAL_RANKID")) {
+    local_rank = std::atoi(p);
+  } else {
+    MPI_Comm node_comm;
+    MPI_Comm_split_type(MPI_COMM_WORLD, MPI_COMM_TYPE_SHARED, 0,
+                        MPI_INFO_NULL, &node_comm);
+    MPI_Comm_rank(node_comm, &local_rank);
+    MPI_Comm_free(&node_comm);
+  }
+
+  const auto gpus = sycl::device::get_devices(sycl::info::device_type::gpu);
+  if (gpus.empty()) {
+    if (rank == 0) std::cerr << "no GPU devices visible\n";
+    MPI_Abort(MPI_COMM_WORLD, 1);
+  }
+  sycl::device sel_dev = gpus.at(local_rank % gpus.size());
+  sycl::queue q{sel_dev};
+
+  // Report the mapping so a silent collapse onto one tile cannot recur.
+  {
+    std::string nm = sel_dev.get_info<sycl::info::device::name>();
+    char host[256] = {0};
+    gethostname(host, sizeof(host) - 1);
+    std::string line = "MAP rank=" + std::to_string(rank) +
+                       " local_rank=" + std::to_string(local_rank) +
+                       " host=" + std::string(host) +
+                       " ndev=" + std::to_string(gpus.size()) +
+                       " dev_idx=" + std::to_string(local_rank % gpus.size()) +
+                       " dev=" + nm + "\n";
+    std::cout << line << std::flush;
+  }
+
   ccl::shared_ptr_class<ccl::kvs> kvs;
   ccl::kvs::address_type addr;
   if (rank == 0) {

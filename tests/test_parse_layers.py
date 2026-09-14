@@ -186,3 +186,44 @@ def test_transfer_line_missing_gbps_raises():
     from dl_comm.analysis.parse_layers import parse_transfer
     with pytest.raises(ValueError, match="missing fields"):
         parse_transfer("LAYER=cpp PATTERN=h2d BYTES=123\n", ranks=12)
+
+
+# --- busbw numerator convention (A-Bot-CELS review point 10) ---------------
+# allgather moves buffer*ranks, not buffer. Getting this wrong understated
+# allgather by exactly `ranks` and made it look like the slowest collective
+# on the machine. These tests fail if the convention silently changes.
+
+def test_traffic_bytes_expands_allgather_by_ranks():
+    from dl_comm.analysis.bandwidth import traffic_bytes
+    assert traffic_bytes("allgather", 1 << 20, 12) == (1 << 20) * 12
+    assert traffic_bytes("reduce_scatter", 1 << 20, 12) == (1 << 20) * 12
+
+
+def test_traffic_bytes_leaves_fixed_volume_collectives_alone():
+    from dl_comm.analysis.bandwidth import traffic_bytes
+    for op in ("allreduce", "broadcast", "reduce", "sendrecv", "alltoall"):
+        assert traffic_bytes(op, 1 << 20, 12) == (1 << 20), op
+
+
+def test_traffic_bytes_single_rank_is_identity():
+    from dl_comm.analysis.bandwidth import traffic_bytes
+    assert traffic_bytes("allgather", 4096, 1) == 4096
+
+
+def test_allgather_busbw_is_ranks_times_larger_than_naive():
+    """The fix must change allgather by exactly the rank count."""
+    from dl_comm.analysis.bandwidth import bus_bandwidth, busbw_factor
+    buf, t, n = 1 << 22, 0.0267129, 12
+    naive = (buf / t) * busbw_factor("allgather", n)
+    fixed = bus_bandwidth(buf, t, n, "allgather")
+    assert abs(fixed / naive - n) < 1e-9
+
+
+def test_osu_allgather_conversion_uses_total_volume():
+    """OSU prints per-rank size; the converter must expand it."""
+    from dl_comm.analysis.parse_layers import busbw_from_latency
+    from dl_comm.analysis.bandwidth import busbw_factor
+    size, lat_s, n = 1 << 22, 0.0730529, 12
+    got = busbw_from_latency("allgather", size, lat_s, n)
+    want = (size * n / lat_s) * busbw_factor("allgather", n)
+    assert abs(got - want) < 1e-6

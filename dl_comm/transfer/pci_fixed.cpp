@@ -26,6 +26,9 @@
 #include <numeric>
 #include <random>
 #include <vector>
+#include <cstdlib>
+#include <unistd.h>
+#include <string>
 
 #include <sycl/sycl.hpp>
 
@@ -97,7 +100,40 @@ int main(int argc, char **argv) {
   MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
 #endif
 
-  sycl::queue Q;
+  // Per-rank device selection. A default-constructed `sycl::queue` picks the
+  // same device on every rank, so all 12 ranks on a node hammered tile 0's
+  // PCIe link while 11 tiles idled -- the reported per-rank h2d/d2h bandwidth
+  // was contention on one link, not the node's real transfer capability.
+  // Aurora runs ZE_FLAT_DEVICE_HIERARCHY=FLAT, so each tile is a root device.
+  int local_rank = 0;
+  if (const char *p = std::getenv("PALS_LOCAL_RANKID")) {
+    local_rank = std::atoi(p);
+  } else {
+#ifndef NO_MPI
+    MPI_Comm node_comm;
+    MPI_Comm_split_type(MPI_COMM_WORLD, MPI_COMM_TYPE_SHARED, 0,
+                        MPI_INFO_NULL, &node_comm);
+    MPI_Comm_rank(node_comm, &local_rank);
+    MPI_Comm_free(&node_comm);
+#endif
+  }
+  const auto gpus = sycl::device::get_devices(sycl::info::device_type::gpu);
+  if (gpus.empty()) {
+    std::cerr << "no GPU devices visible\n";
+#ifndef NO_MPI
+    MPI_Abort(MPI_COMM_WORLD, 1);
+#endif
+    return 1;
+  }
+  sycl::queue Q{gpus.at(local_rank % gpus.size())};
+  {
+    char host[256] = {0};
+    gethostname(host, sizeof(host) - 1);
+    std::cout << "MAP rank=" << world_rank << " local_rank=" << local_rank
+              << " host=" << host << " ndev=" << gpus.size()
+              << " dev_idx=" << (local_rank % gpus.size()) << "\n"
+              << std::flush;
+  }
   const int N = 1 << 28;                                  // 2^28 ints
   const size_t N_byte = static_cast<size_t>(N) * sizeof(int);  // 1 GiB
   const int iters = 10;
