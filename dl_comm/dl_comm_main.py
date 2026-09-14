@@ -190,10 +190,20 @@ def main(cfg: DictConfig):
                         "module (PyTorch >= 2.8). On Aurora it ships with "
                         "frameworks/2025.3.1; elsewhere `pip install "
                         "torchcomms`.")
+                # IPEX is not required by torchcomms, which reaches XCCL
+                # directly. Import it opportunistically and tolerate any
+                # failure: under the 0.3.0 stack (torch 2.13) IPEX pulls in
+                # the frameworks torchvision, built against torch 2.10, which
+                # raises RuntimeError("operator torchvision::nms does not
+                # exist") rather than ImportError. Catching ImportError alone
+                # let that abort the whole run before a single collective.
                 try:
                     import intel_extension_for_pytorch  # noqa: F401
-                except ImportError:
-                    pass
+                except Exception as exc:  # noqa: BLE001
+                    log.info(
+                        "[CONFIG] intel_extension_for_pytorch unavailable "
+                        "(%s: %s); continuing, torchcomms does not need it",
+                        type(exc).__name__, exc)
             elif ccl_backend in ["xccl", "ccl"]:
                 try:
                     import intel_extension_for_pytorch  # noqa: F401
