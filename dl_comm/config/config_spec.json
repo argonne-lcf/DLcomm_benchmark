@@ -100,5 +100,13 @@
     "float64",
     "int32",
     "int64"
+  ],
+  "transport": [
+    "ncclx",
+    "nccl",
+    "rcclx",
+    "rccl",
+    "xccl",
+    "gloo"
   ]
 }

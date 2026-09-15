@@ -318,10 +318,56 @@ def main(cfg: DictConfig):
             except Exception:
                 pass
 
+            # Accelerator selection must follow the same rule as every other
+            # backend (see comm_setup.allocate_device): try CUDA first, then
+            # XPU. Hardcoding torch.device("xpu", ...) here made the
+            # torchcomms path the only one that could not run on NVIDIA.
+            #
+            # The failure mode was not a clean "no XPU" error: PyTorch >= 2.14
+            # always provides a torch.xpu module even in a CUDA-only build, it
+            # simply reports zero devices, so `rank % torch.xpu.device_count()`
+            # raised ZeroDivisionError before any collective ran.
             if _tc_device_type in ("gpu", "xpu"):
-                _tc_dev = torch.device("xpu", mpi_rank % torch.xpu.device_count())
+                if torch.cuda.is_available():
+                    _tc_n = torch.cuda.device_count()
+                    _tc_dev = torch.device("cuda", mpi_rank % _tc_n)
+                    torch.cuda.set_device(_tc_dev)
+                elif hasattr(torch, "xpu") and torch.xpu.is_available():
+                    _tc_n = torch.xpu.device_count()
+                    _tc_dev = torch.device("xpu", mpi_rank % _tc_n)
+                else:
+                    raise RuntimeError(
+                        "ccl_backend 'torchcomms' with device_type "
+                        f"'{_tc_device_type}' needs a CUDA or XPU device, but "
+                        "torch reports neither. Set device_type: cpu, or load "
+                        "a framework build matching this machine's "
+                        "accelerator."
+                    )
             else:
                 _tc_dev = torch.device("cpu")
+
+            # Transport is configurable; resolve_transport() keeps the
+            # device-based default when ccl_transport is unset.
+            #
+            # Validated here rather than relying solely on ConfigValidator:
+            # the communicator is constructed long before validator.validate()
+            # runs, so an unchecked typo would surface as a ValueError
+            # traceback out of resolve_transport instead of a readable
+            # configuration error.
+            _tc_transport = None
+            try:
+                _tc_transport = cfg.ccl_transport
+            except Exception:
+                pass
+
+            if _tc_transport is not None:
+                _tc_valid = _tcb.SUPPORTED_TRANSPORTS
+                if str(_tc_transport).lower() not in _tc_valid:
+                    raise ValueError(
+                        f"Invalid ccl_transport '{_tc_transport}'. Valid "
+                        f"transports: {list(_tc_valid)}. Omit the key to use "
+                        "the device-based default."
+                    )
 
             # Replacing the module-level `dist` with the adapter is what makes
             # all 13 collectives work unmodified: they already receive their
@@ -329,6 +375,7 @@ def main(cfg: DictConfig):
             dist = _tcb.build(
                 _tc_dev,
                 device_type=_tc_device_type,
+                transport=_tc_transport,
                 timeout=datetime.timedelta(seconds=3600),
             )
         elif framework == "pytorch":

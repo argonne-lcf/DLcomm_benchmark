@@ -185,6 +185,25 @@ class ConfigValidator:
                 log.error(f"[VALIDATION] Invalid ccl_backend '{backend}' for framework '{framework}'. Valid: {valid_backends}")
             has_errors = True
 
+        # ccl_transport (optional; torchcomms only)
+        #
+        # torchcomms is a family of transports, not a single one. Without this
+        # key resolve_transport() falls back to a device-based guess that maps
+        # every GPU to xccl, which is correct on Aurora and unreachable
+        # everywhere else. Validate it here so a typo fails at config time
+        # rather than inside communicator construction.
+        transport = getattr(cfg, "ccl_transport", None)
+        if transport is not None:
+            valid_transports = self.spec.get("transport", [])
+            if transport not in valid_transports:
+                if mpi_rank == 0:
+                    log.error(f"[VALIDATION] Invalid ccl_transport '{transport}'. Valid: {valid_transports}")
+                has_errors = True
+            elif backend != "torchcomms":
+                if mpi_rank == 0:
+                    log.error(f"[VALIDATION] ccl_transport '{transport}' only applies to ccl_backend 'torchcomms', got '{backend}'")
+                has_errors = True
+
         # Buffer size validation - extract from active communication mode
         buffer_bytes = None
 
