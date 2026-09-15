@@ -45,3 +45,10 @@ env/
 
 # macOS
 .DS_Store
+
+# Compiled benchmark binaries (built per machine; never commit)
+dl_comm/transfer/pci_fixed_cuda
+dl_comm/transfer/pci_fixed
+dl_comm/ccl/ccl_bench_nccl
+dl_comm/ccl/ccl_bench_rccl
+dl_comm/ccl/ccl_bench_xccl
