@@ -3,6 +3,13 @@ from omegaconf import DictConfig
 from typing import Dict, List, Tuple, Optional
 
 
+# Algorithm names NCCL and RCCL accept in NCCL_ALGO / RCCL_ALGO. Anything
+# else makes the tuner reject the whole string, so names meant for another
+# backend have to be filtered out rather than forwarded.
+_NCCL_ALGOS = {"TREE", "RING", "COLLNET", "COLLNETDIRECT", "COLLNETCHAIN",
+               "NVLS", "NVLSTREE", "PAT"}
+
+
 def setup_collective_algorithms_ccl(cfg: DictConfig, coll_cfg, comm_mode: str, log=None):
     """Setup CCL algorithm overrides for a specific collective and mode"""
     if cfg.extended_logging:
@@ -61,6 +68,24 @@ def setup_nccl_algorithms_all(cfg: DictConfig, log=None):
             algorithms.append(scale_up_algorithm)
         if scale_out_algorithm and scale_out_algorithm != 'default' and scale_out_algorithm != scale_up_algorithm:
             algorithms.append(scale_out_algorithm)
+
+        # Keep only names NCCL's tuner understands. The algorithm names in a
+        # config are written for whichever backend the config was authored
+        # against, and the oneCCL vocabulary does not match NCCL's: a config
+        # asking for "topo" makes NCCL log
+        #     WARN Unrecognized element token "topo" when parsing
+        #          "allreduce:topo"
+        # and then fail the collective with "invalid usage". Passing an
+        # unknown token through is never useful, so drop it and say so.
+        unknown = [a for a in algorithms if a.upper() not in _NCCL_ALGOS]
+        algorithms = [a for a in algorithms if a.upper() in _NCCL_ALGOS]
+        if unknown and log:
+            log.output(
+                f"[ALGO] {coll_cfg.collective_name}: ignoring "
+                f"{', '.join(unknown)} because {ccl_backend.upper()} does not "
+                f"define {'it' if len(unknown) == 1 else 'them'}; "
+                f"supported values are {', '.join(sorted(_NCCL_ALGOS))}. "
+                f"The collective runs with the backend default.")
         
         if algorithms:
             collective_name = coll_cfg.collective_name.lower()

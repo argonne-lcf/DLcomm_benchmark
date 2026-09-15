@@ -24,6 +24,7 @@
 
 #include <algorithm>
 #include <chrono>
+#include <cmath>
 #include <cstring>
 #include <iostream>
 #include <string>
@@ -43,6 +44,7 @@
 #define GPU_FREE(p) cudaFree(p)
 #define GPU_SYNC() cudaDeviceSynchronize()
 #define GPU_SET_DEVICE(d) cudaSetDevice(d)
+#define GPU_GET_DEVICE_COUNT(p) cudaGetDeviceCount(p)
 #define BACKEND_NAME "nccl"
 #else
 #include <hip/hip_runtime.h>
@@ -51,6 +53,7 @@
 #define GPU_FREE(p) hipFree(p)
 #define GPU_SYNC() hipDeviceSynchronize()
 #define GPU_SET_DEVICE(d) hipSetDevice(d)
+#define GPU_GET_DEVICE_COUNT(p) hipGetDeviceCount(p)
 #define BACKEND_NAME "rccl"
 #endif
 #else
@@ -167,14 +170,9 @@ int main(int argc, char **argv) {
               << " RANKS=" << world << " ITERS=" << iters << std::endl;
   }
 
-#ifdef DLCOMM_XCCL
-  ccl::init();
-  // Device selection must be per-rank. `sycl::queue{sycl::gpu_selector_v}`
-  // returns the SAME device on every rank, so all 12 ranks on a node drove
-  // tile 0 while the other 11 tiles idled: every "collective" was really a
-  // self-copy contending on one tile's memory. Aurora runs with
-  // ZE_FLAT_DEVICE_HIERARCHY=FLAT, so get_devices() lists all 12 tiles as
-  // separate root devices and indexing by node-local rank is correct.
+  // Device selection must be per-rank, and the node-local rank is how every
+  // backend here decides which device it owns. The computation uses only PALS
+  // and MPI, so it is shared rather than duplicated per backend.
   //
   // The local rank comes from PALS (PALS_LOCAL_RANKID), with an MPI
   // shared-memory split as the fallback so the binary is not tied to one
@@ -190,6 +188,15 @@ int main(int argc, char **argv) {
     MPI_Comm_rank(node_comm, &local_rank);
     MPI_Comm_free(&node_comm);
   }
+
+#ifdef DLCOMM_XCCL
+  ccl::init();
+  // `sycl::queue{sycl::gpu_selector_v}` returns the SAME device on every rank,
+  // so all 12 ranks on a node drove tile 0 while the other 11 tiles idled:
+  // every "collective" was really a self-copy contending on one tile's
+  // memory. Aurora runs with ZE_FLAT_DEVICE_HIERARCHY=FLAT, so get_devices()
+  // lists all 12 tiles as separate root devices and indexing by node-local
+  // rank is correct.
 
   const auto gpus = sycl::device::get_devices(sycl::info::device_type::gpu);
   if (gpus.empty()) {
@@ -376,14 +383,76 @@ int main(int argc, char **argv) {
   ncclUniqueId id;
   if (rank == 0) ncclGetUniqueId(&id);
   MPI_Bcast(&id, sizeof(id), MPI_BYTE, 0, MPI_COMM_WORLD);
-  GPU_SET_DEVICE(rank % 8);
-  ncclCommInitRank(&comm, world, id, rank);
+  // Device selection must use the node-local rank and the real device count.
+  // `rank % 8` assumes eight GPUs per node and indexes with the global rank:
+  // on a 4-GPU node at 8 ranks, ranks 4-7 request devices 4-7, which do not
+  // exist. cudaSetDevice fails, the error is discarded, those ranks stay on
+  // device 0, and ncclCommInitRank spins because the topology is
+  // inconsistent. `local_rank` is already computed above for exactly this
+  // purpose and is what the SYCL path uses.
+  int dev_count = 0;
+  if (GPU_GET_DEVICE_COUNT(&dev_count) != 0 || dev_count <= 0) {
+    if (rank == 0)
+      std::cerr << "LAYER=cpp_ccl ERROR=no_gpu_visible" << std::endl;
+    MPI_Abort(MPI_COMM_WORLD, 1);
+  }
+  int dev_idx = local_rank % dev_count;
+  if (GPU_SET_DEVICE(dev_idx) != 0) {
+    std::cerr << "LAYER=cpp_ccl ERROR=set_device_failed rank=" << rank
+              << " local_rank=" << local_rank << " dev_idx=" << dev_idx
+              << " dev_count=" << dev_count << std::endl;
+    MPI_Abort(MPI_COMM_WORLD, 1);
+  }
+  std::cout << "LAYER=cpp_ccl MAP rank=" << rank
+            << " local_rank=" << local_rank << " dev_idx=" << dev_idx
+            << " dev_count=" << dev_count << std::endl;
+
+  ncclResult_t nrc = ncclCommInitRank(&comm, world, id, rank);
+  if (nrc != ncclSuccess) {
+    std::cerr << "LAYER=cpp_ccl ERROR=nccl_init rank=" << rank << " "
+              << ncclGetErrorString(nrc) << std::endl;
+    MPI_Abort(MPI_COMM_WORLD, 1);
+  }
+
+  // Correctness is checked per size, outside the timing loop. Rank r fills
+  // its buffer with (r+1), so a sum allreduce has the closed form
+  // world*(world+1)/2 at every element. Without this the benchmark reduces
+  // uninitialized device memory and reports bandwidth for a result nobody
+  // ever inspected.
+  long long ccl_checks = 0, ccl_failures = 0;
 
   for (size_t nbytes : sizes) {
     size_t count = nbytes / sizeof(float);
     void *sbuf = nullptr, *rbuf = nullptr;
     GPU_MALLOC(&sbuf, nbytes);
     GPU_MALLOC(&rbuf, nbytes * world);
+
+    {
+      std::vector<float> host_in(count, static_cast<float>(rank + 1));
+      cudaMemcpy(sbuf, host_in.data(), nbytes, cudaMemcpyHostToDevice);
+      cudaMemset(rbuf, 0, nbytes);
+      ncclAllReduce(sbuf, rbuf, count, ncclFloat, ncclSum, comm, 0);
+      GPU_SYNC();
+
+      std::vector<float> host_out(count, 0.0f);
+      cudaMemcpy(host_out.data(), rbuf, nbytes, cudaMemcpyDeviceToHost);
+      const double expect = world * (world + 1) / 2.0;
+      size_t idxs[3] = {0, count / 2, count - 1};
+      for (size_t k = 0; k < 3; ++k) {
+        size_t idx = idxs[k];
+        double got = host_out[idx];
+        ccl_checks++;
+        if (!(got == got) || std::fabs(got - expect) > 1e-3) {
+          ccl_failures++;
+          if (ccl_failures <= 3) {
+            std::cerr << "LAYER=cpp_ccl MISMATCH rank=" << rank
+                      << " bytes=" << nbytes << " idx=" << idx
+                      << " got=" << got << " expected=" << expect
+                      << std::endl;
+          }
+        }
+      }
+    }
 
     std::vector<double> ts;
     for (int i = 0; i < warmup + iters; i++) {
@@ -446,6 +515,23 @@ int main(int argc, char **argv) {
     GPU_FREE(sbuf);
     GPU_FREE(rbuf);
   }
+  {
+    long long tot_checks = 0, tot_failures = 0;
+    MPI_Reduce(&ccl_checks, &tot_checks, 1, MPI_LONG_LONG, MPI_SUM, 0,
+               MPI_COMM_WORLD);
+    MPI_Reduce(&ccl_failures, &tot_failures, 1, MPI_LONG_LONG, MPI_SUM, 0,
+               MPI_COMM_WORLD);
+    if (rank == 0) {
+      std::cout << "LAYER=cpp_ccl CORRECTNESS checks=" << tot_checks
+                << " failures=" << tot_failures << std::endl;
+    }
+    if (tot_failures > 0) {
+      ncclCommDestroy(comm);
+      MPI_Finalize();
+      return 1;
+    }
+  }
+
   ncclCommDestroy(comm);
 #endif
 
