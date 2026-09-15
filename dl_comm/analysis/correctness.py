@@ -142,6 +142,42 @@ def _skip(context, label, reason):
     failures.record_skip(detail)
 
 
+def _group_device(dist, group, torch):
+    """The device a process group's backend can actually operate on.
+
+    Device-only backends reject host buffers: NCCL raises "No backend type
+    associated with device type cpu", and RCCL and XCCL behave the same way.
+    A barrier check has no payload tensor to borrow a device from, so the
+    device has to come from the backend itself.
+
+    The local device index follows the same local-rank convention the rest of
+    the benchmark uses, so the tensor lands on the GPU this rank already owns
+    rather than on device 0 for every rank on the node.
+    """
+    name = ""
+    try:
+        name = str(dist.get_backend(group)).lower()
+    except Exception:
+        try:
+            name = str(dist.get_backend()).lower()
+        except Exception:
+            name = ""
+
+    if "nccl" in name or "rccl" in name:
+        if torch.cuda.is_available():
+            return torch.device("cuda", torch.cuda.current_device())
+        return torch.device("cpu")
+
+    if "xccl" in name or "ccl" in name:
+        xpu = getattr(torch, "xpu", None)
+        if xpu is not None and xpu.is_available():
+            return torch.device("xpu", xpu.current_device())
+        # oneCCL on a CPU-only build accepts host buffers.
+        return torch.device("cpu")
+
+    # gloo and anything else host based.
+    return torch.device("cpu")
+
 def _check_barrier(context, group=None, group_type=None, group_id=None):
     """Verify that every rank met at the same barrier.
 
@@ -189,6 +225,13 @@ def _check_barrier(context, group=None, group_type=None, group_id=None):
     ref = context.get("tensor_like")
     if ref is not None and hasattr(ref, "device"):
         lo = lo.to(ref.device)
+    else:
+        # A barrier task carries no payload tensor, so there is no reference to
+        # copy a device from. Falling through with a CPU tensor works on a
+        # backend that accepts host buffers, but NCCL is GPU only and raises
+        # "No backend type associated with device type cpu". Ask the process
+        # group which device it serves and honour that.
+        lo = lo.to(_group_device(dist, group, torch))
     hi = lo.clone()
 
     dist.all_reduce(lo, op=dist.ReduceOp.MIN, group=group)
