@@ -165,12 +165,24 @@ def build_payload(torch, num_elems, dtype, rank_index, group_size, op_name,
         rank_modulus, position_modulus = choose_moduli(dtype, group_size, op_name)
 
     sig = rank_signature(rank_index, group_size, rank_modulus, op_name)
-    base = torch.arange(num_elems, dtype=torch.float64)
+
+    # Build the staging tensors on the device the buffer is destined for.
+    # Constructing float64 on the host and copying down costs three host
+    # allocations of 8 bytes per element plus a bus transfer. At the 1GB
+    # payload used by example 7 that is roughly 6GB of host memory traffic per
+    # rank, and four ranks per node contend for the same memory controller,
+    # which pushed the run past a ten minute watchdog before a single
+    # collective was issued. Building in place keeps the arithmetic and the
+    # dtype conversion identical while removing the host round trip.
+    build_device = device if device is not None else "cpu"
+    base = torch.arange(num_elems, dtype=torch.float64, device=build_device)
     pos = base % position_modulus if position_modulus > 1 else torch.zeros_like(base)
     values = pos + sig
     out = values.to(dtype)
-    if device is not None:
-        out = out.to(device, non_blocking=True)
+
+    # Release the float64 staging buffers before the collective runs, so peak
+    # occupancy is the payload rather than the payload plus scratch.
+    del base, pos, values
     return out
 
 
