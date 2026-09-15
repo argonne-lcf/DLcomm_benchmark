@@ -1,31 +1,37 @@
 #!/bin/bash -x
-#PBS -A datascience_collab
+#PBS -A datascience
 #PBS -k doe
 #PBS -l select=2:ncpus=208
-#PBS -q dev
+#PBS -q debug-scaling
 #PBS -l walltime=00:05:00
 #PBS -l filesystems=flare
 #PBS -j oe
-#PBS -o /lus/flare/projects/datascience_collab/mcim/workspace/gpu-comm/DLcomm_benchmark/tests/pbs_job_${PBS_JOBID}.out
 
-source /opt/aurora/24.347.0/oneapi/intel-conda-miniforge/etc/profile.d/conda.sh
-conda activate /lus/flare/projects/datascience_collab/mcim/for-musa/sam_build/conda_pt2.8
+# Paths are derived from the submission directory rather than hardcoded, so the
+# script runs from any checkout. It previously pointed at another user's
+# workspace and activated a conda env under their directory, which made it
+# unrunnable for anyone else (docs/fixes/06-packaging.md).
 
-module load frameworks
+set -uo pipefail
 
-SCRIPT_DIR="/lus/flare/projects/datascience_collab/mcim/workspace/gpu-comm/DLcomm_benchmark/tests"
+SCRIPT_DIR="${PBS_O_WORKDIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
 WORKDIR="$SCRIPT_DIR"
-
 cd "$WORKDIR"
 
-export PYTHONPATH="$WORKDIR/..:$PYTHONPATH"
+# The frameworks module supplies torch and oneCCL. No external conda env: the
+# previous one lived in a directory this project does not own.
+set +u
+module load frameworks
+set -u
 
-NNODES=`wc -l < $PBS_NODEFILE`
+export PYTHONPATH="$WORKDIR/..:${PYTHONPATH:-}"
 
+NNODES=$(wc -l < "$PBS_NODEFILE")
 RANKS_PER_NODE=4
 NRANKS=$(( NNODES * RANKS_PER_NODE ))
-
 CPU_BINDING="list:4:9:14:19"
+
+export ZE_FLAT_DEVICE_HIERARCHY=FLAT
 
 export CCL_ATL_TRANSPORT=mpi
 export CCL_ATL_SHM=0
@@ -47,15 +53,19 @@ export FI_CXI_CQ_FILL_PERCENT=30
 
 RUN_TIMESTAMP=$(date '+%Y%m%d_%H%M%S')
 TEST_LOG_DIR="$SCRIPT_DIR/logs/test_${RUN_TIMESTAMP}"
-
 mkdir -p "$TEST_LOG_DIR"
 
-PBS_OUTPUT_FILE="$SCRIPT_DIR/pbs_job_${PBS_JOBID}.out"
+PBS_OUTPUT_FILE="$SCRIPT_DIR/pbs_job_${PBS_JOBID:-local}.out"
 trap "if [[ -f '$PBS_OUTPUT_FILE' ]]; then mv '$PBS_OUTPUT_FILE' '$TEST_LOG_DIR/'; fi" EXIT
 
 export TERMINAL_LOG_FILE="$TEST_LOG_DIR/terminal_output.log"
 
-mpiexec --np ${NRANKS} \
+# Absolute PALS launcher: an activated env can put a different mpiexec ahead of
+# it on PATH, which silently degrades the job to a single rank.
+MPIEXEC=/opt/cray/pals/1.8/bin/mpiexec
+[[ -x "$MPIEXEC" ]] || MPIEXEC=$(command -v mpiexec)
+
+"$MPIEXEC" --np ${NRANKS} \
         -ppn ${RANKS_PER_NODE} \
         --cpu-bind ${CPU_BINDING} \
         bash -c "cd '$WORKDIR' && PYTHONPATH='$PYTHONPATH' python3 test.py" 2>&1 | tee "$TERMINAL_LOG_FILE"

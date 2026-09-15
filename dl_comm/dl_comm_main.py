@@ -26,6 +26,9 @@ import re
 import sys
 import json
 import time
+import signal
+import faulthandler
+import numpy as np
 import pytz
 import hydra
 import socket
@@ -41,7 +44,10 @@ from dl_comm.analysis.correctness import check_collective_correctness
 from dl_comm.comm import COLLECTIVES, OPS_NEED_REDUCE, OP_MAP, DTYPES
 from dl_comm.comm.collectives import init_framework_constants
 from dl_comm.analysis import report_ccl_selection, report_nccl_selection, gather_and_print_all_bandwidths 
-from dl_comm.timer import timer, print_all_times, gather_and_print_all_times, reset_times
+from dl_comm.timer import timer, print_all_times, gather_and_print_all_times, reset_times, set_sync_device
+from dl_comm.verify import build_payload
+from dl_comm.verify import failures as verify_failures
+from dl_comm.analysis.results import build_results, write_results, write_csv
 from dl_comm.config import ConfigValidator, parse_buffer_size, validate_and_calculate_buffer_size, print_system_info
 from dl_comm.config import adjust_buffer_size_for_group_divisibility, validate_mpi_configuration
 from dl_comm.config import setup_algorithm_overrides, setup_collective_algorithms_ccl
@@ -56,6 +62,24 @@ def main(cfg: DictConfig):
 
     mpi_rank = MPI.COMM_WORLD.Get_rank()
     mpi_size = MPI.COMM_WORLD.Get_size()
+
+    # ----------------------------------------------------------------------------
+    #  HANG WATCHDOG
+    # ----------------------------------------------------------------------------
+    # A benchmark that hangs consumes its whole walltime allocation and reports
+    # nothing at all, which is strictly worse than a wrong number: the evidence
+    # is destroyed along with the run. faulthandler.dump_traceback_later fires
+    # from a dedicated thread and prints the Python stack of EVERY thread on
+    # EVERY rank, so a deadlock names its own location instead of requiring a
+    # debugger on a compute node (which is air-gapped and has no gdb/py-spy).
+    #
+    # DLCOMM_WATCHDOG=0 disables it. See docs/fixes/12-hang-watchdog.md
+    _watchdog_s = float(os.environ.get("DLCOMM_WATCHDOG", "600"))
+    if _watchdog_s > 0:
+        faulthandler.enable()
+        faulthandler.dump_traceback_later(_watchdog_s, exit=True)
+        # SIGABRT/SIGSEGV/SIGBUS handlers so a native crash also yields a stack
+        faulthandler.register(signal.SIGUSR1, all_threads=True, chain=False)
 
 
 
@@ -86,10 +110,19 @@ def main(cfg: DictConfig):
     # LOGGER INITIALIZATION
     # ----------------------------------------------------------------------------
 
-    if mpi_rank == 0:      
-         
-        log_dir = os.environ["RUN_LOG_DIR"]
- 
+    if mpi_rank == 0:
+        # RUN_LOG_DIR is exported by the bundled jobscripts, but the benchmark
+        # must not crash with a bare KeyError when it is launched any other way
+        # (a bare mpiexec, a CI harness, an interactive debug session). Fall
+        # back to a timestamped directory under the current working directory
+        # and say so, rather than dying before a single collective has run.
+        log_dir = os.environ.get("RUN_LOG_DIR") or os.environ.get("DL_COMM_LOG_DIR")
+        if not log_dir:
+            log_dir = os.path.join(
+                os.getcwd(), "logs", f"run_{time.strftime('%Y%m%d_%H%M%S')}")
+            print(f"[dl_comm] RUN_LOG_DIR not set; logging to {log_dir}",
+                  flush=True)
+        os.makedirs(log_dir, exist_ok=True)
     else:
         log_dir = None
     
@@ -136,10 +169,57 @@ def main(cfg: DictConfig):
             import torch.nn.parallel
             import torch.distributed as dist
             
-            # Intel-specific imports for CCL backends
-            if ccl_backend in ["xccl", "ccl"]:
-                import intel_extension_for_pytorch
-                import oneccl_bindings_for_pytorch
+            # Intel-specific imports for CCL backends.
+            #
+            # torch 2.10 on Aurora (frameworks/2025.3.1) provides XCCL
+            # natively via torch.distributed, and the standalone
+            # `oneccl_bindings_for_pytorch` shim is no longer shipped.
+            # Importing it unconditionally made the benchmark unrunnable on
+            # the current module stack: every rank died with
+            # ModuleNotFoundError before any collective executed. Import the
+            # shims only when they exist, and only fail if the requested
+            # backend is genuinely unavailable.
+            if ccl_backend == "torchcomms":
+                # torchcomms is a transport, not a framework: it carries the
+                # same torch.Tensor objects. Fail here with an actionable
+                # message rather than deep inside the first collective.
+                from dl_comm.comm import torchcomms_backend as _tcb
+                if not _tcb.is_available():
+                    raise RuntimeError(
+                        "ccl_backend 'torchcomms' requires the torchcomms "
+                        "module (PyTorch >= 2.8). On Aurora it ships with "
+                        "frameworks/2025.3.1; elsewhere `pip install "
+                        "torchcomms`.")
+                # IPEX is not required by torchcomms, which reaches XCCL
+                # directly. Import it opportunistically and tolerate any
+                # failure: under the 0.3.0 stack (torch 2.13) IPEX pulls in
+                # the frameworks torchvision, built against torch 2.10, which
+                # raises RuntimeError("operator torchvision::nms does not
+                # exist") rather than ImportError. Catching ImportError alone
+                # let that abort the whole run before a single collective.
+                try:
+                    import intel_extension_for_pytorch  # noqa: F401
+                except Exception as exc:  # noqa: BLE001
+                    log.info(
+                        "[CONFIG] intel_extension_for_pytorch unavailable "
+                        "(%s: %s); continuing, torchcomms does not need it",
+                        type(exc).__name__, exc)
+            elif ccl_backend in ["xccl", "ccl"]:
+                try:
+                    import intel_extension_for_pytorch  # noqa: F401
+                except ImportError:
+                    pass
+                try:
+                    import oneccl_bindings_for_pytorch  # noqa: F401
+                except ImportError:
+                    native = getattr(dist, f"is_{ccl_backend}_available",
+                                     lambda: False)()
+                    if not native:
+                        raise RuntimeError(
+                            f"backend '{ccl_backend}' is not available: "
+                            f"oneccl_bindings_for_pytorch is not installed and "
+                            f"torch.distributed has no native {ccl_backend} "
+                            f"support in this build")
 
 
     elif framework == "jax":
@@ -194,16 +274,64 @@ def main(cfg: DictConfig):
     # ----------------------------------------------------------------------------
     
     max_mpi_size_needed, mpi_validation_errors = validate_mpi_configuration(cfg, mpi_size, mpi_rank, log)
+    if mpi_validation_errors:
+        # Previously this result was computed and discarded, so a launch whose
+        # rank count did not match the config ran with silently idle ranks.
+        # See docs/fixes/03-rank-topology-validation.md
+        if mpi_rank == 0:
+            log.error("[EXIT] Exiting due to MPI launch geometry mismatch")
+        DLCOMMLogger.flush()
+        MPI.COMM_WORLD.Barrier()
+        sys.exit(2)
     
     # ----------------------------------------------------------------------------
     # ALGORITHM SETUP (before distributed init)
     # ----------------------------------------------------------------------------
     
     setup_algorithm_overrides(cfg, log)
+
+    # Accumulates one entry per measured communication group across all tasks;
+    # written out as results.json / results.csv at the end of the run.
+    run_measurements = []
+    # Tracks whether any task actually enabled verification. Read after the
+    # task loop, `cfg` does not carry this flag -- it lives on the per-mode
+    # config (`mode_cfg.verify_correctness`), so probing `cfg` reports False
+    # even on runs that verified 480 checks. See docs/fixes/14-enabled-flag.md
+    correctness_was_enabled = False
+    verify_failures.reset()
      
     MPI.COMM_WORLD.Barrier()
     with timer("init time"):
-        if framework == "pytorch":
+        if framework == "pytorch" and ccl_backend == "torchcomms":
+            # torchcomms derives rank/world size from RANK/WORLD_SIZE and
+            # bootstraps via MASTER_ADDR/MASTER_PORT, the way torchrun sets
+            # them. DLcomm launches under mpiexec, so export them from the MPI
+            # rank before creating the communicator.
+            from dl_comm.comm import torchcomms_backend as _tcb
+
+            os.environ.setdefault("RANK", str(mpi_rank))
+            os.environ.setdefault("WORLD_SIZE", str(mpi_size))
+
+            _tc_device_type = "gpu"
+            try:
+                _tc_device_type = cfg.device_type
+            except Exception:
+                pass
+
+            if _tc_device_type in ("gpu", "xpu"):
+                _tc_dev = torch.device("xpu", mpi_rank % torch.xpu.device_count())
+            else:
+                _tc_dev = torch.device("cpu")
+
+            # Replacing the module-level `dist` with the adapter is what makes
+            # all 13 collectives work unmodified: they already receive their
+            # comm module as a `dist=` parameter.
+            dist = _tcb.build(
+                _tc_dev,
+                device_type=_tc_device_type,
+                timeout=datetime.timedelta(seconds=3600),
+            )
+        elif framework == "pytorch":
             dist.init_process_group(
                 backend=ccl_backend,
                 init_method='env://',
@@ -237,6 +365,14 @@ def main(cfg: DictConfig):
     
     # Start multi-task execution loop
     for task_index, task_name in enumerate(tasks_to_run):
+        # Snapshot the tally so this task's own result can be reported when it
+        # finishes. The end-of-run summary is the only place passing checks
+        # were previously printed, so a hang in a later task erased the
+        # evidence for every task that had already succeeded (Aurora jobs
+        # 8824532 and 8824561 lost alltoallv and sendrecv results this way).
+        _task_start_tally = verify_failures.snapshot()
+        _task_coll_name = "?"
+
         if mpi_rank == 0 and len(tasks_to_run) > 1:
             log.info("")
             log.info("=" * 80)
@@ -289,12 +425,15 @@ def main(cfg: DictConfig):
 
             # Extract configuration
             coll_name          = coll_cfg.collective_name
+            _task_coll_name    = coll_name
             op_name            = coll_cfg.collective_op
             dtype_str          = coll_cfg.payload.dtype
             iters              = coll_cfg.iterations
             warmup_iters       = getattr(coll_cfg, 'warmup_iterations', 0)  # Default to 0 if not specified
             add_mxm_compute    = getattr(coll_cfg, 'add_mxm_compute', False)  # Default to False if not specified
             enable_correctness = mode_cfg.verify_correctness
+            if enable_correctness:
+                correctness_was_enabled = True
 
             # Validate operation is provided for collectives that need it
             if coll_name in OPS_NEED_REDUCE:
@@ -329,6 +468,12 @@ def main(cfg: DictConfig):
             num_elems = buffer_in_bytes // elem_size
 
             # lookup collective fn and op
+            # A bare COLLECTIVES[coll_name] raises an unadorned KeyError that
+            # names neither the config field at fault nor the valid choices.
+            if coll_name not in COLLECTIVES:
+                raise ValueError(
+                    f"Unknown collective '{coll_name}'. Registered collectives: "
+                    f"{sorted(COLLECTIVES)}")
             run_collective = COLLECTIVES[coll_name]
             op_obj         = OP_MAP[op_name] if coll_name in OPS_NEED_REDUCE else None
 
@@ -509,7 +654,19 @@ def main(cfg: DictConfig):
                 
                 for i in range(warmup_iters):
                     if framework == "pytorch":
-                        x = torch.ones(num_elems, dtype=_dtype).to(device, non_blocking=True)
+                        # Warmup must exercise the same payload construction as
+                        # the measured loop so that any lazy allocation it
+                        # triggers is paid here rather than in iteration 0.
+                        _wu_group = (flat_group if comm_mode == "flatview" else
+                                     my_within_group if comm_mode == "within_node" else
+                                     my_across_group)
+                        if _wu_group is not None:
+                            _wu_ranks = dist.get_process_group_ranks(_wu_group)
+                            _wu_world, _wu_index = len(_wu_ranks), _wu_ranks.index(mpi_rank)
+                        else:
+                            _wu_world, _wu_index = mpi_size, mpi_rank
+                        x = build_payload(torch, num_elems, _dtype, _wu_index,
+                                          _wu_world, op_name, device=device)
                     elif framework == "jax":
                         pass
                     
@@ -568,20 +725,46 @@ def main(cfg: DictConfig):
 
             # Collective execution for all modes
             elif framework=="pytorch":
+                # Register the device whose queue must drain before each
+                # timestamp, so the measurement no longer depends on the
+                # external CCL_OP_SYNC environment variable.
+                # See docs/fixes/05-timing-and-statistics.md
+                set_sync_device(device, enabled=True)
+
+                active_group = None
+                if comm_mode == "flatview":
+                    active_group = flat_group
+                elif comm_mode == "within_node":
+                    active_group = my_within_group
+                elif comm_mode == "across_node":
+                    active_group = my_across_group
+
+                if active_group is not None:
+                    group_ranks = dist.get_process_group_ranks(active_group)
+                    group_world = len(group_ranks)
+                    my_group_index = group_ranks.index(mpi_rank)
+                else:
+                    group_world, my_group_index = mpi_size, mpi_rank
+
                 for i in range(iters):
-            
-                    x = torch.ones(num_elems, dtype=_dtype).to(device, non_blocking=True)
+
+                    # Rank-dependent payload: an all-ones buffer made 12 of 15
+                    # collective/op combinations impossible to verify.
+                    # See docs/fixes/01-rank-dependent-verification.md
+                    x = build_payload(torch, num_elems, _dtype, my_group_index,
+                                      group_world, op_name, device=device)
 
                     context = {'mpi_rank': mpi_rank, 'cfg': cfg,'log': log, 'iteration': i}
-    
 
-                        
                     if comm_mode == "flatview":
                         if flat_group is not None:
                             time_barrier(group=flat_group, device=device)
                             with timer("(Flatview)"):
                                 result = run_collective(x, op_obj, group=flat_group, dist=dist, framework=framework)
-                                time_barrier(group=flat_group, device=device)
+                            # Barrier moved OUT of the timed region: it was
+                            # previously inside, so its cost was charged to the
+                            # collective. See docs/fixes/05-timing-and-statistics.md
+                            time_barrier(group=flat_group, device=device)
                             if enable_correctness:
                                 check_collective_correctness(context, x, coll_name, op=op_obj, group=flat_group, result_data=result, group_type="Flatview", group_id="All")
 
@@ -590,7 +773,7 @@ def main(cfg: DictConfig):
                             time_barrier(group=my_within_group, device=device)
                             with timer(f"(Within-Group-{within_group_id})"):
                                 result = run_collective(x, op_obj, group=my_within_group, dist=dist, log=log, framework=framework)
-                                time_barrier(group=my_within_group, device=device)
+                            time_barrier(group=my_within_group, device=device)
                             if enable_correctness:
                                 check_collective_correctness(context, x, coll_name, op=op_obj, group=my_within_group, result_data=result, group_type="Within", group_id=within_group_id)
                 
@@ -599,7 +782,7 @@ def main(cfg: DictConfig):
                             time_barrier(group=my_across_group , device=device)
                             with timer(f"(Across-Group-{across_group_id})"):
                                 result = run_collective(x, op_obj, group=my_across_group, dist=dist, log=log, framework=framework)
-                                time_barrier(group=my_across_group,  device=device)
+                            time_barrier(group=my_across_group,  device=device)
                             if enable_correctness:
                                 check_collective_correctness(context, x, coll_name, op=op_obj, group=my_across_group, result_data=result, group_type="Across", group_id=across_group_id)
                 
@@ -620,7 +803,7 @@ def main(cfg: DictConfig):
                 adjusted_buffer_sizes_single = {'across': buffer_in_bytes}
             else:
                 adjusted_buffer_sizes_single = None
-            gather_and_print_all_bandwidths(log, cfg, mpi_size, ranks_responsible_for_logging, "[BANDWIDTH]", adjusted_buffer_sizes_single, comm_mode, mode_cfg, coll_name)
+            gather_and_print_all_bandwidths(log, cfg, mpi_size, ranks_responsible_for_logging, "[BANDWIDTH]", adjusted_buffer_sizes_single, comm_mode, mode_cfg, coll_name, results_sink=run_measurements)
             
             # Only rank 0 prints remaining analysis
             if mpi_rank == 0:
@@ -652,9 +835,115 @@ def main(cfg: DictConfig):
                 else:
                     log.info("[EXIT] All Done.")
                 log.info("-------------------------------------------------------------------------")
+
+        # Per-task correctness line, emitted as soon as the task finishes.
+        # This is deliberately NOT the cross-rank verdict -- it is rank 0's own
+        # tally -- but it survives a hang in a later task, which the end-of-run
+        # summary does not.
+        if mpi_rank == 0:
+            _end = verify_failures.snapshot()
+            _d_checks = _end["checks"] - _task_start_tally["checks"]
+            _d_fail = _end["failures"] - _task_start_tally["failures"]
+            _d_skip = _end["skipped"] - _task_start_tally["skipped"]
+            _status = "FAILED" if _d_fail else ("NO-CHECKS" if _d_checks == 0 else "ok")
+            log.output(
+                f"[TASK-CORRECTNESS] {task_name} collective={_task_coll_name} "
+                f"checks={_d_checks} failures={_d_fail} skipped={_d_skip} [{_status}]"
+            )
  
     
-    if mpi_rank == 0 and len(tasks_to_run) > 1:
+    # ----------------------------------------------------------------------------
+    #  CORRECTNESS VERDICT AND STRUCTURED RESULTS
+    # ----------------------------------------------------------------------------
+    # A verification failure previously only produced a log line and the process
+    # still exited 0. Reduce the per-rank tallies across MPI_COMM_WORLD so any
+    # rank's failure fails the whole job.
+    # See docs/fixes/04-fail-loudly.md
+
+    local_verify = verify_failures.snapshot()
+
+    # Reaching this point is itself collective state: every rank must arrive or
+    # the reduce below hangs. A non-blocking barrier with a bounded wait turns
+    # that silent deadlock into a diagnosable error naming the missing ranks.
+    # See docs/fixes/11-verdict-barrier-timeout.md
+    _VERDICT_TIMEOUT_S = float(os.environ.get("DLCOMM_VERDICT_TIMEOUT", "120"))
+    _req = MPI.COMM_WORLD.Ibarrier()
+    _deadline = time.time() + _VERDICT_TIMEOUT_S
+    while not _req.Test():
+        if time.time() > _deadline:
+            sys.stderr.write(
+                f"[CORRECTNESS] rank {mpi_rank} timed out after "
+                f"{_VERDICT_TIMEOUT_S:.0f}s waiting for all {mpi_size} ranks to "
+                f"reach the verdict barrier. At least one rank exited the task "
+                f"loop early; the cross-rank reduce cannot complete.\n")
+            sys.stderr.flush()
+            MPI.COMM_WORLD.Abort(3)
+        time.sleep(0.05)
+
+    # Use the UPPERCASE buffer-based MPI calls, not the lowercase pickle-based
+    # ones. The lowercase mpi4py variants (allreduce/gather) negotiate object
+    # sizes with dynamic probe/recv traffic, which deadlocks once the XCCL
+    # backend has been initialised on the same ranks: Aurora job 8824457 hung
+    # here with all 24 ranks confirmed present at this line by the watchdog.
+    # The uppercase calls move fixed-size buffers and are unaffected.
+    # See docs/fixes/13-mpi-buffer-api.md
+    _counts = np.array([local_verify["failures"],
+                        local_verify["checks"],
+                        local_verify["skipped"],
+                        1 if correctness_was_enabled else 0], dtype=np.int64)
+    _totals = np.zeros(4, dtype=np.int64)
+    MPI.COMM_WORLD.Allreduce(_counts, _totals, op=MPI.SUM)
+    total_failures = int(_totals[0])
+    total_checks = int(_totals[1])
+    total_skipped = int(_totals[2])
+    # Any rank having verification on means the run verified. Reducing this
+    # rather than reading cfg on rank 0 also covers the case where a rank sits
+    # outside every communication group and so runs no tasks at all.
+    any_enabled = bool(_totals[3] > 0)
+
+    # Per-rank detail strings are variable-length objects, so gathering them
+    # would reintroduce the same pickle path. Each rank already logs its own
+    # failures as they happen; rank 0 reports only its local sample.
+    all_details = [local_verify["details"]]
+
+    correctness_summary = {
+        "enabled": any_enabled,
+        "total_checks": total_checks,
+        "total_failures": total_failures,
+        "total_skipped": total_skipped,
+        "passed": bool(total_failures == 0),
+    }
+
+    if mpi_rank == 0:
+        flat_details = [d for chunk in (all_details or []) if chunk for d in chunk]
+        if flat_details:
+            correctness_summary["details"] = flat_details[:200]
+
+        log.output("")
+        log.output("[CORRECTNESS] ---------------------------------------------------------")
+        log.output(f"[CORRECTNESS] checks={total_checks} failures={total_failures} "
+                   f"skipped={total_skipped}")
+        if total_failures:
+            log.error(f"[CORRECTNESS] VERIFICATION FAILED on {total_failures} check(s)")
+            for detail in flat_details[:20]:
+                log.error(f"[CORRECTNESS]   {detail}")
+        elif correctness_summary["enabled"] and total_checks == 0:
+            log.warning("[CORRECTNESS] verification was enabled but no checks ran")
+        elif correctness_summary["enabled"]:
+            log.output("[CORRECTNESS] all checks passed")
+        log.output("[CORRECTNESS] ---------------------------------------------------------")
+
+        try:
+            results_dir = log_dir
+        except NameError:
+            results_dir = os.getcwd()
+        document = build_results(
+            cfg=cfg, mpi_size=mpi_size, comm_mode=None, collective_name=None,
+            measurements=run_measurements, correctness=correctness_summary)
+        write_results(os.path.join(results_dir, "results.json"), document, log)
+        write_csv(os.path.join(results_dir, "results.csv"), run_measurements, log)
+
+    if mpi_rank == 0 and len(tasks_to_run) > 1 and total_failures == 0:
         log.info("")
         log.info("=" * 80)
         log.info(f"[FINAL] All {len(tasks_to_run)} tasks completed successfully!")
@@ -667,11 +956,37 @@ def main(cfg: DictConfig):
     DLCOMMLogger.flush()
     DLCOMMLogger.reset()
     MPI.COMM_WORLD.Barrier()
+
+    # Decide the exit status BEFORE tearing down the communicators. XCCL
+    # teardown of subgroups created with use_local_synchronization=True can
+    # segfault on Aurora (observed: "rank 5 died from signal 11" after
+    # "[EXIT] All Done."), which turns a clean run into exit 143 and would
+    # equally mask a real correctness failure behind a signal. The verdict is
+    # already computed, so latch it here and make teardown non-fatal.
+    exit_code = 1 if total_failures else 0
+
     if framework == "pytorch":
-        dist.destroy_process_group()
+        try:
+            dist.destroy_process_group()
+        except Exception as exc:                       # pragma: no cover
+            print(f"[dl_comm] destroy_process_group raised (ignored): {exc}",
+                  flush=True)
     if framework == "jax":
-        jdist.shutdown()
+        try:
+            jdist.shutdown()
+        except Exception as exc:                       # pragma: no cover
+            print(f"[dl_comm] jax shutdown raised (ignored): {exc}", flush=True)
     reset_times()
+
+    # Flush stdio before _exit: os._exit skips atexit handlers and buffers.
+    sys.stdout.flush()
+    sys.stderr.flush()
+
+    # os._exit bypasses interpreter finalization, where the XCCL/oneCCL
+    # destructors run. Those destructors are what raise SIGSEGV on Aurora, and
+    # a signal death overrides our exit status -- the exact "job failed but
+    # reported success" class this work exists to remove.
+    os._exit(exit_code)
     
 if __name__ == "__main__":
     main()

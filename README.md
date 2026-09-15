@@ -200,6 +200,29 @@ DLComm includes built-in correctness verification for all collective operations.
 - **Comprehensive Coverage**: All collective operations (AllReduce, AllGather, ReduceScatter, etc.) are validated
 
 
+## Cross-layer comparison
+
+`dl_comm.analysis.compare_layers` places OSU/MPI, C++ oneCCL, C++ SYCL transfer,
+torch.distributed and torchcomms side by side for the same operation and message size.
+
+**OSU figures are not directly comparable to the other layers.** OSU Micro-Benchmarks
+allocate host buffers and move data through the host path, while DLcomm's oneCCL,
+torch.distributed and torchcomms layers allocate device buffers and move data
+device-to-device. The two measure different paths, so a ratio between them mixes
+interconnect performance with PCIe transfer cost.
+
+The comparison tool therefore labels each row with its buffer placement and refuses to
+compute a ratio across placements, reporting instead:
+
+```
+not compared:
+  OSU / MPI (host) vs C++ CCL (device): different memory, no ratio computed
+```
+
+OSU rows are useful as a host-path reference point and as an independent check on
+trends, not as an absolute bound on the device-path layers. A host-buffer DLcomm
+configuration is required before any OSU-to-DLcomm ratio can be stated.
+
 ## How to contribute
 
 We welcome contributions from the community to the benchmark code.

@@ -1,9 +1,20 @@
-antlr4-python3-runtime==4.9.3
-dataclasses==0.8
-hydra-core==1.3.2
-importlib-resources==5.4.0
-omegaconf==2.3.0
-packaging==21.3
-pyparsing==3.1.4
-PyYAML==6.0.1
-zipp==3.6.0
+# Runtime dependencies for the DLcomm benchmark.
+#
+# Previously this file pinned a transitive-only set (antlr4, zipp, pyparsing)
+# while omitting the two packages the benchmark cannot run without -- torch and
+# mpi4py -- and pinned `dataclasses==0.8`, a Python 3.6 backport whose presence
+# breaks installation on Python 3.7+. See docs/fixes/06-packaging.md.
+#
+# Direct dependencies only; transitive pins are left to the resolver.
+
+hydra-core>=1.1.0
+omegaconf>=2.1.0
+PyYAML>=5.4
+pytz>=2021.1
+
+# Not installable from a plain index on every platform: on Aurora and other
+# ALCF systems torch, mpi4py and the CCL bindings come from the site modules
+# (`module load frameworks`). Install these only when building a standalone
+# environment.
+#   torch>=1.12.0
+#   mpi4py>=3.1.0

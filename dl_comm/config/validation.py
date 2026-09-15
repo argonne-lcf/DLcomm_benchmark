@@ -86,7 +86,18 @@ def validate_and_calculate_buffer_size(payload_config, mode_name: str, log=None,
 
 def adjust_buffer_size_for_group_divisibility(buffer_bytes: int, group_size: int, collective_name: str, elem_size: int, log=None, mpi_rank: int = 0) -> tuple[int, str]:
     
-    collectives_needing_divisibility = ["alltoallsingle"]
+    # reducescatter splits the input into one chunk per rank with integer
+    # division (collectives.py: chunk_size = tensor.numel() // world_size).
+    # A non-divisible buffer silently drops the remainder: the collective moves
+    # less data than the configured buffer size, and the reported bandwidth is
+    # computed from the size that was asked for rather than the size that was
+    # transferred. That is a wrong number rather than a visible failure, so the
+    # buffer is adjusted here for the same reason alltoall is.
+    #
+    # allgather is deliberately NOT in this list. Every rank contributes its
+    # whole buffer and the output is world_size times that, so any buffer size
+    # is valid and no remainder exists to lose.
+    collectives_needing_divisibility = ["alltoallsingle", "alltoallv", "reducescatter"]
     
 
     if collective_name.lower() not in collectives_needing_divisibility:
@@ -344,16 +355,17 @@ class ConfigValidator:
             nonlocal has_errors
             num_gpus = config_section.num_devices_per_node
             num_nodes = config_section.num_compute_nodes
-            
-             
-            expected_total_ranks = num_nodes * num_gpus
-            # Disabled rank count validation
-            # if expected_total_ranks != mpi_size:
-            #     if mpi_rank == 0:
-            #         log.error(f"[VALIDATION] {mode_name}: Expected {expected_total_ranks} total ranks but got {mpi_size}")
-            #     has_errors = True
-            
-   
+
+            # Rank-count validation. This was previously commented out, which
+            # allowed a job launched with a different -ppn than the config
+            # describes to run with silently orphaned ranks.
+            # See docs/fixes/03-rank-topology-validation.md
+            from dl_comm.config.topology import validate_rank_topology
+            ok, _messages = validate_rank_topology(
+                comm_mode, config_section, mpi_size, mpi_rank, log, strict=True)
+            if not ok:
+                has_errors = True
+
             if available_devices < num_gpus:
                 if mpi_rank == 0:
                     log.error(f"[VALIDATION] {mode_name}: Need {num_gpus} GPUs per node but only {available_devices} available")
@@ -365,6 +377,9 @@ class ConfigValidator:
             
         elif comm_mode == "across_node":
             validate_basic_config(mode_cfg, "Across-node mode")
+
+        elif comm_mode == "flatview":
+            validate_basic_config(mode_cfg, "Flatview mode")
             
         
          

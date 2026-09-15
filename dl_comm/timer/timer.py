@@ -6,14 +6,62 @@ from mpi4py import MPI
 import re
 TIMES = defaultdict(list)    
 
+# Device used to synchronize before reading the clock. Set once per rank by
+# dl_comm_main via set_sync_device(); None means "no device sync".
+_SYNC_DEVICE = None
+_SYNC_ENABLED = True
+
+
 def reset_times():
     TIMES.clear()
 
+
+def set_sync_device(device, enabled=True):
+    """Register the accelerator whose queue must drain before a timestamp.
+
+    Without this the timed region measures only the time to *enqueue* the
+    collective, not to complete it. The original code relied on the external
+    environment variable CCL_OP_SYNC=1 being set in the job script, so the
+    measurement silently changed meaning when that variable was absent.
+    See docs/fixes/05-timing-and-statistics.md
+    """
+    global _SYNC_DEVICE, _SYNC_ENABLED
+    _SYNC_DEVICE = device
+    _SYNC_ENABLED = enabled
+
+
+def sync_device():
+    """Block until all work queued on the registered device has completed."""
+    if not _SYNC_ENABLED or _SYNC_DEVICE is None:
+        return
+    try:
+        import torch
+    except ImportError:
+        return
+    dev = _SYNC_DEVICE
+    dev_type = getattr(dev, "type", None)
+    if dev_type == "cuda" and torch.cuda.is_available():
+        torch.cuda.synchronize(dev)
+    elif dev_type == "xpu" and hasattr(torch, "xpu") and torch.xpu.is_available():
+        torch.xpu.synchronize(dev)
+
+
 @contextmanager
-def timer(label: str):
+def timer(label: str, sync: bool = True):
+    """Time a region, draining the device queue at both ends.
+
+    ``sync=False`` preserves the old host-only behaviour for regions that are
+    genuinely CPU-side (imports, config parsing, group construction).
+    """
+    if sync:
+        sync_device()
     start = perf_counter()
-    yield
-    TIMES[label].append(perf_counter() - start)
+    try:
+        yield
+    finally:
+        if sync:
+            sync_device()
+        TIMES[label].append(perf_counter() - start)
 
 
 

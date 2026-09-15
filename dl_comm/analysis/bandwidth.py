@@ -1,315 +1,379 @@
-import re 
+"""Bandwidth accounting for DLcomm.
+
+Two things were wrong in the original module and are corrected here
+(see ``docs/fixes/02-bandwidth-group-size.md``):
+
+1. The live code path derived the communicator size from
+   ``num_devices_per_node`` for *every* mode. For ``across_node`` a group spans
+   one device index across all nodes, so its size is ``num_compute_nodes``. At
+   1024 nodes x 4 devices this scaled every reported number by 256x.
+
+2. ``group_size * buffer / time`` is not a standard bandwidth metric. This
+   module now reports the two conventional figures:
+
+   * **algbw** = ``buffer_bytes / time`` -- algorithmic bandwidth, the rate at
+     which the caller's buffer is processed.
+   * **busbw** = ``algbw * factor(collective, n)`` -- bus bandwidth, which
+     normalises out the collective's intrinsic traffic pattern so that results
+     are comparable across collectives and scales.
+
+   Factors follow the usual convention (as used by nccl-tests):
+
+   ===================  ==========================
+   collective           busbw factor
+   ===================  ==========================
+   allreduce            ``2 (n-1) / n``
+   allgather            ``(n-1) / n``
+   reducescatter        ``(n-1) / n``
+   alltoall             ``(n-1) / n``
+   alltoallsingle       ``(n-1) / n``
+   reduce               ``1``
+   broadcast            ``1``
+   gather               ``(n-1) / n``
+   scatter              ``(n-1) / n``
+   ===================  ==========================
+"""
+
+import re
+
 from dl_comm.config import parse_buffer_size
 from dl_comm.timer.timer import TIMES
 
-def gather_and_print_all_bandwidths(logger, cfg, mpi_size, ranks_responsible_for_logging, title="[BANDWIDTH]", adjusted_buffer_sizes=None, current_comm_mode=None, current_mode_cfg=None, collective_name=None):
-    from mpi4py import MPI
-    
-    mpi_rank = MPI.COMM_WORLD.Get_rank()
-    
-    my_data = None
-    if mpi_rank in ranks_responsible_for_logging:
-        my_data = {
-            'rank': mpi_rank,
-            'timers': dict(TIMES)
-        }
-    
-    all_data = MPI.COMM_WORLD.gather(my_data, root=0)
-    
-    if mpi_rank == 0:
-        logger.output("")
-        logger.output(f"{title} -------------------------------------------")
-        
-        buffer_configs = {}
-        if adjusted_buffer_sizes:
-            buffer_configs = adjusted_buffer_sizes
-            comm_mode = current_comm_mode
-        else:
-            logger.warning("[BANDWIDTH] Cannot calculate bandwidth - no buffer size information provided")
-            return
-        
-        group_bandwidths = {}
-        
-        for data in all_data:
-            if data is not None:
-                rank = data['rank']
-                timers = data['timers']
-                
-                for label, times_list in timers.items():
-                    # Skip non-collective timers
-                    if any(keyword in label for keyword in ["import", "setup", "mxm", "Group Creation"]):
-                        continue
-                        
-                    # Extract group info from label
-                    group_type = None
-                    if "Flatview" in label:
-                        group_type = "flatview"
-                        buffer_size = buffer_configs.get('flatview', 0)
-                    elif "Within-Group" in label:
-                        group_type = "within"
-                        buffer_size = buffer_configs.get('within', 0)
-                    elif "Across-Group" in label:
-                        group_type = "across"
-                        buffer_size = buffer_configs.get('across', 0)
-                    else:
-                        continue
-                    
-                    if group_type not in group_bandwidths:
-                        group_bandwidths[group_type] = {}
-                    
-                    if label not in group_bandwidths[group_type]:
-                        group_bandwidths[group_type][label] = []
-                    
-                    # Calculate bandwidth for each iteration
-                    for time_seconds in times_list:
-                        if time_seconds > 0:
-                            # Get group size from label or use mpi_size
-                            if "Group" in label:
-                                # Extract group size from current_mode_cfg if available
-                                if current_mode_cfg and hasattr(current_mode_cfg, 'num_devices_per_node'):
-                                    group_size = current_mode_cfg.num_devices_per_node
-                                else:
-                                    group_size = mpi_size
-                            else:
-                                group_size = mpi_size
-                            
-                            bandwidth_gbps = calculate_group_bandwidth(group_size, buffer_size, time_seconds)
-                            group_bandwidths[group_type][label].append(bandwidth_gbps)
-        
-        # Print bandwidth table in iteration table format (like timer table)
-        if group_bandwidths:
-            logger.output("")
-            if collective_name:
-                logger.output(f"[BANDWIDTH] BANDWIDTH TABLE FOR {collective_name.upper()} (bytes/seconds):")
+
+# --------------------------------------------------------------------------
+# Group sizing
+# --------------------------------------------------------------------------
+
+def group_size_for(comm_mode, mode_cfg, mpi_size=None):
+    """Number of ranks in one communicator of ``comm_mode``.
+
+    ``flatview``     -> nodes * devices_per_node (one group spanning everything)
+    ``within_node``  -> devices_per_node        (one group per node)
+    ``across_node``  -> num_compute_nodes       (one group per device index)
+    """
+    if mode_cfg is None:
+        return mpi_size if mpi_size else 1
+
+    devices = getattr(mode_cfg, "num_devices_per_node", None)
+    device_ids = getattr(mode_cfg, "device_ids_per_node", None)
+    if devices is None and device_ids is not None:
+        devices = len(device_ids)
+    nodes = getattr(mode_cfg, "num_compute_nodes", None)
+
+    if comm_mode == "flatview":
+        if nodes and devices:
+            return int(nodes) * int(devices)
+    elif comm_mode == "within_node":
+        if devices:
+            return int(devices)
+    elif comm_mode == "across_node":
+        if nodes:
+            return int(nodes)
+
+    return mpi_size if mpi_size else 1
+
+
+def _group_size_from_label(label, comm_mode, mode_cfg, mpi_size):
+    """Infer group size from a timer label, falling back to the configured mode."""
+    lowered = label.lower()
+    if "flatview" in lowered:
+        return group_size_for("flatview", mode_cfg, mpi_size)
+    if "within-group" in lowered:
+        return group_size_for("within_node", mode_cfg, mpi_size)
+    if "across-group" in lowered:
+        return group_size_for("across_node", mode_cfg, mpi_size)
+    return group_size_for(comm_mode, mode_cfg, mpi_size)
+
+
+# --------------------------------------------------------------------------
+# Bandwidth formulas
+# --------------------------------------------------------------------------
+
+def busbw_factor(collective_name, n):
+    """Traffic multiplier that converts algbw into bus bandwidth."""
+    if not collective_name or n is None or n < 2:
+        return 1.0
+    name = collective_name.lower()
+    if name == "allreduce":
+        return 2.0 * (n - 1) / n
+    if name in ("allgather", "reducescatter", "reduce_scatter",
+                "alltoall", "alltoallsingle", "alltoallv", "gather", "scatter"):
+        return (n - 1) / n
+    if name in ("reduce", "broadcast", "bcast"):
+        return 1.0
+    # Point-to-point: the measurement is a single pair, so the group size is
+    # irrelevant to the traffic multiplier. Every byte in the buffer crosses
+    # the wire exactly once per direction, making busbw equal to algbw.
+    # sendrecv_async has both directions in flight, so the bus carries twice
+    # the payload in the same elapsed time.
+    if name in ("sendrecv", "send", "recv", "p2p"):
+        return 1.0
+    if name in ("sendrecv_async", "sendrecv_bidir"):
+        return 2.0
+    return 1.0
+
+
+def algorithmic_bandwidth(buffer_size, time_seconds):
+    """``buffer_bytes / time`` in bytes per second."""
+    if not time_seconds or time_seconds <= 0:
+        return 0.0
+    return buffer_size / time_seconds
+
+
+def traffic_bytes(collective_name, buffer_size, group_size):
+    """Bytes belonging in the algbw numerator for ``collective_name``.
+
+    ``buffer_size`` is the per-rank buffer as reported by the measuring
+    layer. allgather produces ``buffer_size * group_size`` of output, so the
+    standard (NCCL/OSU) convention divides the total moved volume by time
+    rather than the per-rank slice.
+
+    reduce_scatter is deliberately NOT expanded: the C++ benchmark passes a
+    per-rank output count, which makes the reported buffer size already the
+    total input volume. Expanding it again produced 242 GB/s at 12 ranks --
+    above what the hardware can do, which is how the double-count was caught.
+    """
+    if not collective_name or not group_size or group_size < 2:
+        return buffer_size
+    if collective_name.lower() == "allgather":
+        return buffer_size * group_size
+    return buffer_size
+
+
+def bus_bandwidth(buffer_size, time_seconds, group_size, collective_name):
+    moved = traffic_bytes(collective_name, buffer_size, group_size)
+    return algorithmic_bandwidth(moved, time_seconds) * busbw_factor(
+        collective_name, group_size)
+
+
+def calculate_group_bandwidth(group_size, buffer_size, time_seconds,
+                              collective_name=None):
+    """Backwards-compatible entry point.
+
+    .. deprecated::
+       The historical definition ``group_size * buffer / time`` is not a
+       standard metric and over-reported by a factor of ``group_size``. It is
+       retained only so existing callers keep working; new code should call
+       :func:`algorithmic_bandwidth` or :func:`bus_bandwidth`.
+    """
+    if collective_name is not None:
+        return bus_bandwidth(buffer_size, time_seconds, group_size, collective_name)
+    if not time_seconds or time_seconds <= 0:
+        return 0.0
+    return (group_size * buffer_size) / time_seconds
+
+
+# --------------------------------------------------------------------------
+# Statistics
+# --------------------------------------------------------------------------
+
+def summarize(values, drop_first=True):
+    """Return min/median/mean/stddev/p99 for a list of per-iteration values.
+
+    Iteration 0 is reported separately and excluded from the summary by
+    default: it carries connection-establishment and lazy-allocation cost that
+    is not part of steady-state performance. See
+    ``docs/fixes/05-timing-and-statistics.md``.
+    """
+    if not values:
+        return None
+    vals = list(values)
+    first = vals[0]
+    body = vals[1:] if (drop_first and len(vals) > 1) else vals
+    if not body:
+        body = vals
+
+    ordered = sorted(body)
+    count = len(ordered)
+    mean = sum(ordered) / count
+    if count > 1:
+        var = sum((v - mean) ** 2 for v in ordered) / (count - 1)
+    else:
+        var = 0.0
+    median = (ordered[count // 2] if count % 2
+              else (ordered[count // 2 - 1] + ordered[count // 2]) / 2.0)
+    p99_index = max(0, min(count - 1, int(round(0.99 * (count - 1)))))
+
+    return {
+        "count": count,
+        "first": first,
+        "min": ordered[0],
+        "max": ordered[-1],
+        "mean": mean,
+        "median": median,
+        "stddev": var ** 0.5,
+        "p99": ordered[p99_index],
+        "dropped_first": bool(drop_first and len(vals) > 1),
+    }
+
+
+# --------------------------------------------------------------------------
+# Reporting
+# --------------------------------------------------------------------------
+
+def _collect(all_data, buffer_configs, comm_mode, mode_cfg, mpi_size,
+             collective_name):
+    """Build ``{label: {...}}`` of per-iteration timings and bandwidths."""
+    collected = {}
+    for data in all_data:
+        if not data:
+            continue
+        rank = data["rank"]
+        for label, times_list in data["timers"].items():
+            if any(k in label for k in ("import", "setup", "mxm", "Group Creation")):
+                continue
+            lowered = label.lower()
+            if "flatview" in lowered:
+                buffer_size = buffer_configs.get("flatview", 0)
+            elif "within-group" in lowered:
+                buffer_size = buffer_configs.get("within", 0)
+            elif "across-group" in lowered:
+                buffer_size = buffer_configs.get("across", 0)
             else:
-                logger.output("[BANDWIDTH] BANDWIDTH TABLE (bytes/seconds):")
-            
-            # Collect all labels and their bandwidth data
-            iteration_data = {}
-            for group_type, group_data in group_bandwidths.items():
-                for label, bandwidths in group_data.items():
-                    if bandwidths:
-                        # Find the actual rank that has data for this label
-                        actual_rank = None
-                        for data in all_data:
-                            if data is not None and label in data['timers']:
-                                actual_rank = data['rank']
-                                break
-                        if actual_rank is None:
-                            actual_rank = mpi_rank
-                        iteration_data[label] = {'vals': bandwidths, 'rank': actual_rank}
-            
-            if iteration_data:
-                headers = list(iteration_data.keys())
-                max_iterations = max(len(data['vals']) for data in iteration_data.values())
-                col_width = 20
-                
-                # Header line 1 - Labels
-                header_line1 = f"{'Iteration':<12}"
-                for label in headers:
-                    header_line1 += f"{label:^{col_width}}"
-                logger.output(header_line1)
-                
-                # Header line 2 - Ranks
-                header_line2 = f"{'':12}"
-                for label in headers:
-                    rank = iteration_data[label]['rank']
-                    rank_str = f"LOGGING RANK - {rank}"
-                    header_line2 += f"{rank_str:^{col_width}}"
-                logger.output(header_line2)
-                
-                # Separator
-                separator = "-" * len(header_line1)
-                logger.output(separator)
-                
-                # Data rows
-                for i in range(max_iterations):
-                    row = f"{i:<12}"
-                    for label in headers:
-                        vals = iteration_data[label]['vals']
-                        if i < len(vals):
-                            row += f"{vals[i]:.0f}".center(col_width)
-                        else:
-                            row += f"{'-':^{col_width}}"
-                    logger.output(row)
-                
-                logger.output(separator)
-                logger.output("")
-        
-        logger.output(f"{title} -------------------------------------------")
+                continue
+            if label in collected:
+                continue
+
+            n = _group_size_from_label(label, comm_mode, mode_cfg, mpi_size)
+            algbw = [algorithmic_bandwidth(buffer_size, t) for t in times_list]
+            factor = busbw_factor(collective_name, n)
+            busbw = [a * factor for a in algbw]
+
+            collected[label] = {
+                "rank": rank,
+                "group_size": n,
+                "buffer_size": buffer_size,
+                "times": list(times_list),
+                "algbw": algbw,
+                "busbw": busbw,
+                "busbw_factor": factor,
+            }
+    return collected
 
 
-def calculate_group_bandwidth(group_size, buffer_size, time_seconds):
-    total_bytes = group_size * buffer_size
-    bandwidth_bytes_per_sec = total_bytes / time_seconds
-    return bandwidth_bytes_per_sec
+def _print_table(logger, collected, key, heading, fmt="{:.3e}"):
+    labels = list(collected.keys())
+    if not labels:
+        return
+    max_iters = max(len(collected[l][key]) for l in labels)
+    col = 22
+
+    logger.output(heading)
+    line = f"{'Iteration':<12}" + "".join(f"{l:^{col}}" for l in labels)
+    logger.output(line)
+    logger.output(f"{'':12}" + "".join(
+        f"{'LOGGING RANK - ' + str(collected[l]['rank']):^{col}}" for l in labels))
+    logger.output("-" * len(line))
+    for i in range(max_iters):
+        row = f"{i:<12}"
+        for l in labels:
+            vals = collected[l][key]
+            row += (fmt.format(vals[i]) if i < len(vals) else "-").center(col)
+        logger.output(row)
+    logger.output("-" * len(line))
 
 
-def print_all_bandwidths(logger, cfg, mpi_size, ranks_responsible_for_logging, phase_filter=None, adjusted_buffer_sizes=None, current_comm_mode=None, current_mode_cfg=None):
+def _print_summary(logger, collected, collective_name):
+    logger.output("")
+    logger.output("[BANDWIDTH] SUMMARY (iteration 0 excluded; time in s, bandwidth in bytes/s):")
+    header = (f"{'group':<22}{'n':>7}{'bytes':>12}{'t_min':>12}{'t_med':>12}"
+              f"{'t_mean':>12}{'t_std':>12}{'t_p99':>12}{'algbw_med':>14}{'busbw_med':>14}")
+    logger.output(header)
+    logger.output("-" * len(header))
+    for label, info in collected.items():
+        ts = summarize(info["times"])
+        if not ts:
+            continue
+        # Median bandwidth is derived from the median time, not averaged over
+        # per-iteration bandwidths, so it stays consistent with t_med.
+        algbw_med = algorithmic_bandwidth(info["buffer_size"], ts["median"])
+        busbw_med = algbw_med * info["busbw_factor"]
+        logger.output(
+            f"{label[:22]:<22}{info['group_size']:>7}{info['buffer_size']:>12}"
+            f"{ts['min']:>12.6f}{ts['median']:>12.6f}{ts['mean']:>12.6f}"
+            f"{ts['stddev']:>12.6f}{ts['p99']:>12.6f}"
+            f"{algbw_med:>14.3e}{busbw_med:>14.3e}")
+    logger.output("-" * len(header))
+    if collective_name:
+        any_info = next(iter(collected.values()), None)
+        if any_info:
+            logger.output(f"[BANDWIDTH] busbw factor for {collective_name.lower()} "
+                          f"at n={any_info['group_size']}: {any_info['busbw_factor']:.6f}")
+
+
+def gather_and_print_all_bandwidths(logger, cfg, mpi_size,
+                                    ranks_responsible_for_logging,
+                                    title="[BANDWIDTH]", adjusted_buffer_sizes=None,
+                                    current_comm_mode=None, current_mode_cfg=None,
+                                    collective_name=None, results_sink=None):
     from mpi4py import MPI
-    
+
     mpi_rank = MPI.COMM_WORLD.Get_rank()
-    
     my_data = None
     if mpi_rank in ranks_responsible_for_logging:
-        my_data = {
-            'rank': mpi_rank,
-            'timers': dict(TIMES)
-        }
-    
+        my_data = {"rank": mpi_rank, "timers": dict(TIMES)}
     all_data = MPI.COMM_WORLD.gather(my_data, root=0)
-    
-    if mpi_rank == 0:
-        logger.output("")
-         
-        title = "[BANDWIDTH]"
+
+    if mpi_rank != 0:
+        return None
+
+    logger.output("")
+    logger.output(f"{title} -------------------------------------------")
+
+    if not adjusted_buffer_sizes:
+        logger.warning("[BANDWIDTH] Cannot calculate bandwidth - no buffer size information provided")
+        return None
+
+    collected = _collect(all_data, adjusted_buffer_sizes, current_comm_mode,
+                         current_mode_cfg, mpi_size, collective_name)
+    if not collected:
         logger.output(f"{title} -------------------------------------------")
-        
-        group_bandwidths = {}
-        
-        buffer_configs = {}
-        if adjusted_buffer_sizes:
-            # Use the adjusted buffer sizes passed from main
-            buffer_configs = adjusted_buffer_sizes
-            # Use the current mode passed from main
-            comm_mode = current_comm_mode
-        else:
-            # Fallback to parsing from config (original behavior)
-            # Only access comm_group if adjusted_buffer_sizes is not provided
-            comm_mode = cfg.comm_group.mode if hasattr(cfg, 'comm_group') else None
-            if comm_mode == "flatview":
-                coll_cfg = cfg.comm_group.flatview.collective
-                buffer_in_bytes = parse_buffer_size(coll_cfg.payload.buffer_size)
-                buffer_configs['flatview'] = buffer_in_bytes
-            elif comm_mode == "within_node":
-                coll_cfg = cfg.comm_group.within_node.collective
-                buffer_in_bytes = parse_buffer_size(coll_cfg.payload.buffer_size)
-                buffer_configs['within'] = buffer_in_bytes
-            elif comm_mode == "across_node":
-                coll_cfg = cfg.comm_group.across_node.collective
-                buffer_in_bytes = parse_buffer_size(coll_cfg.payload.buffer_size)
-                buffer_configs['across'] = buffer_in_bytes
-            elif comm_mode == "combined":
-                coll_within_cfg = cfg.comm_group.combined.within_node.collective
-                coll_across_cfg = cfg.comm_group.combined.across_node.collective
-                buffer_within_bytes = parse_buffer_size(coll_within_cfg.payload.buffer_size)
-                buffer_across_bytes = parse_buffer_size(coll_across_cfg.payload.buffer_size)
-                buffer_configs['within'] = buffer_within_bytes
-                buffer_configs['across'] = buffer_across_bytes
-        
-        group_timers = {}
-        
-        for data in all_data:
-            if data is not None:
-                rank = data['rank']
-                timers = data['timers']
-                
-                for label, vals in timers.items():
-                    if "(flatview)" == label.lower():
-                        group_key = "flatview"
-                    elif "(within-group-" in label.lower():
-                        match = re.search(r'\(within-group-(\d+)\)', label.lower())
-                        group_key = f"within-{match.group(1)}"
-                    elif "(across-group-" in label.lower():
-                        match = re.search(r'\(across-group-(\d+)\)', label.lower())
-                        group_key = f"across-{match.group(1)}"
-                    else:
-                        continue
-                    
-                    # Apply phase filtering
-                    if phase_filter == "within" and not group_key.startswith("within-"):
-                        continue
-                    elif phase_filter == "across" and not group_key.startswith("across-"):
-                        continue
-                    
-                    if group_key not in group_timers:
-                        group_timers[group_key] = {}
-                    
-                    if label not in group_timers[group_key] or rank < group_timers[group_key][label]['rank']:
-                        group_timers[group_key][label] = {
-                            'vals': vals,
-                            'rank': rank
-                        }
-        
-        for group_key, labels in group_timers.items():
-            for label, timer_data in labels.items():
-                vals = timer_data['vals']
-                rank = timer_data['rank']
-                first_iteration_time = vals[0]
-                
-                if group_key == "flatview":
-                    # Calculate actual flatview group size from config
-                    if current_mode_cfg and comm_mode == "flatview":
-                        group_size = current_mode_cfg.num_devices_per_node * current_mode_cfg.num_compute_nodes
-                    else:
-                        # Fallback to mpi_size if config not available (shouldn't happen in normal flow)
-                        group_size = mpi_size
-                    buffer_size = buffer_configs.get('flatview', 0)
-                    bandwidth = calculate_group_bandwidth(group_size, buffer_size, first_iteration_time)
-                    group_bandwidths['Flatview'] = {
-                        'bandwidth': bandwidth,
-                        'group_size': group_size,
-                        'buffer_size': buffer_size,
-                        'time': first_iteration_time,
-                        'rank': rank
-                    }
-                    
-                elif group_key.startswith("within-"):
-                    group_id = group_key.split("-")[1]
-                    if current_mode_cfg and comm_mode == "within_node":
-                        within_mode_cfg = current_mode_cfg
-                    else:
-                        within_mode_cfg = cfg.comm_group.combined.within_node if comm_mode == "combined" else cfg.comm_group.within_node
-                    group_size = within_mode_cfg.num_devices_per_node
-                    buffer_size = buffer_configs.get('within', 0)
-                    bandwidth = calculate_group_bandwidth(group_size, buffer_size, first_iteration_time)
-                    group_bandwidths[f'Within-Group-{group_id}'] = {
-                        'bandwidth': bandwidth,
-                        'group_size': group_size,
-                        'buffer_size': buffer_size,
-                        'time': first_iteration_time,
-                        'rank': rank
-                    }
-                        
-                elif group_key.startswith("across-"):
-                    group_id = group_key.split("-")[1]
-                    if current_mode_cfg and comm_mode == "across_node":
-                        across_mode_cfg = current_mode_cfg
-                    else:
-                        across_mode_cfg = cfg.comm_group.combined.across_node if comm_mode == "combined" else cfg.comm_group.across_node
-                    group_size = across_mode_cfg.num_compute_nodes
-                    buffer_size = buffer_configs.get('across', 0)
-                    bandwidth = calculate_group_bandwidth(group_size, buffer_size, first_iteration_time)
-                    group_bandwidths[f'Across-Group-{group_id}'] = {
-                        'bandwidth': bandwidth,
-                        'group_size': group_size,
-                        'buffer_size': buffer_size,
-                        'time': first_iteration_time,
-                        'rank': rank
-                    }
-        
-        logger.output(f"{title.replace(' -------------------------------------------', '')} Communication Group Bandwidths:")
-        logger.output("")
-        
-        for group_name, data in group_bandwidths.items():
-            bandwidth_prefix = title.replace(' -------------------------------------------', '').replace('[', '').replace(']', '')
-            logger.output(f"[{bandwidth_prefix}] {group_name}:")
-            logger.output(f"[{bandwidth_prefix}]   Group Size     : {data['group_size']} GPUs")
-            logger.output(f"[{bandwidth_prefix}]   Buffer Size    : {data['buffer_size']} bytes")
-            logger.output(f"[{bandwidth_prefix}]   Time (iter 0)  : {data['time']:.6f} s")
-            logger.output(f"[{bandwidth_prefix}]   Bandwidth      : {data['bandwidth']:.0f} bytes/s")
-            logger.output(f"[{bandwidth_prefix}]   Logging Rank   : {data['rank']}")
-            logger.output("")
-        
-        logger.output(f"{title} -------------------------------------------")
-        logger.output("")
+        return None
+
+    name = (collective_name or "collective").upper()
+    logger.output("")
+    _print_table(logger, collected, "algbw",
+                 f"[BANDWIDTH] ALGBW TABLE FOR {name} (bytes/s, = buffer/time):")
+    logger.output("")
+    _print_table(logger, collected, "busbw",
+                 f"[BANDWIDTH] BUSBW TABLE FOR {name} (bytes/s, = algbw x factor):")
+    _print_summary(logger, collected, collective_name)
+    logger.output("")
+    logger.output(f"{title} -------------------------------------------")
+
+    if results_sink is not None:
+        for label, info in collected.items():
+            ts = summarize(info["times"])
+            algbw_med = algorithmic_bandwidth(info["buffer_size"], ts["median"]) if ts else 0.0
+            results_sink.append({
+                "label": label,
+                "collective": collective_name,
+                "comm_mode": current_comm_mode,
+                "group_size": info["group_size"],
+                "buffer_bytes": info["buffer_size"],
+                "logging_rank": info["rank"],
+                "times_s": info["times"],
+                "time_stats_s": ts,
+                "busbw_factor": info["busbw_factor"],
+                "algbw_median_bytes_per_s": algbw_med,
+                "busbw_median_bytes_per_s": algbw_med * info["busbw_factor"],
+            })
+    return collected
 
 
+def print_all_bandwidths(logger, cfg, mpi_size, ranks_responsible_for_logging,
+                         phase_filter=None, adjusted_buffer_sizes=None,
+                         current_comm_mode=None, current_mode_cfg=None,
+                         collective_name=None):
+    """Deprecated alias kept for backwards compatibility.
 
-
-
-
-
-
-
-
+    The original second implementation duplicated the reporting logic with a
+    different (and inconsistent) group-size rule. It now forwards to
+    :func:`gather_and_print_all_bandwidths` so there is exactly one definition
+    of bandwidth in the package.
+    """
+    return gather_and_print_all_bandwidths(
+        logger, cfg, mpi_size, ranks_responsible_for_logging,
+        title="[BANDWIDTH]", adjusted_buffer_sizes=adjusted_buffer_sizes,
+        current_comm_mode=current_comm_mode, current_mode_cfg=current_mode_cfg,
+        collective_name=collective_name)
