@@ -28,30 +28,39 @@ from dataclasses import dataclass, field
 # Stack order, lowest to highest. Each layer is expected to be no faster than
 # the one below it; a violation is reported rather than hidden.
 #
-# The two fabric layers sit below the collectives. They are point-to-point, so
-# they never share a collective name with the layers above and in practice are
-# never adjacent to them in a real report -- but they are part of the stack
-# order so that a fabric result and a collective result can appear in the same
-# run without either being dropped as unknown.
-LAYER_ORDER = ("fi", "nixl", "osu", "cpp_ccl", "torch_dist", "torchcomms")
+# libfabric (fi) is the bottom: the raw fabric API every transport above it
+# eventually calls.
+#
+# NIXL sits at the TOP, above torchcomms. It is not a lower-level transport
+# that the collective stack is built on -- it is a separate consumer of the
+# fabric, used by inference serving (Dynamo/vLLM KV transfer) the way a
+# training job uses torchcomms. Placing it above torchcomms reflects how it is
+# used, and keeps the training path (osu -> ccl -> torch -> torchcomms) as one
+# unbroken chain instead of splitting it with an unrelated layer.
+#
+# NIXL is also point-to-point rather than collective, so in practice it shares
+# no collective name with the layers below and no ratio is computed against
+# them; the ordering matters for report layout and for the fi -> NIXL gap.
+LAYER_ORDER = ("fi", "osu", "cpp_ccl", "torch_dist", "torchcomms", "nixl")
 
 LAYER_LABEL = {
     "fi": "libfabric (FI)",
-    "nixl": "NIXL",
     "osu": "OSU / MPI",
     "cpp_ccl": "C++ CCL",
     "torch_dist": "torch.distributed",
     "torchcomms": "torchcomms",
+    "nixl": "NIXL",
 }
 
 # What sits between two adjacent layers. Used to attribute a gap to a named
 # component instead of reporting a bare percentage.
 BETWEEN = {
+    ("fi", "osu"): "MPI transport over the fabric",
     ("fi", "nixl"): "NIXL agent + memory registration",
-    ("nixl", "osu"): "NIXL->MPI, different transport entirely",
     ("osu", "cpp_ccl"): "transport choice (MPI vs CCL)",
     ("cpp_ccl", "torch_dist"): "PyTorch dispatch + process group",
     ("torch_dist", "torchcomms"): "torchcomms API layer",
+    ("torchcomms", "nixl"): "different consumer of the fabric, not a subset",
     ("osu", "torch_dist"): "MPI->PyTorch, CCL layer not measured",
     ("cpp_ccl", "torchcomms"): "PyTorch stack, torch.distributed not measured",
     ("osu", "torchcomms"): "MPI->torchcomms, intermediate layers not measured",
