@@ -61,6 +61,27 @@ such affinity and spreads across all four. This is why the rails column is
 printed rather than assumed — a 1-rail result is correct for VRAM and a
 symptom for DRAM.
 
+## Where these layers sit in the stack
+
+    libfabric (FI)      <- bottom: the raw fabric API
+    OSU / MPI
+    C++ CCL
+    torch.distributed
+    torchcomms
+    NIXL                <- top
+
+NIXL is at the top, above torchcomms, not down next to libfabric. It is not a
+lower-level transport the collective stack is built on — it is a *separate
+consumer* of the same fabric, used by inference serving (Dynamo/vLLM KV
+transfer) the way a training job uses torchcomms. Putting it below MPI would
+imply the collectives run on top of it, which is false, and would split the
+training path in half.
+
+The consequence in a report: a torchcomms → NIXL gap is labelled "different
+consumer of the fabric, not a subset" rather than being attributed to an
+overhead component, because the difference between them is not something
+torchcomms lost.
+
 ## Ordering caveat
 
 DRAM and VRAM results use different memory, so the comparison refuses to

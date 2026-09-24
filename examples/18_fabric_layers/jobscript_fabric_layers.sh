@@ -75,12 +75,13 @@ echo "[3/3] NIXL"
 
 export FI_CXI_DISABLE_HMEM_DEV_REGISTER=1
 
-for MEM in dram vram; do
+for MEM in dram cuda; do
+    TAG="$MEM"; [ "$MEM" = "cuda" ] && TAG="vram"
     mpiexec -n 2 -ppn 1 --cpu-bind none \
-        python3 "$NIXL_REPRO" --op READ --"$MEM" \
+        python3 "$NIXL_REPRO" --backend LIBFABRIC --mem "$MEM" --op READ \
         --gib 0.25 --iters 5 --sync-dir "$RESULTS/sync" \
-        > "$RESULTS/nixl_$MEM.txt" 2>&1
-    echo "  nixl $MEM rc=$?  $(grep -c 'PASS: destination buffer is byte-exact' "$RESULTS/nixl_$MEM.txt") pass line(s)"
+        > "$RESULTS/nixl_$TAG.txt" 2>&1
+    echo "  nixl $TAG rc=$?  $(grep -ac 'byte-exact' "$RESULTS/nixl_$TAG.txt") pass line(s)"
 done
 
 echo
