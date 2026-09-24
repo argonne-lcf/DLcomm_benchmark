@@ -88,3 +88,40 @@ DRAM and VRAM results use different memory, so the comparison refuses to
 compute a ratio between them. That is the same guard the collective layers
 use, and it is why VRAM's higher number is not reported as "VRAM is 1.9x
 faster than DRAM": they are not the same measurement.
+
+## The nodefile order is load-bearing
+
+PALS assigns **rank 0 to the first line of `$PBS_NODEFILE` as PBS wrote it**,
+and PBS does not write that file sorted. Job 6935 was allocated:
+
+```
+x4820c7s6b1n0     <- rank 0 lands here
+x4820c7s0b0n0
+```
+
+`sort -u | head -1` returns `s0b0n0` — the wrong host. Any server address
+predicted that way points at a node where nothing is listening, and the
+failure surfaces as `Connection refused`, which looks like a fabric fault.
+That cost jobs 6931 and 6932.
+
+Proven in job 6935, same allocation, same job:
+
+| Server address predicted from | Result |
+|---|---|
+| `sort -u` -> `s0b0n0` | `Connection refused` |
+| natural order -> `s6b1n0` | **18.77 GB/s** |
+| natural order + explicit `--hostfile` | **19.75 GB/s** |
+
+Use `head -1 "$PBS_NODEFILE"` or `awk '!seen[$0]++'`, never `sort -u`. Better
+still, pass an explicit `--hostfile` so placement and prediction come from the
+same list — job 6935 confirms `--hostfile` does control which host receives
+rank 0.
+
+`tests/test_nodefile_ordering.py` enforces this against both job scripts.
+
+## Why NIXL needs no such care, and fi_pingpong does
+
+NIXL finds its peer through `--sync-dir`, a file rendezvous, so it never
+predicts a hostname and is immune to the trap above. `fi_pingpong` takes the
+server address on the command line and has no rendezvous mechanism, which is
+why it was the tool that exposed the bug.

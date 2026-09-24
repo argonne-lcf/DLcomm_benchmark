@@ -30,7 +30,20 @@ set -u
 RESULTS="${RESULTS:-$PBS_O_WORKDIR/results_$PBS_JOBID}"
 mkdir -p "$RESULTS"
 
-NODES=$(sort -u "$PBS_NODEFILE")
+# Order-preserving unique, NOT `sort -u`.
+#
+# PALS assigns ranks in the nodefile's natural order, so rank 0 lands on the
+# FIRST LINE of $PBS_NODEFILE. `sort -u` reorders that list alphabetically,
+# and PBS does not write the file sorted -- job 6935 was allocated
+# [s6b1n0, s0b0n0], where sorted[0] and natural[0] are different hosts.
+#
+# Deriving a server address from a sorted list while launching without a
+# matching --hostfile makes the client dial a node where nothing is
+# listening. That produced "Connection refused" in jobs 6931/6932 and looked
+# exactly like a fabric failure. Proven in job 6935: predicting sorted[0]
+# refused the connection, predicting natural[0] ran at 18.8 GB/s on the same
+# allocation, in the same job.
+NODES=$(awk '!seen[$0]++' "$PBS_NODEFILE")
 NNODES=$(echo "$NODES" | wc -l)
 echo "nodes ($NNODES):"; echo "$NODES"
 
