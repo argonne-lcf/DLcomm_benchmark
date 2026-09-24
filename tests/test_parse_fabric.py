@@ -131,12 +131,14 @@ def test_vram_and_dram_stay_distinct():
 
 
 def test_fi_pingpong_table_parses():
-    text = ("bytes   iters   total   time    MB/sec\n"
-            "64      1000    7.8k    0.02s   3.20\n"
-            "1048576 100     100m    0.50s   2097.15\n")
+    # Real 8-column layout (bytes #sent #ack total time MB/sec usec Mxfers).
+    text = ("bytes   #sent   #ack     total    time     MB/sec   usec/xfer   Mxfers/sec\n"
+            "64      1000    =1000    7.8k     0.02s      3.20        2.80        0.36\n"
+            "1m      100     =100     100m     0.50s   2097.15       51.05        0.02\n")
     found = parse_fi_pingpong(text)
     assert len(found) == 2
     assert found[0].size_bytes == 64
+    assert found[1].size_bytes == 1024 ** 2
     assert found[0].busbw_bps == pytest.approx(3.20e6)
     assert found[1].busbw_bps == pytest.approx(2097.15e6)
     assert all(m.layer == "fi" for m in found)
@@ -145,7 +147,8 @@ def test_fi_pingpong_table_parses():
 def test_fi_pingpong_defaults_to_host_buffers():
     """fi_pingpong uses host memory; mislabelling it as device would let the
     bottleneck analysis divide it against a GPU layer."""
-    found = parse_fi_pingpong("64  1000  7.8k  0.02s  3.20\n")
+    found = parse_fi_pingpong(
+        "64  1000  =1000  7.8k  0.02s  3.20  2.80  0.36\n")
     assert found[0].buffer == "host"
 
 
@@ -168,8 +171,16 @@ def test_fi_info_empty_means_no_provider():
 
 
 def test_fabric_layers_are_in_the_stack():
-    assert LAYER_ORDER.index("fi") < LAYER_ORDER.index("nixl")
-    assert LAYER_ORDER.index("nixl") < LAYER_ORDER.index("osu")
+    """fi is the bottom; NIXL is the top, above torchcomms.
+
+    NIXL is a separate consumer of the fabric (inference KV transfer), not a
+    transport the collective stack sits on, so it belongs above torchcomms
+    rather than between the fabric and MPI.
+    """
+    assert LAYER_ORDER.index("fi") < LAYER_ORDER.index("osu")
+    assert LAYER_ORDER.index("nixl") > LAYER_ORDER.index("torchcomms")
+    assert LAYER_ORDER[0] == "fi"
+    assert LAYER_ORDER[-1] == "nixl"
     assert LAYER_LABEL["fi"] and LAYER_LABEL["nixl"]
 
 
@@ -181,10 +192,72 @@ def test_fi_to_nixl_gap_is_attributed():
                                 size_bytes=1 << 28, busbw_bps=bps,
                                 buffer="host", ranks=2)
 
+    # fi and nixl are the only two layers present, so they are adjacent in
+    # the filtered stack even though torchcomms sits between them in the
+    # full order.
     rep = analyse([m("fi", 10e9), m("nixl", 8.39e9)])
     assert len(rep.gaps) == 1
     assert rep.gaps[0].component == "NIXL agent + memory registration"
     assert rep.gaps[0].efficiency == pytest.approx(0.839)
+
+
+def test_parses_real_fi_pingpong_output_from_job_6934():
+    """Pinned against real libfabric 2.8.0a1 output, not a guessed format.
+
+    The first version of the row regex assumed plain integer sizes and a line
+    ending at MB/sec. Real output uses k/m suffixes ('6m'), an '=10' ack
+    column, and two trailing columns -- it matched zero rows. Parsing nothing
+    is indistinguishable from "the fabric produced nothing", which is exactly
+    the failure this module exists to prevent, so the real shape is pinned.
+    """
+    text = """bytes   #sent   #ack     total       time     MB/sec    usec/xfer   Mxfers/sec
+0       10      =10      0           0.00s      0.00       3.95       0.25
+64      10      =10      1.2k        0.00s     22.86       2.80       0.36
+1k      10      =10      20k         0.00s    252.84       4.05       0.25
+1.5k    10      =10      30k         0.00s    374.63       4.10       0.24
+6m      10      =10      120m        0.01s  23436.23     268.45       0.00
+"""
+    rows = parse_fi_pingpong(text)
+    assert len(rows) == 5
+
+    by_size = {r.size_bytes: r for r in rows}
+    assert 64 in by_size
+    assert 1024 in by_size          # '1k'
+    assert 1536 in by_size          # '1.5k' -> 1.5 * 1024
+    assert 6 * 1024 ** 2 in by_size  # '6m'
+
+    # 23436.23 MB/sec is ~23.4 GB/s: ~94% of one 25 GB/s rail. fi_pingpong is
+    # single-rail, so this is a per-rail ceiling, not an aggregate.
+    peak = by_size[6 * 1024 ** 2]
+    assert peak.busbw_bps is not None
+    assert 23.0e9 < peak.busbw_bps < 23.5e9
+
+    # A 0-byte row carries no bandwidth and must not be reported as 0 GB/s.
+    assert by_size[0].busbw_bps is None
+    assert by_size[0].note == "zero/NA"
+
+    assert all(r.layer == "fi" for r in rows)
+    assert all(r.buffer == "host" for r in rows)
+
+
+def test_torchcomms_to_nixl_gap_is_not_called_overhead():
+    """A NIXL number is not 'what torchcomms loses'.
+
+    They are different consumers of the fabric measuring different traffic,
+    so if both are present the gap must be labelled as such rather than
+    attributed to a component the way a real stack gap is.
+    """
+    from dl_comm.analysis.bottleneck import LayerMeasurement
+
+    def m(layer, bps):
+        return LayerMeasurement(layer=layer, collective="allreduce",
+                                size_bytes=1 << 22, busbw_bps=bps,
+                                buffer="device", ranks=2)
+
+    rep = analyse([m("torchcomms", 20e9), m("nixl", 16.2e9)])
+    assert len(rep.gaps) == 1
+    assert rep.gaps[0].component == (
+        "different consumer of the fabric, not a subset")
 
 
 def test_host_and_device_fabric_results_are_not_divided():

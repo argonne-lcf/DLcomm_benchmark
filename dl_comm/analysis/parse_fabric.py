@@ -60,10 +60,33 @@ _PASS = re.compile(r"PASS: destination buffer is byte-exact")
 _FAIL = re.compile(r"FAIL|MISMATCH|byte-exact.*fail", re.IGNORECASE)
 
 # fi_pingpong table row: bytes iters total time MB/sec
+# A real fi_pingpong data row, libfabric 2.8.0a1 (verified against job 6934):
+#
+#   bytes   #sent   #ack     total       time     MB/sec    usec/xfer   Mxfers/sec
+#   64      10      =10      1.2k        0.00s     22.86       2.80       0.36
+#   6m      10      =10      120m        0.01s  23436.23     268.45       0.00
+#
+# Both the size and the total column carry k/m/g suffixes, the ack column is
+# "=10" (or "10"), and two columns follow MB/sec. An earlier version of this
+# regex assumed plain integers and a line ending at MB/sec; it matched zero
+# rows of real output. The test suite now pins this against a captured log.
 _FI_PP_ROW = re.compile(
-    r"^\s*(?P<bytes>\d+)\s+(?P<iters>\d+)\s+\S+\s+(?P<time>[\d.]+)s?\s+"
-    r"(?P<mbps>[\d.]+)\s*$"
+    r"^\s*(?P<bytes>[\d.]+[kmg]?)\s+(?P<iters>\d+)\s+=?(?P<ack>\d+)\s+"
+    r"(?P<total>[\d.]+[kmg]?)\s+(?P<time>[\d.]+)s\s+"
+    r"(?P<mbps>[\d.]+)\s+(?P<usec>[\d.]+)\s+(?P<mxfers>[\d.]+)\s*$",
+    re.IGNORECASE,
 )
+
+_SUFFIX = {"k": 1024, "m": 1024 ** 2, "g": 1024 ** 3}
+
+
+def _fi_size(tok: str) -> int:
+    """Expand fi_pingpong's abbreviated sizes: '64' -> 64, '1.5k' -> 1536."""
+    tok = tok.strip().lower()
+    mult = _SUFFIX.get(tok[-1:], 1)
+    if mult != 1:
+        tok = tok[:-1]
+    return int(round(float(tok) * mult))
 
 # "provider: cxi" / "    domain: cxi0" from fi_info
 _FI_PROVIDER = re.compile(r"^\s*provider:\s*(?P<prov>\S+)")
@@ -197,7 +220,7 @@ def parse_fi_pingpong(text: str, ranks: int = 2,
         mbps = float(m.group("mbps"))
         out.append(LayerMeasurement(
             layer="fi", collective="pingpong",
-            size_bytes=int(m.group("bytes")),
+            size_bytes=_fi_size(m.group("bytes")),
             # fi_pingpong's MB/sec is 10^6 bytes/s.
             busbw_bps=mbps * 1e6 if mbps > 0 else None,
             buffer=buffer, ranks=ranks,
