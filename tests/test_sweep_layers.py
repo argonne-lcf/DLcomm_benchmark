@@ -108,6 +108,7 @@ class SweepHarness(unittest.TestCase):
         """)
         self._exe(self.w / "torch_dist_bench.py", "#!/bin/bash\nexit 0\n")
         self._exe(self.w / "nixl_putget_bench.py", "#!/bin/bash\nexit 0\n")
+        self._exe(self.w / "nixl_modes_bench.py", "#!/bin/bash\nexit 0\n")
 
         fib = self.w / "shs-libfabric-install/bin"
         fib.mkdir(parents=True)
@@ -344,8 +345,9 @@ class TestNixlAxes(SweepHarness):
     def test_op_by_memory_matrix(self):
         _, rows = self.sweep("nixl")
         cells = {r["cell"] for r in rows if r["layer"] == "nixl"}
-        self.assertEqual(cells, {"READ_VRAM", "READ_DRAM",
-                                 "WRITE_VRAM", "WRITE_DRAM"})
+        self.assertLessEqual({"READ_VRAM", "READ_DRAM",
+                              "WRITE_VRAM", "WRITE_DRAM"}, cells,
+                             "the op x mem matrix must all be present")
 
     def test_cxi_write_rejection_is_unsupported_not_failed(self):
         """WRITE returns -260 Flags not supported on this CXI stack. That is a
@@ -405,7 +407,9 @@ class TestNixlAxes(SweepHarness):
         rather than run and recorded as a failure."""
         _, rows = self.sweep("nixl", nodes="1")
         nixl = [r for r in rows if r["layer"] == "nixl"]
-        self.assertEqual(len(nixl), 4, "expected READ/WRITE x VRAM/DRAM")
+        # the op x mem matrix must all be present; the sweep also emits the
+        # dense ladder and the API-mode cells alongside it
+        self.assertGreaterEqual(len(nixl), 4, "expected READ/WRITE x VRAM/DRAM")
         for r in nixl:
             self.assertEqual(r["status"], "unsupported", f"{r['cell']}: {r}")
             self.assertIn("needs_2_nodes", r["detail"])
@@ -493,3 +497,105 @@ class TestScaleAndSelection(SweepHarness):
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
+
+
+class TestNixlCoverage(SweepHarness):
+    """The NIXL coverage extension: dense ladder + the four API modes."""
+
+    def test_all_four_modes_emitted_at_two_nodes(self):
+        _, rows = self.sweep("nixl", nodes="2")
+        cells = {r["cell"] for r in rows}
+        for mode in ("prepped", "batch", "notif", "introspect"):
+            self.assertIn(f"MODE_{mode}", cells,
+                          f"MODE_{mode} missing: a whole API surface would go "
+                          f"unmeasured while the sweep still reported success")
+
+    def test_ladder_cell_emitted(self):
+        _, rows = self.sweep("nixl", nodes="2")
+        self.assertIn("LADDER_VRAM", {r["cell"] for r in rows})
+
+    def test_one_node_marks_modes_unsupported_not_missing(self):
+        """1 node cannot run these, but it must still ACCOUNT for them.
+
+        Silently emitting fewer cells at 1 node hides the gap; the reader
+        cannot tell 'not applicable here' from 'we forgot'.
+        """
+        _, rows = self.sweep("nixl", nodes="1")
+        by = {r["cell"]: r for r in rows}
+        for mode in ("prepped", "batch", "notif", "introspect"):
+            self.assertIn(f"MODE_{mode}", by)
+            self.assertEqual(by[f"MODE_{mode}"]["status"], "unsupported")
+        self.assertEqual(by["LADDER_VRAM"]["status"], "unsupported")
+
+    def test_cell_count_matches_across_scales(self):
+        """Same NIXL cells at both scales, so counts are comparable."""
+        _, r1 = self.sweep("nixl", nodes="1")
+        _, r2 = self.sweep("nixl", nodes="2")
+        self.assertEqual({r["cell"] for r in r1}, {r["cell"] for r in r2})
+
+    def test_partial_ladder_is_failed_not_ok(self):
+        """Exit 0 with only some sizes verified must NOT score as ok.
+
+        A truncated ladder that still exits 0 is the most plausible way this
+        cell could lie: the numbers present would look fine.
+        """
+        # only two sizes verified, but exit 0: the truncated-ladder case
+        self._exe(self.w / "python_stub", """
+            #!/bin/bash
+            case "$*" in
+              *nixl_putget_bench*)
+                 echo "[nixl_putget] byte-exact check: PASS"
+                 echo "[nixl_putget] byte-exact check: PASS"
+                 exit 0 ;;
+              *) exit 0 ;;
+            esac
+        """)
+        _, rows = self.sweep("nixl", nodes="2")
+        lad = {r["cell"]: r for r in rows}.get("LADDER_VRAM")
+        self.assertIsNotNone(lad)
+        self.assertEqual(lad["status"], "failed")
+        self.assertIn("only_", lad["detail"])
+
+    def test_mode_timeout_is_failed(self):
+        """A hung mode is a failure, never 'unsupported'."""
+        self._exe(self.w / "python_stub", """
+            #!/bin/bash
+            case "$*" in
+              *nixl_modes_bench*) exit 124 ;;
+              *) echo "[nixl_putget] byte-exact check: PASS"; exit 0 ;;
+            esac
+        """)
+        _, rows = self.sweep("nixl", nodes="2")
+        for r in rows:
+            if r["cell"].startswith("MODE_"):
+                self.assertEqual(r["status"], "failed")
+                self.assertIn("timeout", r["detail"])
+
+    def test_mode_backend_error_stays_failed(self):
+        """NIXL_ERR_BACKEND on a READ mode is a real failure.
+
+        The WRITE exemption must not leak: these modes all run READ, where
+        that error means something is genuinely wrong.
+        """
+        self._exe(self.w / "python_stub", """
+            #!/bin/bash
+            case "$*" in
+              *nixl_modes_bench*)
+                 echo "nixl_cu12._bindings.nixlBackendError: NIXL_ERR_BACKEND"
+                 exit 1 ;;
+              *) echo "[nixl_putget] byte-exact check: PASS"; exit 0 ;;
+            esac
+        """)
+        _, rows = self.sweep("nixl", nodes="2")
+        for r in rows:
+            if r["cell"].startswith("MODE_"):
+                self.assertEqual(r["status"], "failed",
+                                 "a READ-path backend error was excused as "
+                                 "unsupported; that is how a harness lies")
+
+    def test_missing_modes_bench_is_unavailable_not_silent(self):
+        (self.w / "nixl_modes_bench.py").unlink()
+        _, rows = self.sweep("nixl", nodes="2")
+        by = {r["cell"]: r for r in rows}
+        self.assertIn("MODE_all", by)
+        self.assertEqual(by["MODE_all"]["status"], "unavailable")

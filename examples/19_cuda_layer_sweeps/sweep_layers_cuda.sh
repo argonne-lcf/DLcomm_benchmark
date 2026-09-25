@@ -59,6 +59,7 @@ OSU_GTL=${DLCOMM_OSU_GTL:-$W/bench_install_gtl/libexec/osu-micro-benchmarks/mpi}
 NCCL_TESTS=${DLCOMM_NCCL_TESTS:-$W/bench_src/nccl-tests/build}
 TORCH_BENCH=${DLCOMM_TORCH_BENCH:-$W/torch_dist_bench.py}
 NIXL_BENCH=${DLCOMM_NIXL_BENCH:-$W/nixl_putget_bench.py}
+NIXL_MODES=${DLCOMM_NIXL_MODES:-$W/nixl_modes_bench.py}
 PY=${DLCOMM_PYTHON:-$W/venv/bin/python}
 
 # PALS lives at /opt/cray/pals on Tara and /opt/cray/pe/pals elsewhere.
@@ -88,8 +89,20 @@ export MASTER_PORT=${MASTER_PORT:-29531}
 
 if [ "$QUICK" = "1" ]; then
     MSG_MIN=4096;  MSG_MAX=1048576;   NIXL_SIZES=4096,1048576
+    # dense ladder still needs >1 point to show a curve
+    NIXL_LADDER=4096,65536,1048576
+    NIXL_MODE_SIZES=65536,1048576
+    NIXL_BATCH_COUNTS=1,4,16
 else
     MSG_MIN=4096;  MSG_MAX=268435456; NIXL_SIZES=4096,1048576,268435456,1073741824
+    # Dense power-of-2 ladder 4 KiB -> 1 GiB (19 points). The old 4-point set
+    # jumped 256x between 1 MiB and 256 MiB, straddling the eager/rendezvous
+    # transition and hiding where the fixed per-transfer cost stops dominating.
+    NIXL_LADDER=4096,8192,16384,32768,65536,131072,262144,524288,1048576,2097152,4194304,8388608,16777216,33554432,67108864,134217728,268435456,536870912,1073741824
+    # three points for the API-coverage modes: below, around, and above the
+    # size where the fixed cost stops dominating
+    NIXL_MODE_SIZES=65536,16777216,1073741824
+    NIXL_BATCH_COUNTS=1,4,16,64,256
 fi
 
 echo "=================================================================="
@@ -335,6 +348,17 @@ if [ "$NNODES" -lt 2 ] && [ -f "$NIXL_BENCH" ]; then
         unsupported "needs_2_nodes_second_LIBFABRIC_agent_cannot_construct_same_node"
     done
   done
+  # The ladder and the API-coverage modes need two agents just as much, so
+  # declare them here too. Omitting them would make the 1-node and 2-node
+  # cell counts differ for no stated reason.
+  echo "  LADDER_VRAM unsupported (same-node CXI has no loopback)"
+  csv nixl LADDER_VRAM size ladder putget VRAM - 0 0 \
+    unsupported "needs_2_nodes_second_LIBFABRIC_agent_cannot_construct_same_node"
+  for MODE in prepped batch notif introspect; do
+    echo "  MODE_${MODE} unsupported (same-node CXI has no loopback)"
+    csv nixl "MODE_${MODE}" api "$MODE" modes VRAM - 0 0 \
+      unsupported "needs_2_nodes_second_LIBFABRIC_agent_cannot_construct_same_node"
+  done
 elif [ -f "$NIXL_BENCH" ]; then
   EXPECT=$([ "$NNODES" -eq 1 ] && echo same-node || echo cross-node)
   PPN=$([ "$NNODES" -eq 1 ] && echo 2 || echo 1)
@@ -363,6 +387,58 @@ elif [ -f "$NIXL_BENCH" ]; then
       csv nixl "$CELL" op "$op" putget "$mem" "$EXPECT" "$RC" "$NP" "$ST" "$DET"
     done
   done
+
+  # ---- dense size ladder -------------------------------------------------
+  # 19 power-of-2 points, READ/VRAM only. The 4-point set above jumps 256x
+  # between 1 MiB and 256 MiB; this resolves where the fixed per-transfer
+  # cost stops dominating. WRITE is skipped: unsupported on CXI.
+  SYNC=$RUN/nixl_sync_ladder; rm -rf "$SYNC"; mkdir -p "$SYNC"
+  F=$RUN/nixl_LADDER_VRAM.txt
+  timeout 900 $MPIEXEC -n 2 -ppn "$PPN" \
+      "$W/pals_nixl_env.sh" "$PY" "$NIXL_BENCH" \
+      --op READ --mem VRAM --sync-dir "$SYNC" --expect "$EXPECT" \
+      --sizes "$NIXL_LADDER" --json-out "$RUN/nixl_LADDER_VRAM.json" > "$F" 2>&1
+  RC=$?; NP=$(grep -c 'byte-exact check: PASS' "$F" 2>/dev/null)
+  NPTS=$(echo "$NIXL_LADDER" | tr ',' '\n' | grep -c .)
+  if [ "$RC" -eq 0 ] && [ "$NP" -eq "$NPTS" ]; then ST=ok; DET="${NP}_of_${NPTS}_sizes"
+  elif [ "$RC" -eq 0 ]; then ST=failed; DET="only_${NP}_of_${NPTS}_sizes_verified"
+  else ST=failed; DET="exit_$RC"; fi
+  printf '  %-14s exit=%-3s pass=%-3s %s %s\n' "LADDER_VRAM" "$RC" "$NP" "$ST" "$DET"
+  csv nixl LADDER_VRAM size ladder putget VRAM "$EXPECT" "$RC" "$NP" "$ST" "$DET"
+
+  # ---- API-coverage modes ------------------------------------------------
+  # prepped/batch/notif/introspect cover the 26 nixl_agent methods the basic
+  # lifecycle never touches. Separate cells so a slow or broken mode names
+  # itself instead of hiding inside an aggregate.
+  if [ -f "$NIXL_MODES" ]; then
+    for MODE in prepped batch notif introspect; do
+      CELL="MODE_${MODE}"
+      SYNC=$RUN/nixl_sync_$CELL; rm -rf "$SYNC"; mkdir -p "$SYNC"
+      F=$RUN/nixl_${CELL}.txt
+      # batch registers up to 256 buffers per point and walks 5 points, so it
+      # needs a longer leash than the others. Job 6958 died at the n=16
+      # barrier on the 300 s default while its transfers were healthy.
+      case "$MODE" in
+        batch) CT=2400; BT=900 ;;
+        *)     CT=900;  BT=300 ;;
+      esac
+      timeout $CT env NIXL_SYNC_TIMEOUT=$BT $MPIEXEC -n 2 -ppn "$PPN" \
+          "$W/pals_nixl_env.sh" "$PY" "$NIXL_MODES" \
+          --mode "$MODE" --op READ --mem VRAM --sync-dir "$SYNC" \
+          --expect "$EXPECT" --sizes "$NIXL_MODE_SIZES" \
+          --batch-counts "$NIXL_BATCH_COUNTS" \
+          --json-out "$RUN/nixl_${CELL}.json" > "$F" 2>&1
+      RC=$?; NP=$(grep -c 'byte-exact check: PASS' "$F" 2>/dev/null)
+      # introspect makes one transfer, so one PASS is the full score there.
+      if [ "$RC" -eq 0 ] && [ "$NP" -gt 0 ]; then ST=ok; DET="${NP}_verified"
+      elif [ "$RC" -eq 124 ] || [ "$RC" -eq 143 ]; then ST=failed; DET="timeout_$RC"
+      else ST=failed; DET="exit_$RC"; fi
+      printf '  %-14s exit=%-3s pass=%-3s %s %s\n' "$CELL" "$RC" "$NP" "$ST" "$DET"
+      csv nixl "$CELL" api "$MODE" modes VRAM "$EXPECT" "$RC" "$NP" "$ST" "$DET"
+    done
+  else
+    csv nixl MODE_all api all modes - - 0 0 unavailable "nixl_modes_bench_missing"
+  fi
 else
   csv nixl all op all - - - 0 0 unavailable "nixl_putget_bench_missing"
 fi
