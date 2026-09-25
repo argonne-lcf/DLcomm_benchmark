@@ -94,6 +94,53 @@ check("batch detail corrected from 'timeout'",
       m and "rail_completion_failure" in m.group(1),
       m.group(1).strip() if m else "row missing")
 
+# --- status semantics must be spelled out, not left to the reader
+import csv as _csv
+check("coverage explains unsupported != success",
+      "Only the `ok` column is a measurement" in REPORT
+      and "not a fully measured stack" in REPORT,
+      "semantics paragraph present")
+check("non-ok cells are itemised with reasons",
+      "### Every cell that produced no measurement" in REPORT,
+      "itemised table present")
+for reason in ("needs_2_nodes_CXI_has_no_loopback_fi_domain_ret_-38",
+               "cxi_rma_write_unsupported"):
+    check(f"reason '{reason[:34]}...' surfaced", reason in REPORT, "cited")
+
+# the 'measured' percentage must equal ok/total from the CSV
+for jn, sub, label in (("6956", "1node", "1 node"), ("6957", "2node", "2 nodes")):
+    p = R.parent.parent / jn / sub / "sweep_results.csv"
+    if p.exists():
+        rr = list(_csv.DictReader(open(p)))
+        pct = round(100.0 * sum(1 for x in rr if x["status"] == "ok") / len(rr))
+        check(f"measured% for {label} matches CSV",
+              re.search(rf"\| {label}[^|]*\| {jn} \|.*\| {pct}% \|", REPORT) is not None,
+              f"CSV gives {pct}%")
+
+# --- hardware provenance
+check("hardware section present at both scales",
+      REPORT.count("### Hardware actually used") == 2, "2 sections")
+check("GH200 devices listed with PCI addresses",
+      REPORT.count("NVIDIA GH200 120GB") >= 12
+      and "0009:01:00" in REPORT, "rank->device->PCI map present")
+check("per-layer GPU usage table present",
+      REPORT.count("| layer | ranks | GPUs used | how it was launched |") == 2,
+      "both scales")
+check("layer 1 stated as using no GPU",
+      "**0 GPUs**" in REPORT, "fi_pingpong is host-memory")
+check("NIXL's 1-GPU-per-node geometry stated",
+      "**1 GPU per node**" in REPORT, "cited")
+check("aggregate-vs-point-to-point caveat present",
+      "not evidence that NIXL is slower per GPU" in REPORT, "caveat present")
+
+# hosts in the report must be the hosts in the logs
+hosts_log = set(re.findall(r"on (x\d+c\d+s\d+b\d+n\d+) device",
+                           (R.parent.parent / "6957/2node/nccl_coll_all_reduce.txt")
+                           .read_text(errors="replace")))
+check("2-node hosts match the NCCL log",
+      hosts_log and all(h in REPORT for h in hosts_log),
+      f"{sorted(hosts_log)}")
+
 # --- prepped speedups
 txt = (R / "nixl_MODE_prepped.txt").read_text(errors="replace")
 sp = re.findall(r"speedup\s+([\d.]+)x", txt)

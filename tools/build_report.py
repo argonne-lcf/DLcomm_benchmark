@@ -113,17 +113,114 @@ def main():
              "Cells with no measurement are reported as missing, not estimated.\n")
 
     L.append(section("Coverage"))
-    L.append("| Scale | Job | ok | failed | unsupported | unavailable | total |")
-    L.append("|---|---|---|---|---|---|---|")
+    L.append(
+        "`ok` means the benchmark ran and produced numbers. The other three "
+        "columns are **not** successes and are not interchangeable:\n\n"
+        "- `unsupported` — the platform cannot do this, and the sweep proved "
+        "it rather than assuming it. The cell was attempted and the stack "
+        "refused it for a identifiable reason.\n"
+        "- `unavailable` — the cell cannot be attempted meaningfully at this "
+        "scale (for example a cross-node pingpong on a single node).\n"
+        "- `failed` — the operation was accepted and then broke. This is a "
+        "defect, never excused.\n\n"
+        "Only the `ok` column is a measurement. A row where "
+        "ok + unsupported + unavailable = total is a **completed sweep**, not "
+        "a fully measured stack: the unsupported and unavailable cells "
+        "produced no performance data. Every non-ok cell is listed with its "
+        "recorded reason in the table after this one.\n")
+    L.append("| Scale | Job | ok | failed | unsupported | unavailable | total | measured |")
+    L.append("|---|---|---|---|---|---|---|---|")
     for tag, (job, _, rows) in runs.items():
         c = defaultdict(int)
         for r in rows:
             c[r["status"]] += 1
+        pct = 100.0 * c["ok"] / len(rows) if rows else 0.0
         L.append(f"| {tag} | {job} | {c['ok']} | {c['failed']} | "
-                 f"{c['unsupported']} | {c['unavailable']} | {len(rows)} |")
+                 f"{c['unsupported']} | {c['unavailable']} | {len(rows)} | "
+                 f"{pct:.0f}% |")
+
+    # Every non-ok cell, with the reason the job itself recorded. Without this
+    # the counts above can be misread as "everything completed".
+    L.append("\n### Every cell that produced no measurement\n")
+    L.append("| Scale | Job | layer | cell | status | recorded reason |")
+    L.append("|---|---|---|---|---|---|")
+    any_non_ok = False
+    for tag, (job, _, rows) in runs.items():
+        for r in rows:
+            if r["status"] != "ok":
+                any_non_ok = True
+                L.append(f"| {tag} | {job} | {r['layer']} | {r['cell']} | "
+                         f"{r['status']} | `{r['detail']}` |")
+    if not any_non_ok:
+        L.append("| - | - | - | - | - | every cell produced a measurement |")
+    L.append("")
 
     for tag, (job, d, rows) in runs.items():
         L.append(section(f"{tag} — job {job}"))
+
+        # ---- which GPUs actually participated ----
+        # Not every layer uses every GPU, and that changes how the numbers
+        # compare. NCCL prints an explicit rank->host->device->PCI map; the
+        # other layers are pinned by the launcher geometry.
+        L.append("\n### Hardware actually used\n")
+        gpumap = []
+        for f in sorted(d.glob("nccl_*.txt")):
+            for line in open(f, errors="ignore"):
+                m = re.match(r"#\s+Rank\s+(\d+) Group\s+\d+ Pid\s+\d+ on (\S+) "
+                             r"device\s+(\d+) \[([^\]]+)\] (.+)", line.strip())
+                if m:
+                    gpumap.append(m.groups())
+            if gpumap:
+                break
+        if gpumap:
+            L.append("| rank | host | device | PCI | GPU |")
+            L.append("|---|---|---|---|---|")
+            for rk, host, dev, pci, name in gpumap:
+                L.append(f"| {rk} | {host} | {dev} | {pci} | {name.strip()} |")
+            hosts = sorted({h for _, h, _, _, _ in gpumap})
+            L.append(f"\nThat is {len(gpumap)} ranks over {len(hosts)} host(s) "
+                     f"({', '.join(hosts)}), one rank per GPU. Read from the "
+                     f"NCCL log, which is the only layer that prints the PCI "
+                     f"address of each device it opened.\n")
+
+        tw = next(iter(sorted(d.glob("torch_*.txt"))), None)
+        world = None
+        if tw:
+            m = re.search(r"world=(\d+)", open(tw, errors="ignore").readline())
+            world = m.group(1) if m else None
+
+        nranks = len(gpumap) if gpumap else "?"
+        L.append("\n**GPUs per layer — the layers do not all use the same "
+                 "hardware, and the numbers are not comparable without this:**\n")
+        L.append("| layer | ranks | GPUs used | how it was launched |")
+        L.append("|---|---|---|---|")
+        L.append(f"| 1 libfabric / CXI | 2 | **0 GPUs** | `mpiexec -n 2 -ppn 1`; "
+                 "`fi_pingpong` is a host-memory NIC test, no CUDA involved |")
+        L.append(f"| 2 Cray MPICH (OSU) | {nranks} | all {nranks} | "
+                 f"`-n {nranks} -ppn 4`; the `_device` cells use GPU buffers "
+                 "via GTL, the `_host` cells use host buffers |")
+        L.append(f"| 3 NCCL | {nranks} | all {nranks} | "
+                 f"`-n {nranks} -ppn 4`, one GPU per rank (table above) |")
+        L.append(f"| 4 torch.distributed | {world or nranks} | "
+                 f"all {world or nranks} | `-n {nranks} -ppn 4`, "
+                 f"`world={world or '?'}`, NCCL backend |")
+        nixl_ran = any(r["layer"] == "nixl" and r["status"] == "ok"
+                       for r in rows)
+        if nixl_ran:
+            L.append("| 5 NIXL | 2 | **1 GPU per node** | `mpiexec -n 2 -ppn 1`; "
+                     "one initiator and one target, `gpu=0` on each node |")
+        else:
+            L.append("| 5 NIXL | 2 attempted | **none** | `mpiexec -n 2 -ppn 1`; "
+                     "the second agent could not construct, so no GPU was "
+                     "ever used |")
+        L.append("| 6 torchcomms | 0 | none | not installed |")
+        L.append("""
+This matters when reading the report. NCCL's 327 GB/s at 1 node is an
+aggregate over 4 GPUs cooperating; NIXL's 20-38 GB/s is a single point-to-point
+stream between one GPU on each of two nodes. They are different measurements,
+and NIXL being the smaller number is not evidence that NIXL is slower per GPU.
+Layer 1 touches no GPU at all -- it is the NIC ceiling the others inherit.
+""")
 
         # ---- fi ----
         fi = [r for r in rows if r["layer"] == "fi"]
