@@ -48,6 +48,52 @@ check("1 GiB rate cited from data",
       m and abs(float(m.group(1)) - gib) < 0.05,
       f"data {gib:.4f}; prose {m.group(1) if m else None}")
 
+# --- structural: every declared layer present at BOTH scales
+LAYER_ORDER = ("fi", "osu", "cpp_ccl", "torch_dist", "torchcomms", "nixl")
+secs = re.split(r"\n## ", REPORT)
+scale_secs = {s.split("\n")[0]: s for s in secs
+              if re.match(r"\d+ nodes? / \d+ GPUs", s.split("\n")[0])}
+check("both scale sections present", len(scale_secs) == 2, list(scale_secs))
+for name, body in scale_secs.items():
+    subs = re.findall(r"\n### Layer \d+ — ([^\n]+)", body)
+    check(f"[{name}] has 6 layer subsections", len(subs) == 6, f"{len(subs)}: {subs}")
+    check(f"[{name}] names torchcomms explicitly",
+          any("torchcomms" in s for s in subs), "Layer 6 present")
+    check(f"[{name}] names NIXL explicitly",
+          any("NIXL" in s for s in subs), "Layer 5 present")
+
+# a layer that is absent must say why, not just be empty
+for name, body in scale_secs.items():
+    m = re.search(r"### Layer 6 — torchcomms\n(.*?)(?=\n### |\Z)", body, re.S)
+    txt = (m.group(1) if m else "")
+    check(f"[{name}] torchcomms absence is explained",
+          "not installed" in txt and len(txt.strip()) > 80,
+          f"{len(txt.strip())} chars of reason")
+
+# --- 1-node NIXL must show the 4 unsupported cells and the loopback reason
+one = next((b for n, b in scale_secs.items() if n.startswith("1 node")), "")
+m = re.search(r"### Layer 5 — NIXL[^\n]*\n(.*?)(?=\n### |\Z)", one, re.S)
+nx1 = m.group(1) if m else ""
+check("1-node NIXL lists 4 cells", nx1.count("| unsupported |") == 4,
+      f"{nx1.count('| unsupported |')} unsupported rows")
+check("1-node NIXL explains loopback", "no loopback" in nx1, "reason given")
+
+# --- cell totals in the Coverage table must match the CSVs
+import csv as _csv
+for jn, sub, label in (("6956", "1node", "1 node"), ("6957", "2node", "2 nodes")):
+    p = R.parent.parent / jn / sub / "sweep_results.csv"
+    if p.exists():
+        n = len(list(_csv.DictReader(open(p))))
+        check(f"coverage total for {label} matches CSV",
+              re.search(rf"\| {label}[^|]*\| {jn} \|.*\| {n} \|", REPORT) is not None,
+              f"CSV has {n} cells")
+
+# --- the batch row must not be labelled a plain timeout
+m = re.search(r"\| MODE_batch \| failed \| \d+ \| ([^|]+)\|", REPORT)
+check("batch detail corrected from 'timeout'",
+      m and "rail_completion_failure" in m.group(1),
+      m.group(1).strip() if m else "row missing")
+
 # --- prepped speedups
 txt = (R / "nixl_MODE_prepped.txt").read_text(errors="replace")
 sp = re.findall(r"speedup\s+([\d.]+)x", txt)

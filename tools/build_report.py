@@ -201,18 +201,39 @@ def main():
                          if b else f"| {name} | no rows | - | - |")
 
         # ---- nixl ----
+        # Driven by the CSV, not by the presence of output files. At 1 node
+        # the cells are unsupported and write no .txt at all, which silently
+        # deleted the entire layer from that section -- indistinguishable
+        # from "we forgot to run it".
         nx = sorted(d.glob("nixl_*.txt"))
-        if nx:
+        nixl_rows = [r for r in rows if r["layer"] == "nixl"]
+        if nx or nixl_rows:
             L.append("\n### Layer 5 — NIXL (above torchcomms), LIBFABRIC backend\n")
-            L.append("Timings are end-to-end per iteration and include a fixed "
-                     "cost of roughly 20 ms that is present even at 4 KiB "
-                     "(measured: 20536 us at 4 KiB DRAM, 22159 us at 4 KiB "
-                     "VRAM). Small-size GB/s figures are therefore dominated "
-                     "by that floor and are not fabric bandwidth; only the "
-                     "256 MiB and 1 GiB rows approach a transfer-limited "
-                     "regime. Every GB/s below was re-derived from bytes and "
-                     "microseconds and matches the benchmark's own printed "
-                     "value.\n")
+            if nixl_rows:
+                L.append("| cell | status | detail |")
+                L.append("|---|---|---|")
+                for r in nixl_rows:
+                    L.append(f"| {r['cell']} | {r['status']} | {r['detail']} |")
+                L.append("")
+            if not nx:
+                L.append(
+                    "No NIXL measurement exists at this scale, and this is a "
+                    "platform limit rather than a gap in the sweep. NIXL needs "
+                    "two agents; the second LIBFABRIC agent cannot be "
+                    "constructed against a same-node peer because CXI has no "
+                    "loopback path, the same reason `fi_pingpong` is "
+                    "unavailable at layer 1. All four cells above are recorded "
+                    "as `unsupported`, not `failed`.\n")
+            else:
+                L.append("Timings are end-to-end per iteration and include a fixed "
+                         "cost of roughly 20 ms that is present even at 4 KiB "
+                         "(measured: 20536 us at 4 KiB DRAM, 22159 us at 4 KiB "
+                         "VRAM). Small-size GB/s figures are therefore dominated "
+                         "by that floor and are not fabric bandwidth; only the "
+                         "256 MiB and 1 GiB rows approach a transfer-limited "
+                         "regime. Every GB/s below was re-derived from bytes and "
+                         "microseconds and matches the benchmark's own printed "
+                         "value.\n")
             for f in nx:
                 rr = nixl_best(f)
                 name = f.stem.replace("nixl_", "")
@@ -226,6 +247,61 @@ def main():
                 L.append("|---|---|---|")
                 for sz, b, m in rr:
                     L.append(f"| {sz} | {b:.2f} | {m:.2f} |")
+
+            # API-coverage cells live in their own jobs; surface them here so
+            # this section is the whole NIXL story at this scale.
+            if d.name == "2node":
+                extra = []
+                for jn in ("6959", "6958"):
+                    c = ROOT / jn / "2node" / "sweep_results.csv"
+                    if c.exists():
+                        extra = [(jn, r) for r in load(c)
+                                 if r["layer"] == "nixl"
+                                 and r["cell"] not in {x["cell"] for x in nixl_rows}]
+                        if extra:
+                            break
+                if extra:
+                    L.append(f"\n#### API-coverage cells — job {extra[0][0]}\n")
+                    L.append("| cell | status | rows | detail |")
+                    L.append("|---|---|---|---|")
+                    for _, r in extra:
+                        det = r["detail"]
+                        # The driver can only see exit 143 and labels it a
+                        # timeout. Reading the log shows a libfabric rail
+                        # completion failure, and the 6959 rerun with a much
+                        # longer leash failed identically -- so "timeout" is
+                        # the wrong word for the table a reader audits.
+                        if r["cell"] == "MODE_batch" and det.startswith("timeout"):
+                            det = ("rail_completion_failure_at_N>=16 "
+                                   f"(driver saw {det}; see log)")
+                        L.append(f"| {r['cell']} | {r['status']} | {r['rows']} "
+                                 f"| {det} |")
+                    L.append("\nThese extend the same layer at the same scale "
+                             "with the dense size ladder and the prepped, "
+                             "batch, notification and introspection API paths. "
+                             "They are analysed in full under \"NIXL API "
+                             "coverage and the fixed-cost floor\" below.\n")
+
+        # ---- torchcomms ----
+        # Declared in LAYER_ORDER and therefore owed an explicit row. A layer
+        # the report claims to cover and then silently drops is worse than one
+        # that is openly absent.
+        tc = [r for r in rows if r["layer"] == "torchcomms"]
+        L.append("\n### Layer 6 — torchcomms\n")
+        if tc:
+            L.append("| cell | status | detail |")
+            L.append("|---|---|---|")
+            for r in tc:
+                L.append(f"| {r['cell']} | {r['status']} | {r['detail']} |")
+        else:
+            L.append(
+                "Not measured at this scale, and not because the sweep skipped "
+                "it: torchcomms is not installed on Tara North, so the layer "
+                "emits no cells at all. The sweep's `LAYER_ORDER` still lists "
+                "it, and NIXL is positioned above it in the stack, so the "
+                "absence is recorded here rather than left as a silent hole. "
+                "Nothing in this report should be read as a torchcomms "
+                "measurement.\n")
 
     L.append(section("What each layer's numbers mean"))
     L.append("""
