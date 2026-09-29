@@ -590,6 +590,18 @@ Anyone planning to schedule against NIXL's own cost estimates on this platform
 should know these return nothing usable today.
 """)
 
+    # Measured cross-layer profiling (jobs 6993/6994). Imported so the
+    # numbers come from the profiler's own logs, never restated by hand.
+    try:
+        import profile_section
+        L.extend(profile_section.build(sys.argv[1]))
+    except Exception as e:                      # never fail the whole report
+        L.append("")
+        L.append("## Cross-layer profiling")
+        L.append("")
+        L.append(f"Profiling section unavailable: `{e}`")
+        L.append("")
+
     L.append(section("Honest limits of this report"))
     L.append("""
 - Two node counts only (1 and 2). Scaling behaviour beyond 2 nodes is not

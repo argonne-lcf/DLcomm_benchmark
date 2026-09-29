@@ -48,7 +48,7 @@ W=${DLCOMM_WORKDIR:-$HOME/Dynamo_Slingshot_tara}
 NNODES=${DLCOMM_NNODES:?set DLCOMM_NNODES to 1 or 2}
 GPUS_PER_NODE=${DLCOMM_GPUS_PER_NODE:-4}
 RUN=${DLCOMM_RUN_DIR:-$W/sweeps_${PBS_JOBID:-manual}/${NNODES}node}
-LAYERS=${DLCOMM_LAYERS:-fi,osu,nccl,torch_dist,nixl}
+LAYERS=${DLCOMM_LAYERS:-fi,osu,nccl,torch_dist,nixl,profile}
 QUICK=${DLCOMM_QUICK:-0}      # 1 = tiny message range, for a fast smoke test
 
 mkdir -p "$RUN"
@@ -60,6 +60,7 @@ NCCL_TESTS=${DLCOMM_NCCL_TESTS:-$W/bench_src/nccl-tests/build}
 TORCH_BENCH=${DLCOMM_TORCH_BENCH:-$W/torch_dist_bench.py}
 NIXL_BENCH=${DLCOMM_NIXL_BENCH:-$W/nixl_putget_bench.py}
 NIXL_MODES=${DLCOMM_NIXL_MODES:-$W/nixl_modes_bench.py}
+LAYER_PROFILE=${DLCOMM_LAYER_PROFILE:-$W/layer_profile.py}
 PY=${DLCOMM_PYTHON:-$W/venv/bin/python}
 
 # PALS lives at /opt/cray/pals on Tara and /opt/cray/pe/pals elsewhere.
@@ -441,6 +442,91 @@ elif [ -f "$NIXL_BENCH" ]; then
   fi
 else
   csv nixl all op all - - - 0 0 unavailable "nixl_putget_bench_missing"
+fi
+fi
+
+# ==================================================================
+# LAYER profile -- cross-layer attribution
+# ==================================================================
+# The rest of the sweep measures how fast each layer is. None of it can say
+# WHY one layer is slower than another, because a single wall-clock number
+# per cell has no internal structure, and because the layers are not run at
+# a common operation/geometry.
+#
+# This layer fixes both. It runs allreduce at identical sizes on identical
+# ranks through MPI, NCCL and torch, and it records the phase breakdown plus
+# the transport NCCL actually selected. Without the transport record, a slow
+# 2-node NCCL number cannot be attributed to anything.
+if want profile; then
+echo ""; echo "########## profile: cross-layer attribution ##########"
+PROF_SIZES=${DLCOMM_PROF_SIZES:-1MiB,16MiB,256MiB}
+PROF_ITERS=${DLCOMM_PROF_ITERS:-20}
+
+if [ -f "$LAYER_PROFILE" ]; then
+
+  # --- provenance: what did the stack actually pick, per rank ---
+  F="$RUN/profile_provenance.txt"
+  timeout 300 $MPIEXEC -n "$RANKS" -ppn "$GPUS_PER_NODE" \
+      "$W/pals_nixl_env.sh" "$PY" "$LAYER_PROFILE" \
+      --layer provenance > "$F" 2>&1
+  RC=$?
+  NP=$(grep -c '"host"' "$F" 2>/dev/null | head -1)
+  if [ "$RC" = 0 ] && [ "$NP" -gt 0 ]; then ST=ok; DET="${NP}_ranks_reported"
+  else ST=failed; DET="exit_$RC"; fi
+  printf '  %-22s exit=%-3s pass=%-3s %s %s\n' provenance "$RC" "$NP" "$ST" "$DET"
+  csv profile provenance env all - - - "$RC" "$NP" "$ST" "$DET"
+
+  # --- NCCL transport discovery ---
+  # NCCL_DEBUG=INFO makes NCCL name its own transport. This is the single
+  # most important line in the whole sweep for explaining the 2-node cliff:
+  # NET/Socket means it fell back to TCP, NET/OFI means it is on the fabric.
+  F="$RUN/profile_nccl_transport.txt"
+  NCCL_DEBUG=INFO NCCL_DEBUG_SUBSYS=INIT,NET,ENV \
+  MPICH_GPU_SUPPORT_ENABLED=1 timeout 600 $MPIEXEC -n "$RANKS" -ppn "$GPUS_PER_NODE" \
+      "$W/pals_torch_env.sh" "$PY" "$LAYER_PROFILE" \
+      --sizes 16MiB --iters 5 > "$F" 2>&1
+  RC=$?
+  NET=$(grep -ohE 'NET/[A-Za-z]+' "$F" 2>/dev/null | sort -u | paste -sd'|' -)
+  [ -z "$NET" ] && NET=no_NET_line_in_output
+  if [ "$RC" = 0 ]; then ST=ok; DET="transport=$NET"
+  else ST=failed; DET="exit_${RC}_transport=$NET"; fi
+  printf '  %-22s exit=%-3s %s %s\n' nccl_transport "$RC" "$ST" "$DET"
+  csv profile nccl_transport transport "$NET" - - - "$RC" 1 "$ST" "$DET"
+
+  # --- phase breakdown ladder ---
+  F="$RUN/profile_phases.txt"
+  J="$RUN/profile_phases.json"
+  MPICH_GPU_SUPPORT_ENABLED=1 timeout 900 $MPIEXEC -n "$RANKS" -ppn "$GPUS_PER_NODE" \
+      "$W/pals_torch_env.sh" "$PY" "$LAYER_PROFILE" \
+      --sizes "$PROF_SIZES" --iters "$PROF_ITERS" \
+      --json-out "$J" > "$F" 2>&1
+  RC=$?
+  NP=$(grep -c 'allreduce(device)' "$F" 2>/dev/null | head -1)
+  if [ "$RC" = 0 ] && [ "$NP" -gt 0 ]; then ST=ok; DET="${NP}_sizes_phase_profiled"
+  else ST=failed; DET="exit_$RC"; fi
+  printf '  %-22s exit=%-3s pass=%-3s %s %s\n' phases "$RC" "$NP" "$ST" "$DET"
+  # PROF_SIZES contains commas; embedding it raw shifts every later CSV
+  # field and corrupts the status column. Use a comma-free form.
+  PROF_SIZES_TAG=$(echo "$PROF_SIZES" | tr ',' '+')
+  csv profile phases phase "$PROF_SIZES_TAG" allreduce float32 - "$RC" "$NP" "$ST" "$DET"
+
+  # --- isolation control ---
+  # Guards against the profiler shaping its own result: one size, fresh
+  # process, nothing else touched first. If this disagrees with the same
+  # size inside the ladder above, the ladder numbers are void.
+  F="$RUN/profile_isolation_control.txt"
+  MPICH_GPU_SUPPORT_ENABLED=1 timeout 300 $MPIEXEC -n "$RANKS" -ppn "$GPUS_PER_NODE" \
+      "$W/pals_torch_env.sh" "$PY" "$LAYER_PROFILE" \
+      --only-size 16MiB --iters "$PROF_ITERS" > "$F" 2>&1
+  RC=$?
+  NP=$(grep -c 'allreduce(device)' "$F" 2>/dev/null | head -1)
+  if [ "$RC" = 0 ] && [ "$NP" -gt 0 ]; then ST=ok; DET="isolated_16MiB_measured"
+  else ST=failed; DET="exit_$RC"; fi
+  printf '  %-22s exit=%-3s pass=%-3s %s %s\n' isolation_control "$RC" "$NP" "$ST" "$DET"
+  csv profile isolation_control control 16MiB allreduce float32 - "$RC" "$NP" "$ST" "$DET"
+
+else
+  csv profile all phase all - - - 0 0 unavailable "layer_profile_py_missing"
 fi
 fi
 

@@ -15,7 +15,7 @@ class Counter(SweepHarness):
 for nodes in ("1", "2"):
     h = Counter(); h.setUp()
     total = {}
-    for layer in ("fi", "osu", "nccl", "torch_dist", "nixl"):
+    for layer in ("fi", "osu", "nccl", "torch_dist", "nixl", "profile"):
         shutil.rmtree(h.run, ignore_errors=True)
         _, rows = h.sweep(layer, nodes=nodes)
         total[layer] = len(rows)

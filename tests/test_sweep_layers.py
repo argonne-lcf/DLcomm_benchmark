@@ -109,6 +109,7 @@ class SweepHarness(unittest.TestCase):
         self._exe(self.w / "torch_dist_bench.py", "#!/bin/bash\nexit 0\n")
         self._exe(self.w / "nixl_putget_bench.py", "#!/bin/bash\nexit 0\n")
         self._exe(self.w / "nixl_modes_bench.py", "#!/bin/bash\nexit 0\n")
+        self._exe(self.w / "layer_profile.py", "#!/bin/bash\nexit 0\n")
 
         fib = self.w / "shs-libfabric-install/bin"
         fib.mkdir(parents=True)
