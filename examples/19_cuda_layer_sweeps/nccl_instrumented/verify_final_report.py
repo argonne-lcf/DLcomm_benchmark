@@ -140,11 +140,213 @@ check("oob log really shows 8 FAILED", "Out of bounds values : 8 FAILED" in oob)
 check("doc reports the SIGSEGV", "signal 11" in DOC)
 check("doc reports the validation failure", "Out of bounds values : 8 FAILED" in DOC)
 check("doc reports the bogus 3.14805 figure", "3.14805" in DOC)
-check("doc states variance NOT attributed", "not proven" in DOC.lower())
 
 # ---------- 4. no published ladder cell failed validation ----------
 bad = [k for k, r in rows.items() if "validation_oob" in r.get("detail", "")]
 check("no published ladder cell has validation_oob", not bad, str(bad))
+
+# ---------- 5. §8 correctness bug: re-derive every rate from oob2.csv ----------
+print("\n== correctness bug (job 7031) ==")
+o2 = list(csv.DictReader(open(FIN / "results/7031_oob_characterise/oob2.csv")))
+
+
+def rate(rs):
+    """(failures, total). A row is a failure when nccl-tests' own check found
+    out-of-bounds values -- never when it merely exited non-zero."""
+    return sum(1 for r in rs if r["oob"] not in ("0", "NA")), len(rs)
+
+
+def grp(name):
+    return [r for r in o2 if r["group"] == name]
+
+
+def row_says(label, f, n, unique=True):
+    """True if the doc row identified by `label` carries the value f/n.
+
+    Substring matching is not enough. Three distinct leaks were found by
+    tools/tamper_test.py and all three had the same shape: the check passed
+    because some OTHER line in the document satisfied it.
+      - "0 / 6" appears in many rows, so a tampered Tree row still matched.
+      - "1 MiB" appears in both the size table and the rank table, and the
+        rank table legitimately holds 3/6, so faking the size row matched
+        the rank row instead.
+    So: the label must identify exactly one row (unique=True), and the value
+    is read out of THAT row.
+    """
+    hits = [l for l in DOC.splitlines()
+            if l.strip().startswith("|") and label in l]
+    if unique and len(hits) != 1:
+        return False
+    if not hits:
+        return False
+    cells = [c.strip().strip("*` ") for c in hits[0].split("|")]
+    return any(c.replace(" ", "") == f"{f}/{n}" for c in cells)
+
+
+def line_says(anchor, value):
+    """True if the single line containing `anchor` also contains `value`.
+
+    For figures quoted in prose or code blocks, where the same number
+    legitimately appears elsewhere in the document.
+    """
+    hits = [l for l in DOC.splitlines() if anchor in l]
+    return len(hits) == 1 and value in hits[0]
+
+
+# Size table rows are anchored on the full cell text so they cannot be
+# satisfied by the rank table, which also mentions "1 MiB".
+for size, label in [("524288", "| 512 KiB, 8 ranks, CXI"),
+                    ("786432", "| 768 KiB, 8 ranks, CXI"),
+                    ("1048576", "| **1 MiB**, 8 ranks, CXI"),
+                    ("1310720", "| 1.25 MiB, 8 ranks, CXI"),
+                    ("2097152", "| 2 MiB, 8 ranks, CXI")]:
+    rs = [r for r in grp("sizescan") if r["size"] == size]
+    f, n = rate(rs)
+    check(f"sizescan row {label.strip('| ')} == {f}/{n}",
+          row_says(label, f, n), f"{f}/{n}")
+
+for g, label in [("algo_Ring", "NCCL_ALGO=Ring"), ("algo_Tree", "NCCL_ALGO=Tree"),
+                 ("proto_Simple", "NCCL_PROTO=Simple"), ("proto_LL", "NCCL_PROTO=LL`"),
+                 ("proto_LL128", "NCCL_PROTO=LL128"),
+                 ("rank2", "| 2 ranks, 2 nodes, 1 MiB"),
+                 ("rank4", "| 4 ranks, 2 nodes, 1 MiB"),
+                 ("rank8_1node", "| 4 ranks, **1 node**, 1 MiB")]:
+    f, n = rate(grp(g))
+    check(f"row {label} == {f}/{n}", row_says(label, f, n), f"{f}/{n}")
+
+# The headline claim: default rate must equal Ring's, and Tree must be clean.
+df, dn = rate([r for r in grp("sizescan") if r["size"] == "1048576"])
+rf, rn = rate(grp("algo_Ring"))
+tf, tn = rate(grp("algo_Tree"))
+check("default failure rate == Ring failure rate", (df, dn) == (rf, rn),
+      f"default {df}/{dn} vs ring {rf}/{rn}")
+check("Tree is clean (0 failures)", tf == 0, f"{tf}/{tn}")
+check("doc names Tree as the workaround", "NCCL_ALGO=Tree" in DOC)
+
+# Cumulative 8/16 = 7030's 5/10 plus 7031's 3/6.
+probe = (FIN / "results/7030_oob_probe/oob_probe.txt").read_text()
+cxi_1m = [l for l in probe.splitlines()
+          if "size=1048576" in l and "arm=cxi" in l and "rep=" in l][:10]
+p_fail = sum(1 for l in cxi_1m if re.search(r"oob=(?!0\b)\d+", l))
+check("7030 CXI 1MiB: 5/10 wrong", (p_fail, len(cxi_1m)) == (5, 10),
+      f"{p_fail}/{len(cxi_1m)}")
+sock = [l for l in probe.splitlines() if "arm=stock" in l]
+s_fail = sum(1 for l in sock if re.search(r"oob=(?!0\b)\d+", l))
+check("7030 Socket control: 0/5 wrong", (s_fail, len(sock)) == (0, 5),
+      f"{s_fail}/{len(sock)}")
+check("cumulative 8/16 stated", "8 / 16" in DOC)
+check("doc states Socket never failed", "0 / 5" in DOC)
+
+# 7030 is the transport-attested job; the claim must rest on it, and the
+# doc must admit 7031 could not self-attest.
+check("7030 attests Libfabric", probe.count("transport=Libfabric") == 17)
+check("7030 attests Socket", probe.count("transport=Socket") == 5)
+check("doc admits 7031 transport=unknown",
+      "transport=unknown" in DOC and "7031" in DOC)
+check("all 7031 rows are indeed unattested",
+      all(r["transport"] == "unknown" for r in o2))
+
+# ---------- 6. §9 profiler bisect ----------
+print("\n== profiler bisect (job 7027) ==")
+bis = (FIN / "results/7027_profiler_bisect/bisect_summary.txt").read_text()
+for m in ("16", "64", "24", "90"):
+    line = [l for l in bis.splitlines()
+            if f"mask={m} " in l and "ranks=2" in l]
+    check(f"mask={m} at 2 ranks really SIGSEGVs",
+          bool(line) and "sigsegv" in line[0], str(line[:1]))
+for m in ("none", "0", "2", "8"):
+    line = [l for l in bis.splitlines()
+            if f"mask={m} " in l and "ranks=2" in l]
+    check(f"mask={m} at 2 ranks really ok",
+          bool(line) and "status=ok" in line[0], str(line[:1]))
+bnone = [l for l in bis.splitlines()
+         if "mask=none" in l and "ranks=8" in l and "size=1048576" in l]
+check("cell B fails WITHOUT profiler (the correction)",
+      bool(bnone) and "validation_failed" in bnone[0], str(bnone[:1]))
+check("doc issues the correction", "That was wrong" in DOC)
+check("doc keeps the 4 FAILED evidence", "Out of bounds : 4 FAILED" in DOC)
+
+# ---------- 7. §10 variant sweep ----------
+print("\n== variant sweep (job 7028) ==")
+sw = list(csv.DictReader(open(FIN / "results/7028_sweep_cxi/sweep_cxi.csv")))
+ok = [r for r in sw if r["status"] == "ok"]
+bad_sw = [r for r in sw if r["status"].startswith("validation_oob")]
+check("19 cells attempted", len(sw) == 19, str(len(sw)))
+check("14 valid / 5 failed", (len(ok), len(bad_sw)) == (14, 5),
+      f"{len(ok)}/{len(bad_sw)}")
+check("every sweep cell attested Libfabric",
+      all(r["transport"] == "Libfabric" for r in sw))
+AXIS_LABEL = {"collective": "coll"}  # CSV axis name -> label used in the doc
+
+for r in ok:
+    # Anchor on the cell's own row: several bandwidths appear more than once
+    # in the document (115.33 is quoted in §8 as well), so a bare substring
+    # test let an inflated sweep number through. Compare numerically, since
+    # the doc writes 81.00 where the CSV holds 81, and bolds some cells.
+    axis = AXIS_LABEL.get(r["axis"], r["axis"])
+    cell = r["value"]
+    want = float(r["peak_busbw"])
+    hits = [l for l in DOC.splitlines()
+            if l.strip().startswith("|") and f"| {axis} | {cell} |" in l]
+    got = None
+    if len(hits) == 1:
+        fields = [c.strip().strip("*` ") for c in hits[0].split("|")]
+        for f in fields:
+            try:
+                got = float(f)
+                break
+            except ValueError:
+                continue
+    check(f"sweep row {axis}/{cell} == {want}",
+          got is not None and abs(got - want) < 0.005,
+          f"doc={got} csv={want}")
+
+check("all 5 failures are allreduce variants",
+      all(r["coll"] == "all_reduce" for r in bad_sw),
+      str([r["cell"] for r in bad_sw]))
+check("doc states ordering did NOT survive", "did NOT survive" in DOC)
+check("doc states the 14/5 split",
+      line_says("produced valid numbers",
+                f"**{len(ok)} produced valid numbers; {len(bad_sw)} failed"))
+
+# ---------- 8. §11 variance decomposition ----------
+print("\n== variance (jobs 7023-7026) ==")
+var = (FIN / "report/VARIANCE.txt").read_text()
+
+
+def var_num(pattern):
+    """Pull a figure out of the generated VARIANCE.txt, not out of prose."""
+    m = re.search(pattern, var)
+    return m.group(1) if m else None
+
+
+# Each figure is re-derived from VARIANCE.txt and then required to appear on
+# the matching line of the doc's code block, so understating one cannot be
+# masked by the same digits appearing elsewhere in the document.
+VAR_CHECKS = [
+    ("within-job CoV", r"within-job CoV\s+\(jitter\)\s*:\s*mean ([\d.]+)%",
+     "within-job CoV"),
+    ("across-job CoV", r"across-job CoV\s+\(placement\)\s*:\s*([\d.]+)%",
+     "across-job CoV"),
+    ("overall CoV", r"overall CoV\s+\(what a user sees\)\s*:\s*([\d.]+)%",
+     "overall CoV"),
+    ("overall spread", r"overall spread \(max/min-1\)\s*:\s*([\d.]+)%?",
+     "overall spread"),
+]
+for key, pat, anchor in VAR_CHECKS:
+    v = var_num(pat)
+    check(f"{key} re-derived from VARIANCE.txt = {v}", v is not None, str(v))
+    if v:
+        lines = [l for l in DOC.splitlines() if anchor in l]
+        check(f"{key} {v} on its own line in doc",
+              len(lines) == 1 and v in lines[0],
+              f"{v} not in {lines[:1]}")
+
+check("verdict is WITHIN-JOB", "WITHIN-JOB dominates" in var)
+check("doc says 57% is gone", "57% is gone" in DOC or "57% is resolved" in DOC
+      or "The 57% is gone" in DOC)
+check("doc gives all four job medians",
+      all(m in DOC for m in ("121.02", "121.11", "119.80", "118.00")))
 
 print()
 if fails:
