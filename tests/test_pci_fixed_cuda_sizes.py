@@ -284,9 +284,133 @@ class PciFixedSourceContract(unittest.TestCase):
         # the flag must be computed, not hardcoded
         self.assertIn("(copies > 1 && pinned) ? 1 : 0", self.code)
 
+    def test_failures_are_reduced_across_ranks_before_reporting(self):
+        """R3-1: a corrupt NON-ROOT rank must suppress the aggregate line.
+
+        Round-3 review: verify_now() returns only the calling rank's count
+        and report() runs on rank 0 with rank 0's count, so corruption on
+        rank 1..N still printed a GBPS line for a cross-rank aggregate
+        measurement. The trailing MPI_Reduce surfaced it only after every
+        record had been emitted.
+        """
+        self.assertIn("global_failures", self.code)
+        self.assertIn("MPI_Allreduce", self.code)
+        # every pattern must reduce before reporting
+        self.assertEqual(self.code.count("global_failures(f)"), 4,
+                         "all four patterns must reduce the failure count")
+        for marker in ('report("h2d"', 'report("d2h"', 'report("d2d"',
+                       'report(bidir_pattern(pinned)'):
+            with self.subTest(marker=marker):
+                r = self.code.index(marker)
+                g = self.code.rfind("global_failures(f)", 0, r)
+                self.assertNotEqual(
+                    g, -1, f"{marker} must be preceded by a global reduce")
+
+    def test_allreduce_not_reduce_so_all_ranks_participate(self):
+        # MPI_Reduce with only root reading would leave non-root ranks
+        # unsynchronised; the gate must be collective.
+        idx = self.code.index("static long long global_failures")
+        body = self.code[idx:idx + 600]
+        self.assertIn("MPI_Allreduce", body)
+
     def test_no_stale_verify_helper_remains(self):
         # The pre-round-2 verify() returned void; both cannot coexist.
         self.assertNotIn("static void verify(", self.code)
+
+
+class PciFixedMultiRank(unittest.TestCase):
+    """Behavioural proof of R3-1 with real MPI ranks.
+
+    Skips when no MPI compiler/launcher is present. On Tara this runs for
+    real: 2 ranks, corruption injected on rank 1 only, and rank 0 must NOT
+    print a bandwidth number.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        cls.mpicxx = shutil.which("mpicxx") or shutil.which("mpic++")
+        cls.mpirun = shutil.which("mpiexec") or shutil.which("mpirun")
+        if not cls.mpicxx or not cls.mpirun:
+            raise unittest.SkipTest("MPI toolchain not available")
+        cls.tmp = tempfile.mkdtemp(prefix="pfc_mpi_")
+
+        # The launcher existing on PATH does not mean it can launch here.
+        # On Cray/PALS login nodes mpiexec resolves but the shepherd is
+        # absent ("Couldn't execute local shepherd ... palsd"), so probe
+        # with a trivial MPI program and skip rather than report a failure
+        # that is really a missing job allocation.
+        probe_src = os.path.join(cls.tmp, "probe.cpp")
+        with open(probe_src, "w") as fh:
+            fh.write('#include <mpi.h>\n#include <cstdio>\n'
+                     'int main(int c,char**v){MPI_Init(&c,&v);'
+                     'std::printf("PROBE_OK\\n");MPI_Finalize();return 0;}\n')
+        probe_bin = os.path.join(cls.tmp, "probe")
+        p = subprocess.run([cls.mpicxx, "-std=c++17", probe_src,
+                            "-o", probe_bin],
+                           capture_output=True, text=True, timeout=300)
+        if p.returncode != 0:
+            raise unittest.SkipTest(f"MPI build unavailable: {p.stderr[-300:]}")
+        p = subprocess.run([cls.mpirun, "-n", "2", probe_bin],
+                           capture_output=True, text=True, timeout=300)
+        if p.returncode != 0 or "PROBE_OK" not in p.stdout:
+            raise unittest.SkipTest(
+                "MPI launcher cannot start ranks here (needs a job "
+                f"allocation): {(p.stderr or p.stdout)[-200:]}")
+
+        with open(os.path.join(cls.tmp, "cuda_runtime.h"), "w") as fh:
+            fh.write(CUDA_STUB)
+        src = os.path.join(cls.tmp, "src.cpp")
+        with open(SRC) as fh:
+            code = fh.read()
+        # Inject corruption on rank 1 only, immediately before the h2d
+        # verify so the bytes rank 1 checks are wrong.
+        needle = ('        f = verify_now("h2d", ref.data(), got.data(), '
+                  'n_elems, world_rank);')
+        assert code.count(needle) == 1, "injection point not found"
+        code = code.replace(
+            needle,
+            '        if (world_rank == 1 && getenv("PFC_CORRUPT_RANK1")) '
+            'got[0] = ~got[0];\n' + needle)
+        with open(src, "w") as fh:
+            fh.write(code)
+        cls.bin = os.path.join(cls.tmp, "pfc_mpi")
+        p = subprocess.run(
+            [cls.mpicxx, "-std=c++17", "-O0", "-x", "c++", src,
+             f"-I{cls.tmp}", "-o", cls.bin],
+            capture_output=True, text=True, timeout=300)
+        if p.returncode != 0:
+            raise unittest.SkipTest(f"MPI build failed: {p.stderr[-400:]}")
+
+    @classmethod
+    def tearDownClass(cls):
+        if getattr(cls, "tmp", None):
+            shutil.rmtree(cls.tmp, ignore_errors=True)
+
+    def _run(self, env_extra):
+        env = dict(os.environ)
+        env.update({"DLCOMM_TRANSFER_BYTES": "4096",
+                    "DLCOMM_TRANSFER_ITERS": "2"})
+        env.update(env_extra)
+        p = subprocess.run(
+            [self.mpirun, "-n", "2", self.bin],
+            capture_output=True, text=True, timeout=300, env=env)
+        return p.returncode, p.stdout + p.stderr
+
+    def test_clean_two_rank_run_reports_bandwidth(self):
+        rc, out = self._run({})
+        self.assertIn("PATTERN=h2d", out)
+        self.assertIn("GBPS=", out)
+
+    def test_corrupt_non_root_rank_suppresses_bandwidth(self):
+        rc, out = self._run({"PFC_CORRUPT_RANK1": "1"})
+        h2d = [ln for ln in out.splitlines() if "PATTERN=h2d" in ln]
+        self.assertTrue(h2d, f"no h2d record emitted:\n{out[-800:]}")
+        for ln in h2d:
+            self.assertNotIn(
+                "GBPS=", ln,
+                "rank-0-clean/rank-1-corrupt must not print bandwidth")
+            self.assertIn("ERROR=payload_verification_failed", ln)
+        self.assertNotEqual(rc, 0, "a corrupt run must exit non-zero")
 
 
 if __name__ == "__main__":

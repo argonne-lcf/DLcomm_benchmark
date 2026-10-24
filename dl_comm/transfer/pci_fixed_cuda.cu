@@ -321,6 +321,28 @@ static const char *bidir_pattern(bool pinned) {
   return pinned ? "bidirectional" : "bidirectional_serialized";
 }
 
+// R3-1: payload failures must be global before they gate a report.
+//
+// Round-3 review: verify_now() returns only the CALLING rank's failure count,
+// and report() runs on world_rank 0 with rank 0's count. If rank 0 is clean
+// while any other rank is corrupt, rank 0 still printed a GBPS line -- for an
+// AGGREGATE cross-rank measurement that includes the corrupt rank. The final
+// MPI_Reduce surfaced it only after every bandwidth record had been emitted,
+// which cannot retract a line already scraped. Same fail-open class as the
+// round-2 blocker, fixed previously only for corruption on rank 0.
+//
+// All ranks participate in the reduction, so it also acts as the barrier that
+// keeps the ranks in step across sweep points.
+static long long global_failures(long long local) {
+#ifdef NO_MPI
+  return local;
+#else
+  long long total = 0;
+  MPI_Allreduce(&local, &total, 1, MPI_LONG_LONG, MPI_SUM, MPI_COMM_WORLD);
+  return total;
+#endif
+}
+
 static void report(const char *pattern, size_t N_byte, int world_size,
                    u64 time_ns, int copies, u64 local_ns, bool pinned,
                    int iters, bool barrier, long long failures) {
@@ -582,6 +604,7 @@ int main(int argc, char **argv) {
                               cudaMemcpyDeviceToHost));
         f = verify_now("h2d", ref.data(), got.data(), n_elems, world_rank);
       }
+      f = global_failures(f);   // R3-1: all ranks, before reporting
       if (world_rank == 0)
         report("h2d", N_byte, world_size, t, 1, l, pinned, iters, barrier, f);
 
@@ -592,6 +615,7 @@ int main(int argc, char **argv) {
                    &t, &l);
       abort_if_copy_failed(N_byte, "d2h");
       f = verify_now("d2h", ref.data(), a_cpu, n_elems, world_rank);
+      f = global_failures(f);   // R3-1
       if (world_rank == 0)
         report("d2h", N_byte, world_size, t, 1, l, pinned, iters, barrier, f);
 
@@ -623,6 +647,7 @@ int main(int argc, char **argv) {
         f += verify_now("bidirectional_h2d", ref_b.data(), got.data(), n_elems,
                         world_rank);
       }
+      f = global_failures(f);   // R3-1
       if (world_rank == 0)
         report(bidir_pattern(pinned), N_byte, world_size, t, 2, l, pinned,
                iters, barrier, f);
@@ -644,6 +669,7 @@ int main(int argc, char **argv) {
                               cudaMemcpyDeviceToHost));
         f = verify_now("d2d", ref.data(), got.data(), n_elems, world_rank);
       }
+      f = global_failures(f);   // R3-1
       if (world_rank == 0)
         report("d2d", N_byte, world_size, t, 1, l, pinned, iters, barrier, f);
 

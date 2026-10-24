@@ -267,6 +267,7 @@ class SubgroupStoreRendezvous(unittest.TestCase):
         dist._backend = "xccl"
         dist._device = "xpu"
         dist._root_store = None
+        dist._store_error = None
         dist._split_unsupported = None
         return dist
 
@@ -338,10 +339,17 @@ class SubgroupStoreRendezvous(unittest.TestCase):
         self.assertEqual(len(made), 1, "store must be idempotent")
 
     def test_missing_master_addr_raises_clearly(self):
-        dist = self._dist(rank=0)
+        """Required path (the fallback) still fails loudly.
+
+        Must use a MEMBER rank: a non-member returns at the early-return
+        and never reaches _new_comm_for, so it legitimately does not raise
+        after the round-3 hardening made the new_group call non-fatal.
+        """
+        dist = self._dist(rank=4)
         env = {k: v for k, v in os.environ.items()
                if k not in ("MASTER_ADDR", "MASTER_PORT")}
-        with mock.patch.dict(os.environ, env, clear=True), \
+        with mock.patch.object(tcb, "_tc", mock.MagicMock()), \
+             mock.patch.dict(os.environ, env, clear=True), \
              mock.patch.dict(
                  "sys.modules",
                  {"torch": mock.MagicMock(),
@@ -349,6 +357,39 @@ class SubgroupStoreRendezvous(unittest.TestCase):
             with self.assertRaises(RuntimeError) as ctx:
                 dist.new_group([4, 5, 6, 7])
         self.assertIn("MASTER_ADDR", str(ctx.exception))
+
+    def test_native_split_works_without_rendezvous_config(self):
+        """R3 hardening: no MASTER_ADDR must not break the native path.
+
+        _ensure_root_store runs before we know whether the fallback is
+        needed, so it is called with required=False. A host where native
+        split works and no rendezvous is configured must still get a group.
+        """
+        comm = FakeComm(8, rank=4)
+        comm.split = lambda ranks, label: object()
+        dist = tcb.TorchCommsDist.__new__(tcb.TorchCommsDist)
+        dist._comm = comm
+        dist._splits = {}
+        dist._op_map = {}
+        dist._backend = "nccl"
+        dist._device = "cuda"
+        dist._root_store = None
+        dist._store_error = None
+        dist._split_unsupported = None
+
+        env = {k: v for k, v in os.environ.items()
+               if k not in ("MASTER_ADDR", "MASTER_PORT")}
+        with mock.patch.object(tcb, "_tc", mock.MagicMock()), \
+             mock.patch.dict(os.environ, env, clear=True), \
+             mock.patch.dict(
+                 "sys.modules",
+                 {"torch": mock.MagicMock(),
+                  "torch.distributed": mock.MagicMock()}):
+            grp = dist.new_group([4, 5, 6, 7])
+
+        self.assertIsNotNone(grp, "native split must not need a store")
+        self.assertIsNotNone(dist._store_error,
+                             "the store failure should be recorded")
 
 
 if __name__ == "__main__":

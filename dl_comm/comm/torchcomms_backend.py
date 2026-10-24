@@ -341,6 +341,7 @@ class TorchCommsDist:
         self._backend = backend
         self._device = device
         self._root_store = None
+        self._store_error = None
         self._split_unsupported: str | None = None
 
     # -- communicator plumbing ------------------------------------------
@@ -484,7 +485,17 @@ class TorchCommsDist:
         # excludes rank 0 -- [4,5,6,7] is the exact case that crashed job
         # 6549 -- had no rank anywhere running the store server, so every
         # member blocked connecting to a server that was never started.
-        self._ensure_root_store()
+        #
+        # HARDENING (round 3): this runs before the native-split attempt, so
+        # it would otherwise impose MASTER_ADDR/MASTER_PORT and a reachable
+        # TCPStore even on backends where native split works and no store is
+        # ever needed. It cannot be deferred -- deferring is precisely the
+        # round-2 bug, because the decision to fall back is made after the
+        # non-members have already left. So it stays collective here, but a
+        # failure is recorded rather than raised: only _new_comm_for(), the
+        # path that actually needs the store, turns it into an error. Native
+        # split therefore keeps working on hosts with no rendezvous config.
+        self._ensure_root_store(required=False)
 
         # (1) Non-members must not call into torchcomms at all.
         if self.get_rank() not in key:
@@ -509,7 +520,7 @@ class TorchCommsDist:
         )
         return self._splits[key]
 
-    def _ensure_root_store(self):
+    def _ensure_root_store(self, required: bool = True):
         """Start the shared rendezvous store, collectively over the world.
 
         REVIEW FIX (round 2, 20261024T073333Z-dlcomm3c-r2). This used to live
@@ -531,8 +542,19 @@ class TorchCommsDist:
         the native ``split`` path never needs a store -- but it must be set up
         *before* we know which path will be taken, because by then the
         non-members have already returned.
+
+        ``required`` distinguishes the two callers (round-3 hardening).
+        ``new_group`` passes False: it cannot know yet whether the store will
+        be needed, so a missing MASTER_ADDR or an unreachable store is
+        remembered, not raised, and native split still works on hosts with no
+        rendezvous configuration. ``_new_comm_for`` passes True, because by
+        then the store is genuinely required and the deferred error should
+        surface with its original cause.
         """
         if self._root_store is not None:
+            return
+        if self._store_error is not None and not required:
+            # Already failed once; do not retry on every new_group call.
             return
 
         import os
@@ -543,19 +565,28 @@ class TorchCommsDist:
             host = os.environ["MASTER_ADDR"]
             port = int(os.environ["MASTER_PORT"]) + 1
         except KeyError as exc:
-            raise RuntimeError(
+            err = RuntimeError(
                 "MASTER_ADDR/MASTER_PORT must be set to build torchcomms "
                 "subgroups on a transport without split support; "
                 f"missing {exc}"
-            ) from exc
+            )
+            self._store_error = err
+            if required:
+                raise err from exc
+            return
 
-        self._root_store = TCPStore(
-            host_name=host,
-            port=port,
-            world_size=None,
-            is_master=(self.get_rank() == 0),
-            wait_for_workers=False,
-        )
+        try:
+            self._root_store = TCPStore(
+                host_name=host,
+                port=port,
+                world_size=None,
+                is_master=(self.get_rank() == 0),
+                wait_for_workers=False,
+            )
+        except Exception as exc:  # noqa: BLE001 - re-raised when required
+            self._store_error = exc
+            if required:
+                raise
 
     def _new_comm_for(self, key: tuple[int, ...], label: str):
         """Build a subcommunicator via new_comm when split is unavailable.
@@ -575,9 +606,10 @@ class TorchCommsDist:
         prefix = "dlcomm_grp_" + "_".join(str(r) for r in key)
 
         # The store is created collectively in new_group via
-        # _ensure_root_store(); see the note there for why it cannot be
+        # _ensure_root_store(required=True); see the note there for why it
+        # cannot be
         # created lazily here.
-        self._ensure_root_store()
+        self._ensure_root_store(required=True)
         store = PrefixStore(prefix, self._root_store)
 
         saved = {k: os.environ.get(k) for k in ("RANK", "WORLD_SIZE")}
