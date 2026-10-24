@@ -273,6 +273,33 @@ class TorchCommsDist:
             return group.comm
         return group
 
+    def _local_rank_in(self, group, global_rank):
+        """Translate a GLOBAL rank to the group-local rank torchcomms wants.
+
+        torch.distributed's broadcast/reduce/scatter/gather/send/recv all take
+        a global rank and translate internally. torchcomms takes a group-local
+        rank. Passing the global value through unchanged is correct only when
+        the group starts at rank 0, so the error hides at single-node scale
+        and appears the moment a second node creates a group based at 4.
+
+        Raises rather than clamping: a root outside the group is a caller bug,
+        and silently rounding it to a valid rank would broadcast from the
+        wrong source and still report success.
+        """
+        r = int(global_rank)
+        if not isinstance(group, TorchCommsGroup):
+            # World communicator (or a raw torchcomms comm): global rank space
+            # and group rank space coincide, nothing to translate.
+            return r
+        try:
+            return group.ranks.index(r)
+        except ValueError:
+            raise ValueError(
+                f"rank {r} is not a member of {group!r}; "
+                f"group members (global ranks) are {group.ranks}. "
+                f"Pass a global rank -- this adapter converts it to the "
+                f"group-local rank torchcomms expects."
+            ) from None
 
     def _op(self, op):
         """Map a DLcomm op (str or torch ReduceOp) to a torchcomms ReduceOp."""
@@ -451,12 +478,12 @@ class TorchCommsDist:
         return _Work(w) if async_op else None
 
     def reduce(self, tensor, dst=0, op=None, group=None, async_op=False):
-        w = self._c(group).reduce(tensor, int(dst),
+        w = self._c(group).reduce(tensor, self._local_rank_in(group, dst),
                                   self._op(op), async_op)
         return _Work(w) if async_op else None
 
     def broadcast(self, tensor, src=0, group=None, async_op=False):
-        w = self._c(group).broadcast(tensor, int(src),
+        w = self._c(group).broadcast(tensor, self._local_rank_in(group, src),
                                      async_op)
         return _Work(w) if async_op else None
 
@@ -468,12 +495,12 @@ class TorchCommsDist:
         # torch.distributed passes gather_list=None on non-root ranks;
         # torchcomms wants a sequence, so hand it an empty one.
         w = self._c(group).gather(gather_list or [], tensor,
-                                  int(dst), async_op)
+                                  self._local_rank_in(group, dst), async_op)
         return _Work(w) if async_op else None
 
     def scatter(self, tensor, scatter_list=None, src=0, group=None, async_op=False):
         w = self._c(group).scatter(tensor, scatter_list or [],
-                                   int(src), async_op)
+                                   self._local_rank_in(group, src), async_op)
         return _Work(w) if async_op else None
 
     def reduce_scatter(self, output, input_list, op=None, group=None, async_op=False):
@@ -509,7 +536,7 @@ class TorchCommsDist:
 
     # -- point-to-point ----------------------------------------------------
     def send(self, tensor, dst, group=None, tag=0):  # noqa: ARG002 - no tags in torchcomms
-        self._c(group).send(tensor, int(dst), False)
+        self._c(group).send(tensor, self._local_rank_in(group, dst), False)
 
     def recv(self, tensor, src=None, group=None, tag=0):  # noqa: ARG002
         if src is None:
@@ -517,11 +544,11 @@ class TorchCommsDist:
                 "torchcomms requires an explicit src for recv; "
                 "wildcard receives are not supported by this backend."
             )
-        self._c(group).recv(tensor, int(src), False)
+        self._c(group).recv(tensor, self._local_rank_in(group, src), False)
 
     def isend(self, tensor, dst, group=None, tag=0):  # noqa: ARG002
         return _Work(self._c(group).send(tensor,
-                                         int(dst), True))
+                                         self._local_rank_in(group, dst), True))
 
     def irecv(self, tensor, src=None, group=None, tag=0):  # noqa: ARG002
         if src is None:
@@ -530,7 +557,7 @@ class TorchCommsDist:
                 "wildcard receives are not supported by this backend."
             )
         return _Work(self._c(group).recv(tensor,
-                                         int(src), True))
+                                         self._local_rank_in(group, src), True))
 
     # -- lifecycle ---------------------------------------------------------
     def init_process_group(self, *args, **kwargs):  # noqa: ARG002
