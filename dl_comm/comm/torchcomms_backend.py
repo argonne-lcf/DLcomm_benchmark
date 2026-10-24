@@ -475,6 +475,17 @@ class TorchCommsDist:
 
         label = name or group_desc or ("dlcomm_" + "_".join(str(r) for r in key))
 
+        # REVIEW FIX (round 2, 20261024T073333Z-dlcomm3c-r2): the rendezvous
+        # store must be established here, while EVERY rank of the parent group
+        # is still present. new_group is collective over the parent (see note 1
+        # below), but the non-member early-return beneath this line means that
+        # creating the store lazily inside _new_comm_for() only ever runs on
+        # members. With is_master tied to global rank 0, a subgroup that
+        # excludes rank 0 -- [4,5,6,7] is the exact case that crashed job
+        # 6549 -- had no rank anywhere running the store server, so every
+        # member blocked connecting to a server that was never started.
+        self._ensure_root_store()
+
         # (1) Non-members must not call into torchcomms at all.
         if self.get_rank() not in key:
             grp = TorchCommsGroup(None, list(key))
@@ -498,6 +509,54 @@ class TorchCommsDist:
         )
         return self._splits[key]
 
+    def _ensure_root_store(self):
+        """Start the shared rendezvous store, collectively over the world.
+
+        REVIEW FIX (round 2, 20261024T073333Z-dlcomm3c-r2). This used to live
+        inside ``_new_comm_for``, which only members of the new subgroup
+        reach. Combined with ``is_master=(self.get_rank() == 0)`` that meant a
+        subgroup excluding global rank 0 -- e.g. [4,5,6,7] -- had no store
+        server anywhere: rank 0 never created one because it was not a member,
+        and no member created one because none of them was rank 0. Every
+        member then blocked in TCPStore trying to reach a server that did not
+        exist, which presents as a hang at group-creation time rather than an
+        error.
+
+        Calling this from ``new_group`` before the non-member early-return
+        makes it collective over the parent group, so rank 0 always runs the
+        server regardless of which subgroup is being built. It is idempotent:
+        the store is created once and reused for every subsequent group.
+
+        Note this is only reached on the XCCL ``new_comm`` fallback path --
+        the native ``split`` path never needs a store -- but it must be set up
+        *before* we know which path will be taken, because by then the
+        non-members have already returned.
+        """
+        if self._root_store is not None:
+            return
+
+        import os
+
+        from torch.distributed import TCPStore
+
+        try:
+            host = os.environ["MASTER_ADDR"]
+            port = int(os.environ["MASTER_PORT"]) + 1
+        except KeyError as exc:
+            raise RuntimeError(
+                "MASTER_ADDR/MASTER_PORT must be set to build torchcomms "
+                "subgroups on a transport without split support; "
+                f"missing {exc}"
+            ) from exc
+
+        self._root_store = TCPStore(
+            host_name=host,
+            port=port,
+            world_size=None,
+            is_master=(self.get_rank() == 0),
+            wait_for_workers=False,
+        )
+
     def _new_comm_for(self, key: tuple[int, ...], label: str):
         """Build a subcommunicator via new_comm when split is unavailable.
 
@@ -509,20 +568,16 @@ class TorchCommsDist:
         """
         import os
 
-        from torch.distributed import PrefixStore, TCPStore
+        from torch.distributed import PrefixStore
 
         tc = _require()
         member_rank = key.index(self.get_rank())
         prefix = "dlcomm_grp_" + "_".join(str(r) for r in key)
 
-        if self._root_store is None:
-            self._root_store = TCPStore(
-                host_name=os.environ["MASTER_ADDR"],
-                port=int(os.environ["MASTER_PORT"]) + 1,
-                world_size=None,
-                is_master=(self.get_rank() == 0),
-                wait_for_workers=False,
-            )
+        # The store is created collectively in new_group via
+        # _ensure_root_store(); see the note there for why it cannot be
+        # created lazily here.
+        self._ensure_root_store()
         store = PrefixStore(prefix, self._root_store)
 
         saved = {k: os.environ.get(k) for k in ("RANK", "WORLD_SIZE")}

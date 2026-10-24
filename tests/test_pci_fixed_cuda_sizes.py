@@ -218,13 +218,15 @@ class PciFixedSourceContract(unittest.TestCase):
         self.assertIn("streams[k]", self.code)
 
     def test_bidirectional_destinations_are_verified(self):
-        self.assertIn('verify("bidirectional_d2h"', self.code)
-        self.assertIn('verify("bidirectional_h2d"', self.code)
+        self.assertIn('verify_now("bidirectional_d2h"', self.code)
+        self.assertIn('verify_now("bidirectional_h2d"', self.code)
 
     def test_copy_errors_checked_before_reporting(self):
         self.assertIn("abort_if_copy_failed", self.code)
-        bidir = self.code.index('report("bidirectional"')
-        guard = self.code.index('abort_if_copy_failed(N_byte, "bidirectional")')
+        # bidirectional reports under a computed pattern name
+        bidir = self.code.index('report(bidir_pattern(pinned)')
+        guard = self.code.index(
+            'abort_if_copy_failed(N_byte, bidir_pattern(pinned))')
         self.assertLess(guard, bidir,
                         "error check must precede the bandwidth report")
 
@@ -239,6 +241,52 @@ class PciFixedSourceContract(unittest.TestCase):
 
     def test_byte_product_overflow_is_checked(self):
         self.assertIn("byte_product_overflow", self.code)
+
+    # -- round-2 review blockers ------------------------------------------
+    def test_verification_precedes_report_for_every_pattern(self):
+        """R2-1: a corrupt copy must not emit a bandwidth line.
+
+        Round 2 found report() running before verify() for all four
+        patterns, so a transfer whose CUDA calls succeeded but whose bytes
+        arrived wrong still printed a plausible GBPS record. Exiting
+        non-zero later does not retract a line already scraped from the log.
+        """
+        for pattern, verify_tag in (
+            ('report("h2d"', '"h2d"'),
+            ('report("d2h"', '"d2h"'),
+            ('report("d2d"', '"d2d"'),
+        ):
+            with self.subTest(pattern=pattern):
+                r = self.code.index(pattern)
+                v = self.code.index(f"verify_now({verify_tag}")
+                self.assertLess(
+                    v, r, f"verify_now must precede report for {pattern}")
+
+        # bidirectional reports under a computed name, so match separately
+        r = self.code.index("report(bidir_pattern(pinned)")
+        v = self.code.index('verify_now("bidirectional_d2h"')
+        self.assertLess(v, r, "verify_now must precede bidirectional report")
+
+    def test_report_takes_failure_count_and_suppresses_bandwidth(self):
+        self.assertIn("long long failures", self.code)
+        self.assertIn("ERROR=payload_verification_failed", self.code)
+
+    def test_pageable_bidirectional_is_not_labelled_duplex(self):
+        """R2-2: the pageable arm cannot overlap, so it must not say so.
+
+        cudaMemcpyAsync from unpinned memory is synchronous w.r.t. the host.
+        Documenting that in a comment was rejected: the emitted record still
+        read PATTERN=bidirectional with two copies, and no downstream parser
+        reads comments.
+        """
+        self.assertIn("bidirectional_serialized", self.code)
+        self.assertIn("OVERLAP=", self.code)
+        # the flag must be computed, not hardcoded
+        self.assertIn("(copies > 1 && pinned) ? 1 : 0", self.code)
+
+    def test_no_stale_verify_helper_remains(self):
+        # The pre-round-2 verify() returned void; both cannot coexist.
+        self.assertNotIn("static void verify(", self.code)
 
 
 if __name__ == "__main__":

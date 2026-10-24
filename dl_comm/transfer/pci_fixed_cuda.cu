@@ -257,6 +257,42 @@ static void datatransfer(const std::vector<cudaStream_t> &streams,
   *local = min_local;
 }
 
+// FIX 3: prove the bytes arrived. A copy that silently does nothing is timed
+// as instantaneous and reported as enormous bandwidth.
+static long long g_checks = 0, g_failures = 0;
+
+// R2-1: verification must gate the report, not follow it.
+//
+// Round-2 review: every report() ran before the verify() for the same
+// transfer, so a copy whose API calls all succeeded while the data arrived
+// corrupt still printed a plausible GBPS line. The non-zero exit code at the
+// end does not retract a line a log scraper has already ingested.
+//
+// verify_now() returns the failure count for this transfer; report() takes it
+// and emits either a bandwidth line (clean) or an explicit ERROR line
+// (corrupt), so a corrupted transfer can never produce a number that looks
+// usable.
+static long long verify_now(const char *pattern, const int *host_ref,
+                            const int *host_got, size_t n_elems, int rank) {
+  if (n_elems == 0) return 0;
+  long long local_failures = 0;
+  const size_t idxs[3] = {0, n_elems / 2, n_elems - 1};
+  for (size_t k = 0; k < 3; ++k) {
+    const size_t i = idxs[k];
+    ++g_checks;
+    if (host_ref[i] != host_got[i]) {
+      ++g_failures;
+      ++local_failures;
+      if (g_failures <= 3)
+        std::cerr << "LAYER=cpp MISMATCH pattern=" << pattern
+                  << " rank=" << rank << " idx=" << i
+                  << " got=" << host_got[i] << " expected=" << host_ref[i]
+                  << std::endl;
+    }
+  }
+  return local_failures;
+}
+
 // RF5: call immediately after each timed set, before report(). A transfer that
 // errored must never produce a bandwidth line.
 static void abort_if_copy_failed(size_t N_byte, const char *pattern) {
@@ -267,10 +303,36 @@ static void abort_if_copy_failed(size_t N_byte, const char *pattern) {
   fail_fast(os.str());
 }
 
+// R2-2: the pageable arm cannot measure duplex overlap.
+//
+// cudaMemcpyAsync from unpinned memory is synchronous with respect to the
+// host, so the two "concurrent" copies of the bidirectional pattern run back
+// to back no matter how many streams they are issued on. Round-1 documented
+// that in a comment; round 2 correctly rejected that as insufficient, because
+// the emitted record still said PATTERN=bidirectional with two copies and no
+// downstream consumer reads source comments.
+//
+// The pattern name itself now carries the distinction, so an analysis script
+// cannot mistake one for the other:
+//   pinned   -> PATTERN=bidirectional            (true overlap)
+//   pageable -> PATTERN=bidirectional_serialized (upper bound, no overlap)
+// OVERLAP=1|0 is emitted on every record as a machine-readable flag.
+static const char *bidir_pattern(bool pinned) {
+  return pinned ? "bidirectional" : "bidirectional_serialized";
+}
+
 static void report(const char *pattern, size_t N_byte, int world_size,
                    u64 time_ns, int copies, u64 local_ns, bool pinned,
-                   int iters, bool barrier) {
+                   int iters, bool barrier, long long failures) {
   const char *mem = pinned ? "pinned" : "pageable";
+  // R2-1: a corrupted transfer emits an error, never a bandwidth number.
+  if (failures != 0) {
+    std::cout << "LAYER=cpp PATTERN=" << pattern << " HOSTMEM=" << mem
+              << " BUF_BYTES=" << N_byte
+              << " ERROR=payload_verification_failed"
+              << " FAILURES=" << failures << std::endl;
+    return;
+  }
   if (time_ns == 0) {
     std::cout << "LAYER=cpp PATTERN=" << pattern << " HOSTMEM=" << mem
               << " ERROR=zero_elapsed_time" << std::endl;
@@ -296,37 +358,21 @@ static void report(const char *pattern, size_t N_byte, int world_size,
 
   // BUF_BYTES is the per-rank buffer; BYTES stays the aggregate so the
   // existing parser (parse_layers.parse_transfer) keeps reading the same
-  // field. HOSTMEM/ITERS/BARRIER are additive and ignored by that parser,
-  // which splits on key=value rather than on position.
+  // field. HOSTMEM/ITERS/BARRIER/OVERLAP are additive and ignored by that
+  // parser, which splits on key=value rather than on position.
+  //
+  // R2-2: OVERLAP says whether concurrent copies could actually overlap.
+  // Only a multi-copy pattern from pinned memory can; everything else is a
+  // serialized measurement.
+  const int overlap = (copies > 1 && pinned) ? 1 : 0;
   std::cout << "LAYER=cpp PATTERN=" << pattern << " HOSTMEM=" << mem
             << " BUF_BYTES=" << N_byte << " BYTES=" << total
             << " TIME_NS=" << time_ns << " GBPS=" << gbps
             << " LOCAL_TIME_NS=" << local_ns
             << " LOCAL_GBPS_PER_RANK=" << local_gbps
+            << " OVERLAP=" << overlap
             << " ITERS=" << iters << " BARRIER=" << (barrier ? 1 : 0)
             << std::endl;
-}
-
-// FIX 3: prove the bytes arrived. A copy that silently does nothing is timed
-// as instantaneous and reported as enormous bandwidth.
-static long long g_checks = 0, g_failures = 0;
-
-static void verify(const char *pattern, const int *host_ref,
-                   const int *host_got, size_t n_elems, int rank) {
-  if (n_elems == 0) return;
-  const size_t idxs[3] = {0, n_elems / 2, n_elems - 1};
-  for (size_t k = 0; k < 3; ++k) {
-    const size_t i = idxs[k];
-    ++g_checks;
-    if (host_ref[i] != host_got[i]) {
-      ++g_failures;
-      if (g_failures <= 3)
-        std::cerr << "LAYER=cpp MISMATCH pattern=" << pattern
-                  << " rank=" << rank << " idx=" << i
-                  << " got=" << host_got[i] << " expected=" << host_ref[i]
-                  << std::endl;
-    }
-  }
 }
 
 // RF3: every size must be a positive multiple of sizeof(int). The element
@@ -517,20 +563,27 @@ int main(int argc, char **argv) {
     for (size_t N_byte : sizes) {
       const size_t n_elems = N_byte / sizeof(int);  // exact: RF3
       u64 t = 0, l = 0;
+      long long f = 0;
+
+      // R2-1: for every pattern the order is now
+      //   copy -> check CUDA error -> verify payload -> report
+      // so a transfer that moved corrupt bytes emits an ERROR record instead
+      // of a bandwidth number. Previously report() ran before verify() and a
+      // silently corrupt copy produced a plausible GBPS line.
 
       // ---- h2d -----------------------------------------------------------
       CUDA_CHECK(cudaMemset(a_gpu, 0, N_byte));
       datatransfer(streams, N_byte, {{a_gpu, a_cpu}}, iters, barrier, warmup,
                    &t, &l);
       abort_if_copy_failed(N_byte, "h2d");          // RF5: before report
-      if (world_rank == 0)
-        report("h2d", N_byte, world_size, t, 1, l, pinned, iters, barrier);
       {
         std::vector<int> got(n_elems);
         CUDA_CHECK(cudaMemcpy(got.data(), a_gpu, N_byte,
                               cudaMemcpyDeviceToHost));
-        verify("h2d", ref.data(), got.data(), n_elems, world_rank);
+        f = verify_now("h2d", ref.data(), got.data(), n_elems, world_rank);
       }
+      if (world_rank == 0)
+        report("h2d", N_byte, world_size, t, 1, l, pinned, iters, barrier, f);
 
       // ---- d2h -----------------------------------------------------------
       // a_gpu currently holds the h2d result, which equals ref.
@@ -538,16 +591,19 @@ int main(int argc, char **argv) {
       datatransfer(streams, N_byte, {{a_cpu, a_gpu}}, iters, barrier, warmup,
                    &t, &l);
       abort_if_copy_failed(N_byte, "d2h");
+      f = verify_now("d2h", ref.data(), a_cpu, n_elems, world_rank);
       if (world_rank == 0)
-        report("d2h", N_byte, world_size, t, 1, l, pinned, iters, barrier);
-      verify("d2h", ref.data(), a_cpu, n_elems, world_rank);
+        report("d2h", N_byte, world_size, t, 1, l, pinned, iters, barrier, f);
 
       // ---- bidirectional --------------------------------------------------
       // RF1: the two copies run on separate streams, so a full-duplex link can
-      // actually overlap them. Note the pageable arm still cannot overlap:
-      // cudaMemcpyAsync from unpinned memory is synchronous with respect to
-      // the host, so that arm remains a serialized upper bound. HOSTMEM= in
-      // the record says which arm produced the number.
+      // actually overlap them.
+      //
+      // R2-2: the pageable arm cannot overlap -- cudaMemcpyAsync from unpinned
+      // memory is synchronous with respect to the host -- so it is reported
+      // under a DIFFERENT pattern name (bidirectional_serialized) with
+      // OVERLAP=0, rather than as a duplex figure with a caveat in a comment
+      // no downstream parser reads.
       //
       // d2h into a_cpu and h2d out of b_cpu, so the two directions touch
       // different buffers and can be verified independently (RF4).
@@ -555,20 +611,21 @@ int main(int argc, char **argv) {
       CUDA_CHECK(cudaMemset(b_gpu, 0, N_byte));
       datatransfer(streams, N_byte, {{a_cpu, a_gpu}, {b_gpu, b_cpu}}, iters,
                    barrier, warmup, &t, &l);
-      abort_if_copy_failed(N_byte, "bidirectional");
-      if (world_rank == 0)
-        report("bidirectional", N_byte, world_size, t, 2, l, pinned, iters,
-               barrier);
+      abort_if_copy_failed(N_byte, bidir_pattern(pinned));
       // RF4: check BOTH destinations. Previously neither was checked, so a
       // dropped direction still reported failures=0.
-      verify("bidirectional_d2h", ref.data(), a_cpu, n_elems, world_rank);
+      f = verify_now("bidirectional_d2h", ref.data(), a_cpu, n_elems,
+                     world_rank);
       {
         std::vector<int> got(n_elems);
         CUDA_CHECK(cudaMemcpy(got.data(), b_gpu, N_byte,
                               cudaMemcpyDeviceToHost));
-        verify("bidirectional_h2d", ref_b.data(), got.data(), n_elems,
-               world_rank);
+        f += verify_now("bidirectional_h2d", ref_b.data(), got.data(), n_elems,
+                        world_rank);
       }
+      if (world_rank == 0)
+        report(bidir_pattern(pinned), N_byte, world_size, t, 2, l, pinned,
+               iters, barrier, f);
 
       // ---- d2d -------------------------------------------------------------
       // On-device copy. Never crosses PCIe, so it measures HBM bandwidth and
@@ -581,14 +638,14 @@ int main(int argc, char **argv) {
       datatransfer(streams, N_byte, {{b_gpu, a_gpu}}, iters, barrier, warmup,
                    &t, &l);
       abort_if_copy_failed(N_byte, "d2d");
-      if (world_rank == 0)
-        report("d2d", N_byte, world_size, t, 1, l, pinned, iters, barrier);
       {
         std::vector<int> got(n_elems);
         CUDA_CHECK(cudaMemcpy(got.data(), b_gpu, N_byte,
                               cudaMemcpyDeviceToHost));
-        verify("d2d", ref.data(), got.data(), n_elems, world_rank);
+        f = verify_now("d2d", ref.data(), got.data(), n_elems, world_rank);
       }
+      if (world_rank == 0)
+        report("d2d", N_byte, world_size, t, 1, l, pinned, iters, barrier, f);
 
       // a_gpu must hold ref again for the next sweep point's d2h.
       CUDA_CHECK(cudaMemcpy(a_gpu, ref.data(), N_byte,

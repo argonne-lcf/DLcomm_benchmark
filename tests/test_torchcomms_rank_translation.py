@@ -25,6 +25,7 @@ crash landed on TASK 5 (broadcast).
 Run: PYTHONPATH=<repo> python3 tests/test_torchcomms_rank_translation.py
 """
 
+import os
 import unittest
 from unittest import mock
 
@@ -62,15 +63,16 @@ class FakeComm:
     the buggy code and prove nothing.
     """
 
-    def __init__(self, size):
+    def __init__(self, size, rank=0):
         self._size = size
+        self._rank = rank
         self.calls = []
 
     def get_size(self):
         return self._size
 
     def get_rank(self):
-        return 0
+        return self._rank
 
     def _check_root(self, kind, r):
         if not (0 <= r < self._size):
@@ -226,6 +228,127 @@ class TestCollectivesContract(unittest.TestCase):
         self.assertEqual(reported, [4, 5, 6, 7])
         dist.broadcast(object(), src=min(reported), group=group)
         self.assertEqual(comm.calls, [("broadcast", 0)])
+
+
+class SubgroupStoreRendezvous(unittest.TestCase):
+    """R2-3: the rendezvous store must exist for subgroups excluding rank 0.
+
+    Round-2 review finding. The TCPStore was created lazily inside
+    _new_comm_for(), which only members of the new subgroup ever reach, while
+    is_master was (self.get_rank() == 0). For a subgroup like [4,5,6,7]:
+
+      - rank 0 is not a member, so it returns at the non-member early-return
+        and never creates the store server;
+      - no member is rank 0, so every member builds a client.
+
+    Result: all four members block connecting to a server that was never
+    started -- a hang at group-creation time, not an error. This is the same
+    subgroup shape that crashed job 6549.
+
+    The fix moves store creation into new_group, before the non-member
+    early-return, so it is collective over the parent group.
+    """
+
+    def _dist(self, rank, world=8):
+        comm = FakeComm(world, rank=rank)
+
+        # Members reach the native-split attempt before the new_comm
+        # fallback. Raise the exact XCCL message so the fallback path -- the
+        # one that needs the store -- is the path under test.
+        def _split(ranks, label):
+            raise RuntimeError(
+                "split is not supported now and will be added later")
+
+        comm.split = _split
+        dist = tcb.TorchCommsDist.__new__(tcb.TorchCommsDist)
+        dist._comm = comm
+        dist._splits = {}
+        dist._op_map = {}
+        dist._backend = "xccl"
+        dist._device = "xpu"
+        dist._root_store = None
+        dist._split_unsupported = None
+        return dist
+
+    def _run_new_group(self, dist, groups, store_factory):
+        """Call new_group under stubbed torch.distributed + torchcomms.
+
+        Member ranks fall through to _new_comm_for, which calls _require().
+        Stubbing the optional torchcomms module keeps this a test of the
+        store rendezvous rather than of whether torchcomms is installed.
+        """
+        fake_tc = mock.MagicMock()
+        fake_tc.new_comm.return_value = object()
+        # _require() reads the module-global _tc captured at import time, so
+        # patching sys.modules['torchcomms'] after the fact has no effect.
+        with mock.patch.object(tcb, "_tc", fake_tc), mock.patch.dict(
+            os.environ, {"MASTER_ADDR": "h", "MASTER_PORT": "29500"}
+        ), mock.patch.dict(
+            "sys.modules",
+            {"torch": mock.MagicMock(),
+             "torch.distributed": mock.MagicMock(
+                 TCPStore=store_factory,
+                 PrefixStore=lambda prefix, store: object()),
+             "torchcomms": fake_tc},
+        ):
+            for g in groups:
+                dist.new_group(g)
+
+    def test_rank0_creates_store_even_when_not_a_member(self):
+        dist = self._dist(rank=0)
+        made = []
+
+        def fake_store(**kw):
+            made.append(kw)
+            return object()
+
+        # rank 0 is NOT in this subgroup
+        self._run_new_group(dist, [[4, 5, 6, 7]], fake_store)
+
+        self.assertEqual(len(made), 1,
+                         "rank 0 must still start the store server")
+        self.assertTrue(made[0]["is_master"],
+                        "rank 0 must be the store master")
+
+    def test_member_excluding_rank0_does_not_claim_master(self):
+        dist = self._dist(rank=4)
+        made = []
+
+        def fake_store(**kw):
+            made.append(kw)
+            return object()
+
+        self._run_new_group(dist, [[4, 5, 6, 7]], fake_store)
+
+        self.assertEqual(len(made), 1)
+        self.assertFalse(made[0]["is_master"],
+                         "only global rank 0 may be the store master")
+
+    def test_store_created_once_and_reused(self):
+        dist = self._dist(rank=0)
+        made = []
+
+        def fake_store(**kw):
+            made.append(kw)
+            return object()
+
+        self._run_new_group(
+            dist, [[4, 5, 6, 7], [0, 1, 2, 3], [2, 3]], fake_store)
+
+        self.assertEqual(len(made), 1, "store must be idempotent")
+
+    def test_missing_master_addr_raises_clearly(self):
+        dist = self._dist(rank=0)
+        env = {k: v for k, v in os.environ.items()
+               if k not in ("MASTER_ADDR", "MASTER_PORT")}
+        with mock.patch.dict(os.environ, env, clear=True), \
+             mock.patch.dict(
+                 "sys.modules",
+                 {"torch": mock.MagicMock(),
+                  "torch.distributed": mock.MagicMock()}):
+            with self.assertRaises(RuntimeError) as ctx:
+                dist.new_group([4, 5, 6, 7])
+        self.assertIn("MASTER_ADDR", str(ctx.exception))
 
 
 if __name__ == "__main__":
