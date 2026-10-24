@@ -28,7 +28,30 @@ Run: PYTHONPATH=<repo> python3 tests/test_torchcomms_rank_translation.py
 import unittest
 from unittest import mock
 
-import dl_comm.comm.torchcomms_backend as tcb
+import importlib.util
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+
+
+def _load_backend():
+    """Import torchcomms_backend without triggering dl_comm.comm.__init__.
+
+    Matches the loader in tests/test_torchcomms_transport.py. Importing
+    ``dl_comm.comm.torchcomms_backend`` normally would execute the package
+    __init__, which pulls in omegaconf and the rest of the runtime stack --
+    none of which this module needs. Loading the file directly keeps the
+    suite runnable on a bare interpreter (Tara's login nodes have only
+    cray-python, with no omegaconf).
+    """
+    path = ROOT / "dl_comm" / "comm" / "torchcomms_backend.py"
+    spec = importlib.util.spec_from_file_location("_tcb_rank_xlate", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+tcb = _load_backend()
 
 
 class FakeComm:
@@ -74,6 +97,28 @@ class FakeComm:
         self._check_root("recv", peer)
 
 
+class _FakeReduceOp:
+    SUM = "SUM"
+    PRODUCT = "PRODUCT"
+    MIN = "MIN"
+    MAX = "MAX"
+    AVG = "AVG"
+
+
+class _FakeTorchComms:
+    """Stand-in for the optional ``torchcomms`` module.
+
+    REVIEW FIX (20261024T071020Z-dlcomm3c): ``test_reduce_dst_translated``
+    used to error on any host without torchcomms installed, because
+    ``reduce()`` calls ``_op()`` which calls ``_require()``. The test is about
+    rank translation, not about the op mapping, so the dependency is injected
+    here instead of being required from the environment. The suite is now
+    hermetic: it passes on a bare interpreter with only the stdlib.
+    """
+
+    ReduceOp = _FakeReduceOp
+
+
 def _dist_with_group(global_ranks, world=8):
     """Build the adapter with a subcommunicator covering `global_ranks`."""
     world_comm = FakeComm(world)
@@ -109,7 +154,10 @@ class TestSecondNodeGroup(unittest.TestCase):
                              f"global {g} should map to local {i}")
 
     def test_reduce_dst_translated(self):
-        self.dist.reduce(object(), dst=6, group=self.group)
+        # Patch the optional torchcomms module so this test exercises rank
+        # translation rather than the presence of an optional dependency.
+        with mock.patch.object(tcb, "_tc", _FakeTorchComms):
+            self.dist.reduce(object(), dst=6, group=self.group)
         self.assertEqual(self.comm.calls, [("reduce", 2)])
 
     def test_scatter_src_translated(self):

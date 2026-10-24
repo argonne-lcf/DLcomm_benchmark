@@ -7,7 +7,6 @@
 //   * the same four patterns, in the same order: h2d, d2h, bidirectional, d2d
 //   * the same min-over-iterations timing, reduced across ranks with
 //     MPI_MIN on the start and MPI_MAX on the end
-//   * the same u64/double arithmetic, so the byte product cannot wrap
 //   * the same "LAYER=cpp ..." output contract, so the existing parser in
 //     dl_comm/analysis/parse_layers.py reads this without modification
 //
@@ -59,6 +58,52 @@
 //        cost of the driver's staging buffer, and a pinned-only figure
 //        attributes that cost to the link. DLCOMM_TRANSFER_PAGEABLE=0 skips.
 //
+// ---------------------------------------------------------------------------
+// REVIEW FIXES (independent review 20261024T071020Z-dlcomm3c)
+// ---------------------------------------------------------------------------
+// RF1    Bidirectional used ONE stream, so the two copies serialized and the
+//        "full-duplex overlap" claim was false. Each concurrent copy now gets
+//        its own stream; timing brackets the whole set (all streams started,
+//        then all synchronized), which is what a duplex figure must measure.
+//
+// RF2    Warmup. The header claimed warmup was added; it was not. Every copy
+//        was timed from the first touch, so first-use page faults, lazy
+//        context init and the driver's pageable staging setup landed in the
+//        sample. An untimed warmup pass now precedes every timed set.
+//        DLCOMM_TRANSFER_WARMUP=N sets the count (default 3, 0 disables).
+//
+// RF3    Byte sizes not divisible by sizeof(int) overflowed the host buffers:
+//        max_elems rounded *down*, so DLCOMM_TRANSFER_BYTES=5 allocated 4
+//        bytes and copied 5 (confirmed under AddressSanitizer). Sizes must now
+//        be a positive multiple of sizeof(int); anything else is rejected with
+//        a diagnostic. std::stoull exceptions are caught rather than escaping.
+//
+// RF4    Bidirectional was never verified. h2d/d2h/d2d checked their payload
+//        but the two bidirectional destinations did not, so a dropped or
+//        mis-sized direction still reported failures=0. Both are now checked.
+//
+// RF5    A failed copy was reported too late: the sticky error was examined
+//        only after report() had already printed a bandwidth line for the
+//        failed transfer. The error is now checked immediately after each
+//        timed set and before any report(), so no number is ever printed for
+//        a transfer that did not happen.
+//
+// RF6    Error paths stranded peers and leaked resources. CUDA_CHECK did a
+//        bare `return 1` after MPI_Init, leaving other ranks blocked in the
+//        next barrier/reduction; partial allocation failures leaked whatever
+//        had already succeeded. All failure paths now go through
+//        fail_fast(), which MPI_Aborts, and allocations are released by a
+//        single cleanup path.
+//
+// RF7    Timing used high_resolution_clock::now().time_since_epoch().count(),
+//        whose period is implementation-defined, while the output field is
+//        named TIME_NS. Replaced with an explicit duration_cast<nanoseconds>
+//        against steady_clock, which is also monotonic (high_resolution_clock
+//        may alias system_clock and jump).
+//
+// RF8    The aggregate byte product N_byte * world_size * copies was asserted
+//        to be unwrappable. It is checked instead.
+//
 // BUILD  nvcc -O2 -arch=sm_90 pci_fixed_cuda.cu -o pci_fixed_cuda <mpi flags>
 //        (or: nvcc -O2 -DNO_MPI pci_fixed_cuda.cu -o pci_fixed_cuda)
 // RUN    mpiexec -n 4 -ppn 4 ./pci_fixed_cuda
@@ -72,6 +117,7 @@
 #include <limits>
 #include <random>
 #include <sstream>
+#include <stdexcept>
 #include <string>
 #include <vector>
 #include <unistd.h>
@@ -84,18 +130,31 @@
 
 using u64 = unsigned long long;
 
+// RF6: a rank-local failure must take the whole job down. Returning 1 from
+// one rank leaves the others blocked in the next MPI_Barrier/MPI_Reduce until
+// the scheduler's walltime kills them, which looks like a hang rather than an
+// error.
+[[noreturn]] static void fail_fast(const std::string &what) {
+  std::cout << "LAYER=cpp ERROR=" << what << std::endl;
+  std::cout.flush();
+#ifndef NO_MPI
+  MPI_Abort(MPI_COMM_WORLD, 1);
+#endif
+  std::exit(1);
+}
+
 #define CUDA_CHECK(call)                                                      \
   do {                                                                        \
     cudaError_t _e = (call);                                                  \
     if (_e != cudaSuccess) {                                                  \
-      std::cout << "LAYER=cpp ERROR=cuda_" << cudaGetErrorName(_e)            \
-                << " at " << __FILE__ << ":" << __LINE__ << std::endl;        \
-      return 1;                                                               \
+      fail_fast(std::string("cuda_") + cudaGetErrorName(_e) + " at " +        \
+                __FILE__ + ":" + std::to_string(__LINE__));                   \
     }                                                                         \
   } while (0)
 
-// FIX 2: the hot loop cannot `return 1` (it is inside a helper), so it sets a
-// sticky error that main() turns into a non-zero exit and an ERROR= record.
+// FIX 2: the hot loop cannot fail_fast directly (it must let every rank reach
+// the same decision point), so it sets a sticky error that the caller checks
+// immediately after the timed set -- see RF5.
 static cudaError_t g_copy_err = cudaSuccess;
 static int g_copy_err_line = 0;
 
@@ -107,6 +166,15 @@ static int g_copy_err_line = 0;
       g_copy_err_line = (line);                                               \
     }                                                                         \
   } while (0)
+
+// RF7: monotonic, and explicitly converted to nanoseconds rather than trusting
+// the clock's native period to be nano.
+static inline u64 now_ns() {
+  return static_cast<u64>(
+      std::chrono::duration_cast<std::chrono::nanoseconds>(
+          std::chrono::steady_clock::now().time_since_epoch())
+          .count());
+}
 
 // Fill the buffers so the copies move real data rather than zero pages.
 // A constant fill can be served from a zero page or compressed somewhere in
@@ -125,16 +193,34 @@ static void fill_randomly(size_t N, int *a_cpu, int *b_cpu) {
 // Returns the cross-rank window in `agg` and this rank's own elapsed time in
 // `local`.
 //
+// RF1: `streams` must hold at least ptrs.size() entries. Copy i is issued on
+// stream i, so a multi-copy set runs concurrently instead of serializing
+// behind one stream. The timed region covers "all copies issued" to "all
+// copies complete", which is the only meaningful bracket for a duplex figure.
+//
+// RF2: `warmup` untimed repetitions run first. They execute the identical copy
+// set, so first-touch faults, context init and pageable staging allocation are
+// paid before the clock starts.
+//
 // The original reduces MIN(start) and MAX(end) across ranks, so the window it
 // measures spans from the earliest rank entering the copy to the latest rank
 // leaving it. With the barrier in place (FIX 1) that interval is the transfer
 // plus barrier-exit jitter. Without it, it is unbounded rank skew.
-//
-// Both numbers are kept -- the aggregate for comparability with the SYCL
-// original, the rank-local one because it is what the device actually did.
-static void datatransfer(cudaStream_t stream, size_t N_byte,
+static void datatransfer(const std::vector<cudaStream_t> &streams,
+                         size_t N_byte,
                          const std::vector<std::pair<void *, void *>> &ptrs,
-                         int iters, bool use_barrier, u64 *agg, u64 *local) {
+                         int iters, bool use_barrier, int warmup, u64 *agg,
+                         u64 *local) {
+  // RF2: untimed warmup.
+  for (int w = 0; w < warmup; ++w) {
+    for (size_t k = 0; k < ptrs.size(); ++k)
+      COPY_CHECK(cudaMemcpyAsync(ptrs[k].first, ptrs[k].second, N_byte,
+                                 cudaMemcpyDefault, streams[k]),
+                 __LINE__);
+    for (size_t k = 0; k < ptrs.size(); ++k)
+      COPY_CHECK(cudaStreamSynchronize(streams[k]), __LINE__);
+  }
+
   u64 min_agg = std::numeric_limits<u64>::max();
   u64 min_local = std::numeric_limits<u64>::max();
   for (int i = 0; i < iters; ++i) {
@@ -145,15 +231,16 @@ static void datatransfer(cudaStream_t stream, size_t N_byte,
 #else
     (void)use_barrier;
 #endif
-    const u64 l_start =
-        std::chrono::high_resolution_clock::now().time_since_epoch().count();
-    for (auto &pr : ptrs)
-      COPY_CHECK(cudaMemcpyAsync(pr.first, pr.second, N_byte,
-                                 cudaMemcpyDefault, stream),
+    const u64 l_start = now_ns();
+    // RF1: issue every copy before waiting on any of them, each on its own
+    // stream, so independent copies actually overlap.
+    for (size_t k = 0; k < ptrs.size(); ++k)
+      COPY_CHECK(cudaMemcpyAsync(ptrs[k].first, ptrs[k].second, N_byte,
+                                 cudaMemcpyDefault, streams[k]),
                  __LINE__);
-    COPY_CHECK(cudaStreamSynchronize(stream), __LINE__);
-    const u64 l_end =
-        std::chrono::high_resolution_clock::now().time_since_epoch().count();
+    for (size_t k = 0; k < ptrs.size(); ++k)
+      COPY_CHECK(cudaStreamSynchronize(streams[k]), __LINE__);
+    const u64 l_end = now_ns();
 
     min_local = std::min(l_end - l_start, min_local);
 
@@ -170,7 +257,16 @@ static void datatransfer(cudaStream_t stream, size_t N_byte,
   *local = min_local;
 }
 
-// All arithmetic in u64/double so the product cannot wrap.
+// RF5: call immediately after each timed set, before report(). A transfer that
+// errored must never produce a bandwidth line.
+static void abort_if_copy_failed(size_t N_byte, const char *pattern) {
+  if (g_copy_err == cudaSuccess) return;
+  std::ostringstream os;
+  os << "copy_failed_" << cudaGetErrorName(g_copy_err) << " pattern="
+     << pattern << " line=" << g_copy_err_line << " BUF_BYTES=" << N_byte;
+  fail_fast(os.str());
+}
+
 static void report(const char *pattern, size_t N_byte, int world_size,
                    u64 time_ns, int copies, u64 local_ns, bool pinned,
                    int iters, bool barrier) {
@@ -180,13 +276,21 @@ static void report(const char *pattern, size_t N_byte, int world_size,
               << " ERROR=zero_elapsed_time" << std::endl;
     return;
   }
-  const u64 total = static_cast<u64>(N_byte) * static_cast<u64>(world_size) *
-                    static_cast<u64>(copies);
+  // RF8: check the product instead of asserting it cannot wrap.
+  const u64 umax = std::numeric_limits<u64>::max();
+  const u64 nb = static_cast<u64>(N_byte);
+  const u64 ws = static_cast<u64>(world_size);
+  const u64 cp = static_cast<u64>(copies);
+  if (ws != 0 && nb > umax / ws) fail_fast("byte_product_overflow");
+  u64 total = nb * ws;
+  if (cp != 0 && total > umax / cp) fail_fast("byte_product_overflow");
+  total *= cp;
+
   const double gbps = static_cast<double>(total) / static_cast<double>(time_ns);
 
   // Per-rank view: this rank's own bytes over its own elapsed time, free of
   // cross-rank skew.
-  const u64 own = static_cast<u64>(N_byte) * static_cast<u64>(copies);
+  const u64 own = nb * cp;
   const double local_gbps =
       local_ns ? static_cast<double>(own) / static_cast<double>(local_ns) : 0.0;
 
@@ -209,6 +313,7 @@ static long long g_checks = 0, g_failures = 0;
 
 static void verify(const char *pattern, const int *host_ref,
                    const int *host_got, size_t n_elems, int rank) {
+  if (n_elems == 0) return;
   const size_t idxs[3] = {0, n_elems / 2, n_elems - 1};
   for (size_t k = 0; k < 3; ++k) {
     const size_t i = idxs[k];
@@ -224,19 +329,42 @@ static void verify(const char *pattern, const int *host_ref,
   }
 }
 
+// RF3: every size must be a positive multiple of sizeof(int). The element
+// counts downstream are byte/sizeof(int), which rounds down, so a size that is
+// not a multiple makes the host buffers smaller than the copies that write
+// into them. Rejecting is correct: silently rounding would report a bandwidth
+// for a size the user did not ask for.
 static std::vector<size_t> parse_sizes() {
   std::vector<size_t> sizes;
   if (const char *env = std::getenv("DLCOMM_TRANSFER_BYTES")) {
     std::stringstream ss(env);
     std::string tok;
     while (std::getline(ss, tok, ',')) {
-      // strip whitespace
       size_t a = tok.find_first_not_of(" \t");
       if (a == std::string::npos) continue;
       size_t b = tok.find_last_not_of(" \t");
-      const unsigned long long v = std::stoull(tok.substr(a, b - a + 1));
-      if (v >= sizeof(int)) sizes.push_back(static_cast<size_t>(v));
+      const std::string t = tok.substr(a, b - a + 1);
+
+      unsigned long long v = 0;
+      try {
+        size_t consumed = 0;
+        v = std::stoull(t, &consumed);
+        if (consumed != t.size())
+          fail_fast("bad_transfer_bytes_trailing_chars value=" + t);
+      } catch (const std::exception &) {
+        fail_fast("bad_transfer_bytes_not_a_number value=" + t);
+      }
+
+      if (v == 0) fail_fast("bad_transfer_bytes_zero value=" + t);
+      if (v % sizeof(int) != 0)
+        fail_fast("bad_transfer_bytes_not_multiple_of_" +
+                  std::to_string(sizeof(int)) + " value=" + t);
+      if (v > static_cast<unsigned long long>(
+                  std::numeric_limits<size_t>::max()))
+        fail_fast("bad_transfer_bytes_too_large value=" + t);
+      sizes.push_back(static_cast<size_t>(v));
     }
+    if (sizes.empty()) fail_fast("bad_transfer_bytes_empty");
   }
   if (sizes.empty()) {
     // FIX 4: default sweep covers the collective-layer sizes (1-64 MiB) so a
@@ -279,18 +407,16 @@ int main(int argc, char **argv) {
 
   int ndev = 0;
   CUDA_CHECK(cudaGetDeviceCount(&ndev));
-  if (ndev == 0) {
-    std::cerr << "no GPU devices visible\n";
-#ifndef NO_MPI
-    MPI_Abort(MPI_COMM_WORLD, 1);
-#endif
-    return 1;
-  }
+  if (ndev == 0) fail_fast("no_gpu_devices_visible");
   const int dev_idx = local_rank % ndev;
   CUDA_CHECK(cudaSetDevice(dev_idx));
 
-  cudaStream_t stream;
-  CUDA_CHECK(cudaStreamCreate(&stream));
+  // RF1: two streams, because the widest copy set (bidirectional) has two
+  // concurrent copies.
+  const size_t kMaxConcurrent = 2;
+  std::vector<cudaStream_t> streams(kMaxConcurrent);
+  for (size_t i = 0; i < kMaxConcurrent; ++i)
+    CUDA_CHECK(cudaStreamCreate(&streams[i]));
 
   char host[256] = {0};
   gethostname(host, sizeof(host) - 1);
@@ -309,23 +435,23 @@ int main(int argc, char **argv) {
   // FIX 5 toggle: pageable arm costs one extra pass; default on.
   const bool do_pageable = !(std::getenv("DLCOMM_TRANSFER_PAGEABLE") &&
                              std::string(std::getenv("DLCOMM_TRANSFER_PAGEABLE")) == "0");
+  // RF2 toggle: warmup repetitions, untimed. 0 reproduces the old behaviour.
+  const int warmup = std::getenv("DLCOMM_TRANSFER_WARMUP")
+                         ? std::atoi(std::getenv("DLCOMM_TRANSFER_WARMUP"))
+                         : 3;
 
-  if (iters < 1) {
-    std::cout << "LAYER=cpp ERROR=bad_iters" << std::endl;
-#ifndef NO_MPI
-    MPI_Abort(MPI_COMM_WORLD, 1);
-#endif
-    return 1;
-  }
+  if (iters < 1) fail_fast("bad_iters");
+  if (warmup < 0) fail_fast("bad_warmup");
 
   const size_t max_bytes = sizes.back();
-  const size_t max_elems = max_bytes / sizeof(int);
+  const size_t max_elems = max_bytes / sizeof(int);  // exact: RF3 guarantees it
 
   if (world_rank == 0) {
     cudaDeviceProp prop;
-    cudaGetDeviceProperties(&prop, dev_idx);
+    CUDA_CHECK(cudaGetDeviceProperties(&prop, dev_idx));
     std::cout << "LAYER=cpp DEVICE=" << prop.name << " RANKS=" << world_size
               << " BUFFER_BYTES=" << max_bytes << " ITERS=" << iters
+              << " WARMUP=" << warmup
               << " BARRIER=" << (barrier ? 1 : 0)
               << " PAGEABLE_ARM=" << (do_pageable ? 1 : 0)
               << " SIZES=" << sizes.size() << std::endl;
@@ -333,19 +459,21 @@ int main(int argc, char **argv) {
 
   // Device buffers are allocated once at the maximum size; each sweep point
   // copies a prefix. Re-allocating per size would measure the allocator.
+  // RF6: free whatever succeeded before aborting on a later failure.
   int *a_gpu = nullptr, *b_gpu = nullptr;
-  if (cudaMalloc(&a_gpu, max_bytes) != cudaSuccess ||
-      cudaMalloc(&b_gpu, max_bytes) != cudaSuccess) {
-    std::cout << "LAYER=cpp ERROR=device_allocation_failed BYTES="
-              << max_bytes << std::endl;
-#ifndef NO_MPI
-    MPI_Abort(MPI_COMM_WORLD, 1);
-#endif
-    return 1;
+  if (cudaMalloc(&a_gpu, max_bytes) != cudaSuccess) {
+    fail_fast("device_allocation_failed BYTES=" + std::to_string(max_bytes));
+  }
+  if (cudaMalloc(&b_gpu, max_bytes) != cudaSuccess) {
+    cudaFree(a_gpu);
+    fail_fast("device_allocation_failed BYTES=" + std::to_string(max_bytes));
   }
 
   // Reference copy on the host, used by FIX 3 to verify every pattern.
   std::vector<int> ref(max_elems);
+  // RF4: bidirectional writes b_gpu's content back to b_cpu, so its expected
+  // payload is b_cpu's original content, captured here.
+  std::vector<int> ref_b(max_elems);
 
   const int arms = do_pageable ? 2 : 1;
   for (int arm = 0; arm < arms; ++arm) {
@@ -355,15 +483,16 @@ int main(int argc, char **argv) {
     if (pinned) {
       // Pinned host memory, matching sycl::malloc_host.
       if (cudaHostAlloc(&a_cpu, max_bytes, cudaHostAllocDefault) !=
-              cudaSuccess ||
-          cudaHostAlloc(&b_cpu, max_bytes, cudaHostAllocDefault) !=
-              cudaSuccess) {
-        std::cout << "LAYER=cpp ERROR=pinned_allocation_failed BYTES="
-                  << max_bytes << std::endl;
-#ifndef NO_MPI
-        MPI_Abort(MPI_COMM_WORLD, 1);
-#endif
-        return 1;
+          cudaSuccess) {
+        cudaFree(a_gpu); cudaFree(b_gpu);
+        fail_fast("pinned_allocation_failed BYTES=" +
+                  std::to_string(max_bytes));
+      }
+      if (cudaHostAlloc(&b_cpu, max_bytes, cudaHostAllocDefault) !=
+          cudaSuccess) {
+        cudaFreeHost(a_cpu); cudaFree(a_gpu); cudaFree(b_gpu);
+        fail_fast("pinned_allocation_failed BYTES=" +
+                  std::to_string(max_bytes));
       }
     } else {
       // FIX 5: pageable arm. The driver stages through its own pinned buffer,
@@ -371,26 +500,29 @@ int main(int argc, char **argv) {
       a_cpu = static_cast<int *>(std::malloc(max_bytes));
       b_cpu = static_cast<int *>(std::malloc(max_bytes));
       if (!a_cpu || !b_cpu) {
-        std::cout << "LAYER=cpp ERROR=pageable_allocation_failed BYTES="
-                  << max_bytes << std::endl;
         std::free(a_cpu);
         std::free(b_cpu);
-        continue;
+        cudaFree(a_gpu); cudaFree(b_gpu);
+        fail_fast("pageable_allocation_failed BYTES=" +
+                  std::to_string(max_bytes));
       }
     }
 
     fill_randomly(max_elems, a_cpu, b_cpu);
     std::memcpy(ref.data(), a_cpu, max_bytes);
+    std::memcpy(ref_b.data(), b_cpu, max_bytes);
     CUDA_CHECK(cudaMemcpy(a_gpu, a_cpu, max_bytes, cudaMemcpyHostToDevice));
     CUDA_CHECK(cudaMemcpy(b_gpu, b_cpu, max_bytes, cudaMemcpyHostToDevice));
 
     for (size_t N_byte : sizes) {
-      const size_t n_elems = N_byte / sizeof(int);
+      const size_t n_elems = N_byte / sizeof(int);  // exact: RF3
+      u64 t = 0, l = 0;
 
       // ---- h2d -----------------------------------------------------------
       CUDA_CHECK(cudaMemset(a_gpu, 0, N_byte));
-      u64 t = 0, l = 0;
-      datatransfer(stream, N_byte, {{a_gpu, a_cpu}}, iters, barrier, &t, &l);
+      datatransfer(streams, N_byte, {{a_gpu, a_cpu}}, iters, barrier, warmup,
+                   &t, &l);
+      abort_if_copy_failed(N_byte, "h2d");          // RF5: before report
       if (world_rank == 0)
         report("h2d", N_byte, world_size, t, 1, l, pinned, iters, barrier);
       {
@@ -403,22 +535,40 @@ int main(int argc, char **argv) {
       // ---- d2h -----------------------------------------------------------
       // a_gpu currently holds the h2d result, which equals ref.
       std::memset(a_cpu, 0, N_byte);
-      datatransfer(stream, N_byte, {{a_cpu, a_gpu}}, iters, barrier, &t, &l);
+      datatransfer(streams, N_byte, {{a_cpu, a_gpu}}, iters, barrier, warmup,
+                   &t, &l);
+      abort_if_copy_failed(N_byte, "d2h");
       if (world_rank == 0)
         report("d2h", N_byte, world_size, t, 1, l, pinned, iters, barrier);
       verify("d2h", ref.data(), a_cpu, n_elems, world_rank);
 
       // ---- bidirectional --------------------------------------------------
-      // Both copies are issued before the wait so they overlap on a
-      // full-duplex link. With pageable memory cudaMemcpyAsync on the default
-      // path is effectively synchronous, so this arm's bidirectional figure
-      // is a serialized upper bound rather than full duplex; HOSTMEM= in the
-      // record says which arm produced it.
-      datatransfer(stream, N_byte, {{a_gpu, a_cpu}, {b_cpu, b_gpu}}, iters,
-                   barrier, &t, &l);
+      // RF1: the two copies run on separate streams, so a full-duplex link can
+      // actually overlap them. Note the pageable arm still cannot overlap:
+      // cudaMemcpyAsync from unpinned memory is synchronous with respect to
+      // the host, so that arm remains a serialized upper bound. HOSTMEM= in
+      // the record says which arm produced the number.
+      //
+      // d2h into a_cpu and h2d out of b_cpu, so the two directions touch
+      // different buffers and can be verified independently (RF4).
+      std::memset(a_cpu, 0, N_byte);
+      CUDA_CHECK(cudaMemset(b_gpu, 0, N_byte));
+      datatransfer(streams, N_byte, {{a_cpu, a_gpu}, {b_gpu, b_cpu}}, iters,
+                   barrier, warmup, &t, &l);
+      abort_if_copy_failed(N_byte, "bidirectional");
       if (world_rank == 0)
         report("bidirectional", N_byte, world_size, t, 2, l, pinned, iters,
                barrier);
+      // RF4: check BOTH destinations. Previously neither was checked, so a
+      // dropped direction still reported failures=0.
+      verify("bidirectional_d2h", ref.data(), a_cpu, n_elems, world_rank);
+      {
+        std::vector<int> got(n_elems);
+        CUDA_CHECK(cudaMemcpy(got.data(), b_gpu, N_byte,
+                              cudaMemcpyDeviceToHost));
+        verify("bidirectional_h2d", ref_b.data(), got.data(), n_elems,
+               world_rank);
+      }
 
       // ---- d2d -------------------------------------------------------------
       // On-device copy. Never crosses PCIe, so it measures HBM bandwidth and
@@ -428,7 +578,9 @@ int main(int argc, char **argv) {
       CUDA_CHECK(cudaMemcpy(a_gpu, ref.data(), N_byte,
                             cudaMemcpyHostToDevice));
       CUDA_CHECK(cudaMemset(b_gpu, 0, N_byte));
-      datatransfer(stream, N_byte, {{b_gpu, a_gpu}}, iters, barrier, &t, &l);
+      datatransfer(streams, N_byte, {{b_gpu, a_gpu}}, iters, barrier, warmup,
+                   &t, &l);
+      abort_if_copy_failed(N_byte, "d2d");
       if (world_rank == 0)
         report("d2d", N_byte, world_size, t, 1, l, pinned, iters, barrier);
       {
@@ -438,21 +590,16 @@ int main(int argc, char **argv) {
         verify("d2d", ref.data(), got.data(), n_elems, world_rank);
       }
 
-      if (g_copy_err != cudaSuccess) {
-        std::cout << "LAYER=cpp ERROR=copy_failed_"
-                  << cudaGetErrorName(g_copy_err) << " line="
-                  << g_copy_err_line << " at BUF_BYTES=" << N_byte
-                  << std::endl;
-#ifndef NO_MPI
-        MPI_Abort(MPI_COMM_WORLD, 1);
-#endif
-        return 1;
-      }
+      // a_gpu must hold ref again for the next sweep point's d2h.
+      CUDA_CHECK(cudaMemcpy(a_gpu, ref.data(), N_byte,
+                            cudaMemcpyHostToDevice));
+      CUDA_CHECK(cudaMemcpy(b_gpu, ref_b.data(), N_byte,
+                            cudaMemcpyHostToDevice));
     }
 
     if (pinned) {
-      cudaFreeHost(a_cpu);
-      cudaFreeHost(b_cpu);
+      CUDA_CHECK(cudaFreeHost(a_cpu));
+      CUDA_CHECK(cudaFreeHost(b_cpu));
     } else {
       std::free(a_cpu);
       std::free(b_cpu);
@@ -471,9 +618,11 @@ int main(int argc, char **argv) {
     std::cout << "LAYER=cpp CORRECTNESS checks=" << tot_checks
               << " failures=" << tot_failures << std::endl;
 
-  cudaFree(a_gpu);
-  cudaFree(b_gpu);
-  cudaStreamDestroy(stream);
+  // RF6: checked teardown. A failure here is a real error, not noise.
+  CUDA_CHECK(cudaFree(a_gpu));
+  CUDA_CHECK(cudaFree(b_gpu));
+  for (size_t i = 0; i < streams.size(); ++i)
+    CUDA_CHECK(cudaStreamDestroy(streams[i]));
 #ifndef NO_MPI
   MPI_Finalize();
 #endif

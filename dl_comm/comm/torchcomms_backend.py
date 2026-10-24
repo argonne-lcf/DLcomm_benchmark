@@ -45,7 +45,29 @@ except Exception:  # noqa: BLE001 - any import failure means "not available"
 BACKEND_NAME = "torchcomms"
 
 #: torchcomms backends that can carry DLcomm traffic, by accelerator vendor.
-SUPPORTED_TRANSPORTS = ("ncclx", "nccl", "rcclx", "rccl", "xccl", "gloo")
+#:
+#: REVIEW FIX (20261024T071020Z-dlcomm3c): ``nccl-lazy`` appeared in
+#: ``_VENDOR_PREFERENCE['cuda']`` but not here, so auto-selection could return
+#: a transport that an explicit ``--transport nccl-lazy`` request would reject
+#: as unknown. The two lists must describe the same policy.
+SUPPORTED_TRANSPORTS = (
+    "ncclx",
+    "nccl",
+    "nccl-lazy",
+    "rcclx",
+    "rccl",
+    "xccl",
+    "gloo",
+)
+
+#: Transports that move data over the accelerator fabric. ``gloo`` is absent
+#: deliberately: it works everywhere but runs over the host network, so
+#: selecting it for an accelerator run silently measures the wrong thing.
+_NATIVE_TRANSPORTS = {
+    "cuda": ("nccl", "ncclx", "nccl-lazy"),
+    "rocm": ("rccl", "rcclx", "nccl"),
+    "xpu": ("xccl",),
+}
 
 
 def is_available() -> bool:
@@ -67,28 +89,47 @@ def _require():
 def registered_transports() -> tuple[str, ...]:
     """torchcomms backends actually registered in this interpreter.
 
+    Returns () both when enumeration fails and when it succeeds with no
+    backends registered. Callers that must tell those apart should use
+    :func:`enumerate_transports`, which reports the status separately.
+    """
+    _status, names = enumerate_transports()
+    return names
+
+
+def enumerate_transports() -> tuple[str, tuple[str, ...]]:
+    """``(status, names)`` where status is ``"ok"`` or ``"unavailable"``.
+
     torchcomms resolves a backend name through the ``torchcomms.backends``
     entry-point group at ``new_comm`` time. Which names are present depends on
     how the wheel was built: the Aurora build registers ``xccl``, a stock
-    CUDA build registers ``nccl``/``nccl-lazy``/``gloo``/``fake``. Returning
-    () means "could not enumerate", which callers must treat as unknown
-    rather than as empty -- an enumeration failure is not evidence that no
-    backend exists.
+    CUDA build registers ``nccl``/``nccl-lazy``/``gloo``/``fake``.
+
+    REVIEW FIX (20261024T071020Z-dlcomm3c): the previous single-value return
+    conflated "the importlib call raised, so we know nothing" with
+    "enumeration worked and the group is genuinely empty". Those demand
+    opposite responses -- the first means fall back to the historical guess,
+    the second means the install is broken and we must say so -- so the status
+    is now returned alongside the names instead of being inferred from
+    emptiness.
     """
     try:
         from importlib.metadata import entry_points
     except Exception:  # noqa: BLE001
-        return ()
+        return ("unavailable", ())
     try:
         eps = entry_points(group="torchcomms.backends")
     except TypeError:  # Python < 3.10 selectable-entry-points API
         try:
             eps = entry_points().get("torchcomms.backends", [])
         except Exception:  # noqa: BLE001
-            return ()
+            return ("unavailable", ())
     except Exception:  # noqa: BLE001
-        return ()
-    return tuple(sorted({ep.name for ep in eps}))
+        return ("unavailable", ())
+    try:
+        return ("ok", tuple(sorted({ep.name for ep in eps})))
+    except Exception:  # noqa: BLE001
+        return ("unavailable", ())
 
 
 def _accelerator_vendor() -> str:
@@ -117,12 +158,17 @@ def _accelerator_vendor() -> str:
 
 
 #: Preference order per accelerator vendor. First entry that is registered
-#: wins. Vendor-native transports are preferred over gloo, which works
-#: everywhere but over the host network.
+#: wins.
+#:
+#: REVIEW FIX (20261024T071020Z-dlcomm3c): ``gloo`` used to terminate each
+#: accelerator list, which silently defeated the fail-closed check below --
+#: an XPU box with no xccl matched gloo here and returned it as a normal
+#: result. Accelerator vendors now list only fabric-native transports; a host
+#: transport on an accelerator must be requested explicitly.
 _VENDOR_PREFERENCE = {
-    "cuda": ("nccl", "ncclx", "nccl-lazy", "gloo"),
-    "rocm": ("rccl", "rcclx", "nccl", "gloo"),
-    "xpu": ("xccl", "gloo"),
+    "cuda": ("nccl", "ncclx", "nccl-lazy"),
+    "rocm": ("rccl", "rcclx", "nccl"),
+    "xpu": ("xccl",),
     "none": ("gloo",),
 }
 
@@ -154,8 +200,21 @@ def resolve_transport(device_type: str, requested: str | None = None) -> str:
       3. the historical device-type guess, kept only for the case where the
          entry points cannot be enumerated at all, so behaviour on Aurora is
          unchanged when introspection is unavailable.
+
+    REVIEW FIX (20261024T071020Z-dlcomm3c) -- fail closed on accelerators.
+    The previous version would, on an XPU machine whose torchcomms build did
+    not register ``xccl``, quietly return ``gloo`` and run the whole benchmark
+    over the host network at a fraction of the fabric bandwidth, reporting it
+    as a normal result. A packaging regression on Aurora would therefore turn
+    a loud failure into a silently wrong number -- the same class of defect as
+    the hardcoded ``xccl`` this function was written to fix.
+
+    An accelerator run now requires one of its vendor-native transports. If
+    none is registered the call raises, naming what was found and how to
+    override. ``gloo`` on an accelerator is reachable only by asking for it
+    explicitly, which is an informed choice rather than a silent downgrade.
     """
-    registered = registered_transports()
+    status, registered = enumerate_transports()
 
     if requested:
         t = requested.lower()
@@ -164,7 +223,7 @@ def resolve_transport(device_type: str, requested: str | None = None) -> str:
                 f"Unknown torchcomms transport '{requested}'. "
                 f"Valid transports: {list(SUPPORTED_TRANSPORTS)}"
             )
-        if registered and t not in registered:
+        if status == "ok" and registered and t not in registered:
             raise ValueError(
                 f"torchcomms transport '{t}' was requested but this "
                 f"torchcomms build does not register it. "
@@ -182,13 +241,26 @@ def resolve_transport(device_type: str, requested: str | None = None) -> str:
     else:
         vendor = _accelerator_vendor()
 
-    if registered:
+    if status == "ok" and registered:
         for cand in _VENDOR_PREFERENCE.get(vendor, _VENDOR_PREFERENCE["none"]):
             if cand in registered:
                 return cand
-        # Nothing preferred is registered. Fall back to any registered
-        # transport we know how to drive rather than guessing a name that
-        # will fail inside new_comm.
+        # Nothing preferred is registered. On an accelerator, refuse: the only
+        # remaining candidates are host-network or foreign-vendor transports,
+        # and running the benchmark over either while reporting it as an
+        # accelerator result is worse than not running at all.
+        if vendor in _NATIVE_TRANSPORTS:
+            raise RuntimeError(
+                f"No native torchcomms transport for accelerator "
+                f"'{vendor}'. Expected one of "
+                f"{list(_NATIVE_TRANSPORTS[vendor])}, but this build "
+                f"registers {list(registered)}. Refusing to fall back to a "
+                f"host-network transport, which would report host bandwidth "
+                f"as accelerator bandwidth. Install a torchcomms built for "
+                f"this accelerator, or pass an explicit transport (for "
+                f"example ccl_backend transport='gloo') to accept that."
+            )
+        # Host-only run: any supported registered transport is legitimate.
         for cand in registered:
             if cand in SUPPORTED_TRANSPORTS:
                 return cand
@@ -198,8 +270,19 @@ def resolve_transport(device_type: str, requested: str | None = None) -> str:
             f"supported-by-DLcomm={list(SUPPORTED_TRANSPORTS)}."
         )
 
-    # Entry points could not be enumerated. Preserve the historical guess so
-    # an Aurora run that cannot introspect behaves exactly as before.
+    if status == "ok" and not registered:
+        # Enumeration worked and found nothing. That is a broken install, not
+        # an unknown one, so guessing a name here would only move the failure
+        # into new_comm with a worse message.
+        raise RuntimeError(
+            "torchcomms registers no backends in the 'torchcomms.backends' "
+            "entry-point group. The install is incomplete -- reinstall "
+            "torchcomms, or pass an explicit transport to bypass this check."
+        )
+
+    # status == "unavailable": entry points could not be enumerated at all.
+    # Preserve the historical guess so an Aurora run that cannot introspect
+    # behaves exactly as it did before this function was introduced.
     if device_type and device_type.lower() in ("gpu", "xpu"):
         return "xccl"
     return "gloo"
