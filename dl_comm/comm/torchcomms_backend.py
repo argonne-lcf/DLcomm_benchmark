@@ -45,7 +45,29 @@ except Exception:  # noqa: BLE001 - any import failure means "not available"
 BACKEND_NAME = "torchcomms"
 
 #: torchcomms backends that can carry DLcomm traffic, by accelerator vendor.
-SUPPORTED_TRANSPORTS = ("ncclx", "nccl", "rcclx", "rccl", "xccl", "gloo")
+#:
+#: REVIEW FIX (20261024T071020Z-dlcomm3c): ``nccl-lazy`` appeared in
+#: ``_VENDOR_PREFERENCE['cuda']`` but not here, so auto-selection could return
+#: a transport that an explicit ``--transport nccl-lazy`` request would reject
+#: as unknown. The two lists must describe the same policy.
+SUPPORTED_TRANSPORTS = (
+    "ncclx",
+    "nccl",
+    "nccl-lazy",
+    "rcclx",
+    "rccl",
+    "xccl",
+    "gloo",
+)
+
+#: Transports that move data over the accelerator fabric. ``gloo`` is absent
+#: deliberately: it works everywhere but runs over the host network, so
+#: selecting it for an accelerator run silently measures the wrong thing.
+_NATIVE_TRANSPORTS = {
+    "cuda": ("nccl", "ncclx", "nccl-lazy"),
+    "rocm": ("rccl", "rcclx", "nccl"),
+    "xpu": ("xccl",),
+}
 
 
 def is_available() -> bool:
@@ -64,13 +86,136 @@ def _require():
     return _tc
 
 
+def registered_transports() -> tuple[str, ...]:
+    """torchcomms backends actually registered in this interpreter.
+
+    Returns () both when enumeration fails and when it succeeds with no
+    backends registered. Callers that must tell those apart should use
+    :func:`enumerate_transports`, which reports the status separately.
+    """
+    _status, names = enumerate_transports()
+    return names
+
+
+def enumerate_transports() -> tuple[str, tuple[str, ...]]:
+    """``(status, names)`` where status is ``"ok"`` or ``"unavailable"``.
+
+    torchcomms resolves a backend name through the ``torchcomms.backends``
+    entry-point group at ``new_comm`` time. Which names are present depends on
+    how the wheel was built: the Aurora build registers ``xccl``, a stock
+    CUDA build registers ``nccl``/``nccl-lazy``/``gloo``/``fake``.
+
+    REVIEW FIX (20261024T071020Z-dlcomm3c): the previous single-value return
+    conflated "the importlib call raised, so we know nothing" with
+    "enumeration worked and the group is genuinely empty". Those demand
+    opposite responses -- the first means fall back to the historical guess,
+    the second means the install is broken and we must say so -- so the status
+    is now returned alongside the names instead of being inferred from
+    emptiness.
+    """
+    try:
+        from importlib.metadata import entry_points
+    except Exception:  # noqa: BLE001
+        return ("unavailable", ())
+    try:
+        eps = entry_points(group="torchcomms.backends")
+    except TypeError:  # Python < 3.10 selectable-entry-points API
+        try:
+            eps = entry_points().get("torchcomms.backends", [])
+        except Exception:  # noqa: BLE001
+            return ("unavailable", ())
+    except Exception:  # noqa: BLE001
+        return ("unavailable", ())
+    try:
+        return ("ok", tuple(sorted({ep.name for ep in eps})))
+    except Exception:  # noqa: BLE001
+        return ("unavailable", ())
+
+
+def _accelerator_vendor() -> str:
+    """Which accelerator this process can actually see: cuda / rocm / xpu / none.
+
+    Asked of torch rather than inferred from the config, because the config
+    says "gpu" on every machine and "gpu" is precisely what is ambiguous.
+    """
+    try:
+        import torch
+    except Exception:  # noqa: BLE001
+        return "none"
+    try:
+        if getattr(torch.version, "hip", None) and torch.cuda.is_available():
+            return "rocm"
+        if torch.cuda.is_available():
+            return "cuda"
+    except Exception:  # noqa: BLE001
+        pass
+    try:
+        if hasattr(torch, "xpu") and torch.xpu.is_available():
+            return "xpu"
+    except Exception:  # noqa: BLE001
+        pass
+    return "none"
+
+
+#: Preference order per accelerator vendor. First entry that is registered
+#: wins.
+#:
+#: REVIEW FIX (20261024T071020Z-dlcomm3c): ``gloo`` used to terminate each
+#: accelerator list, which silently defeated the fail-closed check below --
+#: an XPU box with no xccl matched gloo here and returned it as a normal
+#: result. Accelerator vendors now list only fabric-native transports; a host
+#: transport on an accelerator must be requested explicitly.
+_VENDOR_PREFERENCE = {
+    "cuda": ("nccl", "ncclx", "nccl-lazy"),
+    "rocm": ("rccl", "rcclx", "nccl"),
+    "xpu": ("xccl",),
+    "none": ("gloo",),
+}
+
+
 def resolve_transport(device_type: str, requested: str | None = None) -> str:
     """Pick the torchcomms transport for a device type.
 
-    DLcomm's config names a *device* (gpu/cpu) and Aurora means Intel XPU, so
-    the natural transport there is xccl. An explicit request always wins, but
-    is validated rather than trusted.
+    DEFECT FIXED (Oct-24, Tara job 8478/8479): this used to return a bare
+    ``"xccl"`` for any ``device_type`` in (gpu, xpu), because it was written
+    on Aurora where "gpu" means Intel XPU. On an NVIDIA machine the xccl
+    backend is not registered, so every torchcomms run died inside
+    ``tc.new_comm`` with::
+
+        ModuleNotFoundError: failed to find backend xccl,
+        is it registered via entry_points.txt?
+
+    This made layer 5 unrunnable on Tara at BOTH scales (1 node: rank 0
+    exited 1; 2 nodes: rank 2 exited 1 and the launcher then sat until the
+    harness timeout, reported as rc=143 -- a hardcoded vendor string
+    presenting as a hang).
+
+    Resolution order, most authoritative first:
+      1. an explicit request -- validated against SUPPORTED_TRANSPORTS, and
+         additionally against the registered set so a request for a backend
+         this build does not have fails here with a readable message rather
+         than inside new_comm;
+      2. the first registered transport preferred by the accelerator torch
+         can actually see;
+      3. the historical device-type guess, kept only for the case where the
+         entry points cannot be enumerated at all, so behaviour on Aurora is
+         unchanged when introspection is unavailable.
+
+    REVIEW FIX (20261024T071020Z-dlcomm3c) -- fail closed on accelerators.
+    The previous version would, on an XPU machine whose torchcomms build did
+    not register ``xccl``, quietly return ``gloo`` and run the whole benchmark
+    over the host network at a fraction of the fabric bandwidth, reporting it
+    as a normal result. A packaging regression on Aurora would therefore turn
+    a loud failure into a silently wrong number -- the same class of defect as
+    the hardcoded ``xccl`` this function was written to fix.
+
+    An accelerator run now requires one of its vendor-native transports. If
+    none is registered the call raises, naming what was found and how to
+    override. ``gloo`` on an accelerator is reachable only by asking for it
+    explicitly, which is an informed choice rather than a silent downgrade.
     """
+    status, registered = enumerate_transports()
+
     if requested:
         t = requested.lower()
         if t not in SUPPORTED_TRANSPORTS:
@@ -78,7 +223,66 @@ def resolve_transport(device_type: str, requested: str | None = None) -> str:
                 f"Unknown torchcomms transport '{requested}'. "
                 f"Valid transports: {list(SUPPORTED_TRANSPORTS)}"
             )
+        if status == "ok" and registered and t not in registered:
+            raise ValueError(
+                f"torchcomms transport '{t}' was requested but this "
+                f"torchcomms build does not register it. "
+                f"Registered backends: {list(registered)}. "
+                f"Pick one of those, or install a torchcomms built with "
+                f"'{t}' support."
+            )
         return t
+
+    # An explicit cpu device_type overrides accelerator detection: a machine
+    # with a GPU can still be asked for a host-memory run, and returning a
+    # vendor transport there would silently move the traffic onto the device.
+    if device_type and device_type.lower() == "cpu":
+        vendor = "none"
+    else:
+        vendor = _accelerator_vendor()
+
+    if status == "ok" and registered:
+        for cand in _VENDOR_PREFERENCE.get(vendor, _VENDOR_PREFERENCE["none"]):
+            if cand in registered:
+                return cand
+        # Nothing preferred is registered. On an accelerator, refuse: the only
+        # remaining candidates are host-network or foreign-vendor transports,
+        # and running the benchmark over either while reporting it as an
+        # accelerator result is worse than not running at all.
+        if vendor in _NATIVE_TRANSPORTS:
+            raise RuntimeError(
+                f"No native torchcomms transport for accelerator "
+                f"'{vendor}'. Expected one of "
+                f"{list(_NATIVE_TRANSPORTS[vendor])}, but this build "
+                f"registers {list(registered)}. Refusing to fall back to a "
+                f"host-network transport, which would report host bandwidth "
+                f"as accelerator bandwidth. Install a torchcomms built for "
+                f"this accelerator, or pass an explicit transport (for "
+                f"example ccl_backend transport='gloo') to accept that."
+            )
+        # Host-only run: any supported registered transport is legitimate.
+        for cand in registered:
+            if cand in SUPPORTED_TRANSPORTS:
+                return cand
+        raise RuntimeError(
+            f"No usable torchcomms transport. accelerator={vendor}, "
+            f"registered={list(registered)}, "
+            f"supported-by-DLcomm={list(SUPPORTED_TRANSPORTS)}."
+        )
+
+    if status == "ok" and not registered:
+        # Enumeration worked and found nothing. That is a broken install, not
+        # an unknown one, so guessing a name here would only move the failure
+        # into new_comm with a worse message.
+        raise RuntimeError(
+            "torchcomms registers no backends in the 'torchcomms.backends' "
+            "entry-point group. The install is incomplete -- reinstall "
+            "torchcomms, or pass an explicit transport to bypass this check."
+        )
+
+    # status == "unavailable": entry points could not be enumerated at all.
+    # Preserve the historical guess so an Aurora run that cannot introspect
+    # behaves exactly as it did before this function was introduced.
     if device_type and device_type.lower() in ("gpu", "xpu"):
         return "xccl"
     return "gloo"
@@ -137,6 +341,7 @@ class TorchCommsDist:
         self._backend = backend
         self._device = device
         self._root_store = None
+        self._store_error = None
         self._split_unsupported: str | None = None
 
     # -- communicator plumbing ------------------------------------------
@@ -151,6 +356,34 @@ class TorchCommsDist:
         if isinstance(group, TorchCommsGroup):
             return group.comm
         return group
+
+    def _local_rank_in(self, group, global_rank):
+        """Translate a GLOBAL rank to the group-local rank torchcomms wants.
+
+        torch.distributed's broadcast/reduce/scatter/gather/send/recv all take
+        a global rank and translate internally. torchcomms takes a group-local
+        rank. Passing the global value through unchanged is correct only when
+        the group starts at rank 0, so the error hides at single-node scale
+        and appears the moment a second node creates a group based at 4.
+
+        Raises rather than clamping: a root outside the group is a caller bug,
+        and silently rounding it to a valid rank would broadcast from the
+        wrong source and still report success.
+        """
+        r = int(global_rank)
+        if not isinstance(group, TorchCommsGroup):
+            # World communicator (or a raw torchcomms comm): global rank space
+            # and group rank space coincide, nothing to translate.
+            return r
+        try:
+            return group.ranks.index(r)
+        except ValueError:
+            raise ValueError(
+                f"rank {r} is not a member of {group!r}; "
+                f"group members (global ranks) are {group.ranks}. "
+                f"Pass a global rank -- this adapter converts it to the "
+                f"group-local rank torchcomms expects."
+            ) from None
 
     def _op(self, op):
         """Map a DLcomm op (str or torch ReduceOp) to a torchcomms ReduceOp."""
@@ -243,6 +476,27 @@ class TorchCommsDist:
 
         label = name or group_desc or ("dlcomm_" + "_".join(str(r) for r in key))
 
+        # REVIEW FIX (round 2, 20261024T073333Z-dlcomm3c-r2): the rendezvous
+        # store must be established here, while EVERY rank of the parent group
+        # is still present. new_group is collective over the parent (see note 1
+        # below), but the non-member early-return beneath this line means that
+        # creating the store lazily inside _new_comm_for() only ever runs on
+        # members. With is_master tied to global rank 0, a subgroup that
+        # excludes rank 0 -- [4,5,6,7] is the exact case that crashed job
+        # 6549 -- had no rank anywhere running the store server, so every
+        # member blocked connecting to a server that was never started.
+        #
+        # HARDENING (round 3): this runs before the native-split attempt, so
+        # it would otherwise impose MASTER_ADDR/MASTER_PORT and a reachable
+        # TCPStore even on backends where native split works and no store is
+        # ever needed. It cannot be deferred -- deferring is precisely the
+        # round-2 bug, because the decision to fall back is made after the
+        # non-members have already left. So it stays collective here, but a
+        # failure is recorded rather than raised: only _new_comm_for(), the
+        # path that actually needs the store, turns it into an error. Native
+        # split therefore keeps working on hosts with no rendezvous config.
+        self._ensure_root_store(required=False)
+
         # (1) Non-members must not call into torchcomms at all.
         if self.get_rank() not in key:
             grp = TorchCommsGroup(None, list(key))
@@ -266,6 +520,74 @@ class TorchCommsDist:
         )
         return self._splits[key]
 
+    def _ensure_root_store(self, required: bool = True):
+        """Start the shared rendezvous store, collectively over the world.
+
+        REVIEW FIX (round 2, 20261024T073333Z-dlcomm3c-r2). This used to live
+        inside ``_new_comm_for``, which only members of the new subgroup
+        reach. Combined with ``is_master=(self.get_rank() == 0)`` that meant a
+        subgroup excluding global rank 0 -- e.g. [4,5,6,7] -- had no store
+        server anywhere: rank 0 never created one because it was not a member,
+        and no member created one because none of them was rank 0. Every
+        member then blocked in TCPStore trying to reach a server that did not
+        exist, which presents as a hang at group-creation time rather than an
+        error.
+
+        Calling this from ``new_group`` before the non-member early-return
+        makes it collective over the parent group, so rank 0 always runs the
+        server regardless of which subgroup is being built. It is idempotent:
+        the store is created once and reused for every subsequent group.
+
+        Note this is only reached on the XCCL ``new_comm`` fallback path --
+        the native ``split`` path never needs a store -- but it must be set up
+        *before* we know which path will be taken, because by then the
+        non-members have already returned.
+
+        ``required`` distinguishes the two callers (round-3 hardening).
+        ``new_group`` passes False: it cannot know yet whether the store will
+        be needed, so a missing MASTER_ADDR or an unreachable store is
+        remembered, not raised, and native split still works on hosts with no
+        rendezvous configuration. ``_new_comm_for`` passes True, because by
+        then the store is genuinely required and the deferred error should
+        surface with its original cause.
+        """
+        if self._root_store is not None:
+            return
+        if self._store_error is not None and not required:
+            # Already failed once; do not retry on every new_group call.
+            return
+
+        import os
+
+        from torch.distributed import TCPStore
+
+        try:
+            host = os.environ["MASTER_ADDR"]
+            port = int(os.environ["MASTER_PORT"]) + 1
+        except KeyError as exc:
+            err = RuntimeError(
+                "MASTER_ADDR/MASTER_PORT must be set to build torchcomms "
+                "subgroups on a transport without split support; "
+                f"missing {exc}"
+            )
+            self._store_error = err
+            if required:
+                raise err from exc
+            return
+
+        try:
+            self._root_store = TCPStore(
+                host_name=host,
+                port=port,
+                world_size=None,
+                is_master=(self.get_rank() == 0),
+                wait_for_workers=False,
+            )
+        except Exception as exc:  # noqa: BLE001 - re-raised when required
+            self._store_error = exc
+            if required:
+                raise
+
     def _new_comm_for(self, key: tuple[int, ...], label: str):
         """Build a subcommunicator via new_comm when split is unavailable.
 
@@ -277,20 +599,17 @@ class TorchCommsDist:
         """
         import os
 
-        from torch.distributed import PrefixStore, TCPStore
+        from torch.distributed import PrefixStore
 
         tc = _require()
         member_rank = key.index(self.get_rank())
         prefix = "dlcomm_grp_" + "_".join(str(r) for r in key)
 
-        if self._root_store is None:
-            self._root_store = TCPStore(
-                host_name=os.environ["MASTER_ADDR"],
-                port=int(os.environ["MASTER_PORT"]) + 1,
-                world_size=None,
-                is_master=(self.get_rank() == 0),
-                wait_for_workers=False,
-            )
+        # The store is created collectively in new_group via
+        # _ensure_root_store(required=True); see the note there for why it
+        # cannot be
+        # created lazily here.
+        self._ensure_root_store(required=True)
         store = PrefixStore(prefix, self._root_store)
 
         saved = {k: os.environ.get(k) for k in ("RANK", "WORLD_SIZE")}
@@ -329,11 +648,13 @@ class TorchCommsDist:
         return _Work(w) if async_op else None
 
     def reduce(self, tensor, dst=0, op=None, group=None, async_op=False):
-        w = self._c(group).reduce(tensor, int(dst), self._op(op), async_op)
+        w = self._c(group).reduce(tensor, self._local_rank_in(group, dst),
+                                  self._op(op), async_op)
         return _Work(w) if async_op else None
 
     def broadcast(self, tensor, src=0, group=None, async_op=False):
-        w = self._c(group).broadcast(tensor, int(src), async_op)
+        w = self._c(group).broadcast(tensor, self._local_rank_in(group, src),
+                                     async_op)
         return _Work(w) if async_op else None
 
     def all_gather(self, tensor_list, tensor, group=None, async_op=False):
@@ -343,11 +664,13 @@ class TorchCommsDist:
     def gather(self, tensor, gather_list=None, dst=0, group=None, async_op=False):
         # torch.distributed passes gather_list=None on non-root ranks;
         # torchcomms wants a sequence, so hand it an empty one.
-        w = self._c(group).gather(gather_list or [], tensor, int(dst), async_op)
+        w = self._c(group).gather(gather_list or [], tensor,
+                                  self._local_rank_in(group, dst), async_op)
         return _Work(w) if async_op else None
 
     def scatter(self, tensor, scatter_list=None, src=0, group=None, async_op=False):
-        w = self._c(group).scatter(tensor, scatter_list or [], int(src), async_op)
+        w = self._c(group).scatter(tensor, scatter_list or [],
+                                   self._local_rank_in(group, src), async_op)
         return _Work(w) if async_op else None
 
     def reduce_scatter(self, output, input_list, op=None, group=None, async_op=False):
@@ -383,7 +706,7 @@ class TorchCommsDist:
 
     # -- point-to-point ----------------------------------------------------
     def send(self, tensor, dst, group=None, tag=0):  # noqa: ARG002 - no tags in torchcomms
-        self._c(group).send(tensor, int(dst), False)
+        self._c(group).send(tensor, self._local_rank_in(group, dst), False)
 
     def recv(self, tensor, src=None, group=None, tag=0):  # noqa: ARG002
         if src is None:
@@ -391,10 +714,11 @@ class TorchCommsDist:
                 "torchcomms requires an explicit src for recv; "
                 "wildcard receives are not supported by this backend."
             )
-        self._c(group).recv(tensor, int(src), False)
+        self._c(group).recv(tensor, self._local_rank_in(group, src), False)
 
     def isend(self, tensor, dst, group=None, tag=0):  # noqa: ARG002
-        return _Work(self._c(group).send(tensor, int(dst), True))
+        return _Work(self._c(group).send(tensor,
+                                         self._local_rank_in(group, dst), True))
 
     def irecv(self, tensor, src=None, group=None, tag=0):  # noqa: ARG002
         if src is None:
@@ -402,7 +726,8 @@ class TorchCommsDist:
                 "torchcomms requires an explicit src for irecv; "
                 "wildcard receives are not supported by this backend."
             )
-        return _Work(self._c(group).recv(tensor, int(src), True))
+        return _Work(self._c(group).recv(tensor,
+                                         self._local_rank_in(group, src), True))
 
     # -- lifecycle ---------------------------------------------------------
     def init_process_group(self, *args, **kwargs):  # noqa: ARG002
