@@ -38,9 +38,23 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     p.add_argument("--pairing", default="split", choices=("split", "ring"))
     p.add_argument("--ranks-per-node", type=int, default=None,
                    help="required for --pairing ring")
+    # READ by default: on Slingshot/CXI, NIXL's LIBFABRIC WRITE path calls
+    # fi_writedata(), which the cxi provider only implements when the
+    # endpoint has the FI_RMA_EVENT capability. NIXL does not request it, so
+    # WRITE fails with a bare NIXL_ERR_BACKEND. READ (fi_read) has no such
+    # requirement. Both move the same bytes across the same fabric.
+    p.add_argument("--op", choices=("READ", "WRITE"), default="READ",
+                   help="READ = initiator pulls from peer (works on CXI); "
+                        "WRITE = initiator pushes (needs FI_RMA_EVENT on CXI)")
     p.add_argument("--backend", default=None,
                    help="NIXL backend (default: resolve from registered plugins)")
-    p.add_argument("--backend-preference", default="UCX,GDS,POSIX")
+    # LIBFABRIC first: on a Slingshot/CXI fabric it is the only registered
+    # backend that can reach the NIC. UCX stays in the list as the fallback
+    # for IB/RoCE sites, where it is the right choice. Ordering this
+    # UCX-first (the earlier default) silently selects a TCP-over-IP path on
+    # Slingshot and costs ~50x bandwidth while still passing every
+    # correctness check -- a wrong answer that looks healthy.
+    p.add_argument("--backend-preference", default="LIBFABRIC,UCX,GDS,POSIX")
     p.add_argument("--backend-env", default="", metavar="K=V,K=V",
                    help="env applied before agent creation; UCX reads its "
                         "config once at that point and ignores later changes")
@@ -138,6 +152,7 @@ def main(argv: list[str] | None = None) -> int:
                 pairing=args.pairing,
                 ranks_per_node=args.ranks_per_node,
                 backend=args.backend,
+                op=args.op,
                 backend_preference=tuple(
                     p.strip() for p in args.backend_preference.split(",") if p.strip()
                 ),

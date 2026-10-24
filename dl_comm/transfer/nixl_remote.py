@@ -289,7 +289,8 @@ def measure_remote_nixl(
     pairing: str = "split",
     ranks_per_node: int | None = None,
     backend: str | None = None,
-    backend_preference: tuple[str, ...] = ("UCX", "GDS", "POSIX"),
+    backend_preference: tuple[str, ...] = ("LIBFABRIC", "UCX", "GDS", "POSIX"),
+    op: str = "READ",
     backend_params: dict[str, Any] | None = None,
     backend_env: dict[str, str] | None = None,
     agent_name: str | None = None,
@@ -378,6 +379,9 @@ def measure_remote_nixl(
                 os.environ[key] = old
 
     n = nbytes // 4
+    op = str(op).upper()
+    if op not in ("READ", "WRITE"):
+        raise ValueError(f"op must be READ or WRITE, got {op!r}")
     result = RemoteTransferResult(
         direction="remote_d2d",
         backend=resolved,
@@ -417,14 +421,31 @@ def measure_remote_nixl(
         if isinstance(peer_name, (bytes, bytearray)):
             peer_name = peer_name.decode()
 
-        # Each rank needs its PARTNER's destination descriptors: a WRITE
-        # targets remote memory, so the local side of initialize_xfer is my
-        # source and the remote side is their destination.
-        serialized = list(allgather(agent.get_serialized_descs(reg_dst.trim())))
-        remote_dst = agent.deserialize_descs(serialized[peer_rank])
-        if remote_dst is None:
+        # Which side of the pair the descriptors describe depends on the op.
+        #
+        # WRITE: I push my src into the peer's dst, so I need THEIR dst.
+        # READ:  I pull the peer's src into my dst, so I need THEIR src and
+        #        the local side of initialize_xfer is my own dst.
+        #
+        # This is not a stylistic choice on a Slingshot/CXI fabric. NIXL's
+        # LIBFABRIC backend implements WRITE via fi_writedata(), and the CXI
+        # provider only offers that when the endpoint was opened with the
+        # FI_RMA_EVENT capability, which NIXL does not request. Every WRITE
+        # therefore dies with "fi_writedata failed on rail N: Function not
+        # implemented" -> "prepareAndSubmitTransfer failed" -> a bare
+        # NIXL_ERR_BACKEND that names neither the op nor the capability.
+        # READ uses fi_read(), needs no such cap, and works. Hence the
+        # default below.
+        if op == "READ":
+            local_side, remote_label = reg_dst, "source"
+            serialized = list(allgather(agent.get_serialized_descs(reg_src.trim())))
+        else:
+            local_side, remote_label = reg_src, "destination"
+            serialized = list(allgather(agent.get_serialized_descs(reg_dst.trim())))
+        remote_descs = agent.deserialize_descs(serialized[peer_rank])
+        if remote_descs is None:
             raise NixlRemoteUnavailable(
-                f"could not deserialize destination descriptors from rank "
+                f"could not deserialize {remote_label} descriptors from rank "
                 f"{peer_rank}; the peer registered memory the local backend "
                 "cannot address"
             )
@@ -434,9 +455,9 @@ def measure_remote_nixl(
 
         notif_prefix = b"dlcomm_xfer_"
         handle = agent.initialize_xfer(
-            "WRITE",
-            reg_src.trim(),
-            remote_dst,
+            op,
+            local_side.trim(),
+            remote_descs,
             peer_name,
             notif_prefix + str(rank).encode(),
         )
@@ -454,18 +475,24 @@ def measure_remote_nixl(
                 raise RuntimeError(
                     f"NIXL refused to start the remote write to rank {peer_rank}"
                 )
-            _await_state(agent, handle, f"remote write to rank {peer_rank}", timeout_s)
+            _await_state(agent, handle, f"remote {op.lower()} to rank {peer_rank}", timeout_s)
             elapsed = time.monotonic() - start
             if i >= warmup:
                 result.times_s.append(elapsed)
-            # Outside the timed region: this is the inbound direction's
-            # completion, and it is a round-trip latency, not bandwidth.
-            _await_notif(
-                agent,
-                notif_prefix,
-                timeout_s,
-                f"inbound write from rank {peer_rank}",
-            )
+            # READ: my own DONE means the peer's bytes have landed in my dst,
+            # so there is nothing further to wait for. WRITE is the asymmetric
+            # case -- local DONE only proves MY write was delivered, and the
+            # buffer I am about to verify is filled by the PEER's write, so
+            # reading on local completion alone is a race that passes on a
+            # quiet machine. Either way this wait stays OUTSIDE the timed
+            # region: it is a round-trip latency, not bandwidth.
+            if op == "WRITE":
+                _await_notif(
+                    agent,
+                    notif_prefix,
+                    timeout_s,
+                    f"inbound write from rank {peer_rank}",
+                )
 
         barrier()
         if verify:

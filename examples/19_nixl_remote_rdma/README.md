@@ -17,53 +17,79 @@ the other, and 18 is the right node-local floor to compare against.
 
 ## Reading the numbers on this cluster (measured 2026-10-24, Tara)
 
-**Cross-node NIXL here runs over TCP, not RDMA, and is ~50x slower than the
-fabric.** This is not a tuning gap and not a property of Slingshot:
+Cross-node NIXL on Slingshot works, **but only with the LIBFABRIC backend and
+a correctly provisioned CXI environment.** Get any part of that wrong and it
+still runs — over TCP, roughly 6x slower — with every correctness check
+green. That failure mode is the main thing this example is built to catch.
 
-| path | 64 MiB cross-node, same two nodes, same allocation |
+| path | 64 MiB cross-node, same nodes, same allocation |
 |---|---|
-| MPI (`mpi_fabric_baseline.py`) | **12.4 GB/s** |
-| NIXL cross-node (this example) | **0.17 – 0.30 GB/s** |
+| MPI baseline (`mpi_fabric_baseline.py`), single pair | 12.4 – 24.2 GB/s |
+| NIXL, LIBFABRIC backend, per rank (8–16 concurrent) | **2.8 – 5.5 GB/s** |
+| NIXL, UCX backend (TCP fallback) | 0.17 – 0.67 GB/s |
 
-Evidence that the cause is transport availability in the NIXL build:
+Read the middle row as per-rank, not aggregate: 8 ranks at ~3–4 GB/s each is
+~24 GB/s of concurrent traffic, against an MPI baseline that times **one**
+pair. The two rows answer different questions and should not be divided.
 
-* Tara's NIC is Slingshot: `/dev/cxi0..3` present, **no** `/sys/class/infiniband`,
-  no Mellanox device.
-* The pip-installed `nixl_cu12` bundles its own UCX, whose transport plugins
-  are exactly `libuct_ib`, `libuct_ib_mlx5*`, `libuct_ib_efa`, `libuct_cma`,
-  `libuct_cuda`. **There is no CXI/libfabric provider in that list.** A
-  transport that is not present cannot be selected, whatever `UCX_TLS` says.
-* `UCX_TLS=tcp,cuda_copy,self` reproduces the default numbers almost exactly
-  (0.19–0.38 GB/s vs 0.20–0.32 GB/s default) — i.e. **the default path is
-  already TCP**.
-* `UCX_TLS=rc,ud,cuda_copy,self` fails outright with `NIXL_ERR_BACKEND`:
-  UCX cannot build an RC/UD transport because there is no IB device.
-* The curve is flat from 1 MiB to 256 MiB (~0.17 GB/s at 256 MiB), so this is
-  bandwidth-limited, not latency-limited.
+### Why the UCX path is a floor, not a measurement
 
-The system *does* ship `/opt/cray/libfabric/2.3.1`, so the fix is a NIXL/UCX
-build with a libfabric-CXI (or OFI) transport rather than anything in this
-benchmark. Until then, treat cross-node NIXL numbers on Slingshot as a
-**transport-availability floor, not a fabric measurement**. The jobscript runs
-the MPI baseline on every invocation so this comparison is always in the log.
+`nixl_cu12`'s bundled UCX has transports `ib`, `ib_mlx5`, `ib_efa`, `cma`,
+`cuda` — no CXI provider. Tara has `/dev/cxi0..3` and no
+`/sys/class/infiniband`, so UCX silently lands on TCP: `UCX_TLS=tcp`
+reproduces the default numbers, and `UCX_TLS=rc,ud` fails outright with
+`NIXL_ERR_BACKEND`. NIXL's separate **`libplugin_LIBFABRIC.so`** is the
+backend that reaches the NIC, so `--backend-preference` defaults to
+`LIBFABRIC,UCX,GDS,POSIX` and the jobscript **fails with
+`VERDICT=WRONG_BACKEND`** rather than reporting TCP numbers as fabric ones.
+
+### Four environment requirements, each with a misleading failure
+
+| requirement | what you see if it is missing |
+|---|---|
+| `-l select=N:ngpus=4` | `Failed to find valid default rgroup and vni for cxi0`, then `fi_domain: Function not implemented`. PALS provisions a Slingshot VNI only for a GPU allocation; `fi_pingpong` fails the same way, so it is not a NIXL bug. |
+| `NIXL_PLUGIN_DIR` + matching `libfabric` | agent constructs, then **every** transfer fails `NIXL_ERR_BACKEND` at `postXferReq`. Mixing one build's libfabric with another's plugins does this. |
+| CUDA runtime on `LD_LIBRARY_PATH` | `prepareAndSubmitTransfer failed for descriptor 0 device N` — points at the fabric; the real cause is that NIXL cannot register device memory without `libcudart`. |
+| `--op READ` on CXI | `fi_writedata failed on rail N: Function not implemented`. NIXL implements `WRITE` via `fi_writedata()`, which the cxi provider only offers with the `FI_RMA_EVENT` endpoint capability that NIXL does not request. `READ` (`fi_read`) has no such requirement and moves the same bytes. |
+
+None of these name their own cause, which is why the jobscript prints
+`SLINGSHOT_VNI`, `NIXL_IMPORTED_FROM` and `BACKENDS_USED` on every run and
+gates on them. `VERDICT=NIXL_SHADOWED` exists because pointing
+`EXTRA_PYTHONPATH` at a full site-packages drags that venv's NIXL in and
+silently wins the import race.
 
 ## Run
 
 ```bash
-# 2 nodes, 4 ranks/node
-qsub -A <account> -l select=2 \
-     -v PROJ=$HOME/<project-root>,RANKS_PER_NODE=4 \
+# 2 nodes, 4 ranks/node. ngpus=4 is REQUIRED on Slingshot -- without it
+# PALS provisions no VNI and the LIBFABRIC backend cannot open a domain.
+qsub -A <account> -l select=2:ngpus=4 \
+     -v PROJ=$HOME/<project-root>,RANKS_PER_NODE=4,\
+VENV=<nixl-venv>,CUSTOM_LIBFABRIC=<cxi-libfabric>,\
+NIXL_INSTALL_DIR=<nixl-install>,EXTRA_PYTHONPATH=<dir-with-only-mpi4py> \
      jobscript_nixl_remote.sh
 
-# 4 nodes
-qsub -A <account> -l select=4 \
-     -v PROJ=$HOME/<project-root>,RANKS_PER_NODE=4 \
-     jobscript_nixl_remote.sh
+# 4 nodes: same, with -l select=4:ngpus=4
 ```
 
-`PROJ` must contain `DLcomm_benchmark/` and the venv (`tcvenv/` by default;
-override with `VENV=` or `PYBIN=`). Useful overrides: `SIZES`, `ITERATIONS`,
-`PAIRING` (`split` | `ring`).
+`PROJ` must contain `DLcomm_benchmark/`. The fabric variables are all
+optional and default to the system libfabric; set them when NIXL was built
+against a site libfabric.
+
+* `VENV` / `PYBIN` — the Python holding NIXL.
+* `CUSTOM_LIBFABRIC` — CXI-capable libfabric (default
+  `/opt/cray/libfabric/2.3.1`).
+* `NIXL_INSTALL_DIR` — for a source-built NIXL; adds its `lib64` and
+  `lib64/plugins`. Keep libfabric, `libnixl` and plugins from **one** build.
+* `EXTRA_PYTHONPATH` — a directory containing **only** the missing module
+  (typically `mpi4py`, needed for the out-of-band peer exchange). Never a
+  full site-packages; see `VERDICT=NIXL_SHADOWED`.
+* `NIXL_FABRIC=ucx` — skip the CXI block entirely on an IB/RoCE site.
+* `NIXL_OP=WRITE` — opt back into RDMA write where `FI_RMA_EVENT` is
+  available. Fails on CXI.
+
+Other overrides: `SIZES`, `ITERATIONS`, `PAIRING` (`split` | `ring`),
+`BACKEND_PREFERENCE`.
 
 Single-node submission exits 1 with `VERDICT=SINGLE_NODE` — this example
 measures the fabric, so there is nothing for it to do on one node.
@@ -113,7 +139,7 @@ These gates work: the first 2-node attempt exited 143 with
 system `python3` rejected `from __future__ import annotations`. Nothing was
 measured and nothing was reported as measured.
 
-## Two things that will bite you
+## Three things that will bite you
 
 **1. Register memory *before* exchanging agent metadata.** NIXL agent
 metadata carries the agent's registered-memory map. Exchange it first and
@@ -122,14 +148,22 @@ metadata carries the agent's registered-memory map. Exchange it first and
 which names neither the cause nor the fix. A *new* registration needs a
 *fresh* exchange, so the whole setup is redone per buffer size.
 
-**2. A local `DONE` does not mean your buffer is filled.** It means *your*
-write was delivered to the peer. Reading your own destination on that signal
-is a race that passes on a quiet machine. Inbound completion is established
-by the peer's notification, which is why every transfer carries one — and
-why that wait sits **outside** the timed region. Folding a notification
-round-trip into the timing turns latency into apparent bandwidth: the first
-spike measured 0.198 GB/s at 64 MiB that way, with a median an order of
-magnitude below the best.
+**2. A local `DONE` means different things for READ and WRITE.** For `READ`
+(the default) your own completion does mean your destination is filled — you
+pulled the bytes. For `WRITE` it means only that *your* write was delivered;
+the buffer you are about to verify is filled by the **peer's** write, so
+reading on local completion is a race that passes on a quiet machine. The
+`WRITE` path therefore waits on the peer's notification, and that wait sits
+**outside** the timed region. Folding a notification round-trip into the
+timing turns latency into apparent bandwidth: the first spike measured
+0.198 GB/s at 64 MiB that way, with a median an order of magnitude below the
+best.
+
+**3. A green correctness run can still be the wrong transport.** The first
+working version of this example verified every byte across 2 and 4 nodes and
+reported 0.67 GB/s — correct data, carried over TCP, on a 24 GB/s fabric.
+Byte verification cannot detect that; only the backend gate and the MPI
+baseline can. That is why both run on every invocation.
 
 ## Pairing
 
