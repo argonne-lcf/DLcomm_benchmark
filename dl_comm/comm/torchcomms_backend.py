@@ -64,13 +64,99 @@ def _require():
     return _tc
 
 
+def registered_transports() -> tuple[str, ...]:
+    """torchcomms backends actually registered in this interpreter.
+
+    torchcomms resolves a backend name through the ``torchcomms.backends``
+    entry-point group at ``new_comm`` time. Which names are present depends on
+    how the wheel was built: the Aurora build registers ``xccl``, a stock
+    CUDA build registers ``nccl``/``nccl-lazy``/``gloo``/``fake``. Returning
+    () means "could not enumerate", which callers must treat as unknown
+    rather than as empty -- an enumeration failure is not evidence that no
+    backend exists.
+    """
+    try:
+        from importlib.metadata import entry_points
+    except Exception:  # noqa: BLE001
+        return ()
+    try:
+        eps = entry_points(group="torchcomms.backends")
+    except TypeError:  # Python < 3.10 selectable-entry-points API
+        try:
+            eps = entry_points().get("torchcomms.backends", [])
+        except Exception:  # noqa: BLE001
+            return ()
+    except Exception:  # noqa: BLE001
+        return ()
+    return tuple(sorted({ep.name for ep in eps}))
+
+
+def _accelerator_vendor() -> str:
+    """Which accelerator this process can actually see: cuda / rocm / xpu / none.
+
+    Asked of torch rather than inferred from the config, because the config
+    says "gpu" on every machine and "gpu" is precisely what is ambiguous.
+    """
+    try:
+        import torch
+    except Exception:  # noqa: BLE001
+        return "none"
+    try:
+        if getattr(torch.version, "hip", None) and torch.cuda.is_available():
+            return "rocm"
+        if torch.cuda.is_available():
+            return "cuda"
+    except Exception:  # noqa: BLE001
+        pass
+    try:
+        if hasattr(torch, "xpu") and torch.xpu.is_available():
+            return "xpu"
+    except Exception:  # noqa: BLE001
+        pass
+    return "none"
+
+
+#: Preference order per accelerator vendor. First entry that is registered
+#: wins. Vendor-native transports are preferred over gloo, which works
+#: everywhere but over the host network.
+_VENDOR_PREFERENCE = {
+    "cuda": ("nccl", "ncclx", "nccl-lazy", "gloo"),
+    "rocm": ("rccl", "rcclx", "nccl", "gloo"),
+    "xpu": ("xccl", "gloo"),
+    "none": ("gloo",),
+}
+
+
 def resolve_transport(device_type: str, requested: str | None = None) -> str:
     """Pick the torchcomms transport for a device type.
 
-    DLcomm's config names a *device* (gpu/cpu) and Aurora means Intel XPU, so
-    the natural transport there is xccl. An explicit request always wins, but
-    is validated rather than trusted.
+    DEFECT FIXED (Oct-24, Tara job 8478/8479): this used to return a bare
+    ``"xccl"`` for any ``device_type`` in (gpu, xpu), because it was written
+    on Aurora where "gpu" means Intel XPU. On an NVIDIA machine the xccl
+    backend is not registered, so every torchcomms run died inside
+    ``tc.new_comm`` with::
+
+        ModuleNotFoundError: failed to find backend xccl,
+        is it registered via entry_points.txt?
+
+    This made layer 5 unrunnable on Tara at BOTH scales (1 node: rank 0
+    exited 1; 2 nodes: rank 2 exited 1 and the launcher then sat until the
+    harness timeout, reported as rc=143 -- a hardcoded vendor string
+    presenting as a hang).
+
+    Resolution order, most authoritative first:
+      1. an explicit request -- validated against SUPPORTED_TRANSPORTS, and
+         additionally against the registered set so a request for a backend
+         this build does not have fails here with a readable message rather
+         than inside new_comm;
+      2. the first registered transport preferred by the accelerator torch
+         can actually see;
+      3. the historical device-type guess, kept only for the case where the
+         entry points cannot be enumerated at all, so behaviour on Aurora is
+         unchanged when introspection is unavailable.
     """
+    registered = registered_transports()
+
     if requested:
         t = requested.lower()
         if t not in SUPPORTED_TRANSPORTS:
@@ -78,7 +164,42 @@ def resolve_transport(device_type: str, requested: str | None = None) -> str:
                 f"Unknown torchcomms transport '{requested}'. "
                 f"Valid transports: {list(SUPPORTED_TRANSPORTS)}"
             )
+        if registered and t not in registered:
+            raise ValueError(
+                f"torchcomms transport '{t}' was requested but this "
+                f"torchcomms build does not register it. "
+                f"Registered backends: {list(registered)}. "
+                f"Pick one of those, or install a torchcomms built with "
+                f"'{t}' support."
+            )
         return t
+
+    # An explicit cpu device_type overrides accelerator detection: a machine
+    # with a GPU can still be asked for a host-memory run, and returning a
+    # vendor transport there would silently move the traffic onto the device.
+    if device_type and device_type.lower() == "cpu":
+        vendor = "none"
+    else:
+        vendor = _accelerator_vendor()
+
+    if registered:
+        for cand in _VENDOR_PREFERENCE.get(vendor, _VENDOR_PREFERENCE["none"]):
+            if cand in registered:
+                return cand
+        # Nothing preferred is registered. Fall back to any registered
+        # transport we know how to drive rather than guessing a name that
+        # will fail inside new_comm.
+        for cand in registered:
+            if cand in SUPPORTED_TRANSPORTS:
+                return cand
+        raise RuntimeError(
+            f"No usable torchcomms transport. accelerator={vendor}, "
+            f"registered={list(registered)}, "
+            f"supported-by-DLcomm={list(SUPPORTED_TRANSPORTS)}."
+        )
+
+    # Entry points could not be enumerated. Preserve the historical guess so
+    # an Aurora run that cannot introspect behaves exactly as before.
     if device_type and device_type.lower() in ("gpu", "xpu"):
         return "xccl"
     return "gloo"
@@ -151,6 +272,7 @@ class TorchCommsDist:
         if isinstance(group, TorchCommsGroup):
             return group.comm
         return group
+
 
     def _op(self, op):
         """Map a DLcomm op (str or torch ReduceOp) to a torchcomms ReduceOp."""
@@ -329,11 +451,13 @@ class TorchCommsDist:
         return _Work(w) if async_op else None
 
     def reduce(self, tensor, dst=0, op=None, group=None, async_op=False):
-        w = self._c(group).reduce(tensor, int(dst), self._op(op), async_op)
+        w = self._c(group).reduce(tensor, int(dst),
+                                  self._op(op), async_op)
         return _Work(w) if async_op else None
 
     def broadcast(self, tensor, src=0, group=None, async_op=False):
-        w = self._c(group).broadcast(tensor, int(src), async_op)
+        w = self._c(group).broadcast(tensor, int(src),
+                                     async_op)
         return _Work(w) if async_op else None
 
     def all_gather(self, tensor_list, tensor, group=None, async_op=False):
@@ -343,11 +467,13 @@ class TorchCommsDist:
     def gather(self, tensor, gather_list=None, dst=0, group=None, async_op=False):
         # torch.distributed passes gather_list=None on non-root ranks;
         # torchcomms wants a sequence, so hand it an empty one.
-        w = self._c(group).gather(gather_list or [], tensor, int(dst), async_op)
+        w = self._c(group).gather(gather_list or [], tensor,
+                                  int(dst), async_op)
         return _Work(w) if async_op else None
 
     def scatter(self, tensor, scatter_list=None, src=0, group=None, async_op=False):
-        w = self._c(group).scatter(tensor, scatter_list or [], int(src), async_op)
+        w = self._c(group).scatter(tensor, scatter_list or [],
+                                   int(src), async_op)
         return _Work(w) if async_op else None
 
     def reduce_scatter(self, output, input_list, op=None, group=None, async_op=False):
@@ -394,7 +520,8 @@ class TorchCommsDist:
         self._c(group).recv(tensor, int(src), False)
 
     def isend(self, tensor, dst, group=None, tag=0):  # noqa: ARG002
-        return _Work(self._c(group).send(tensor, int(dst), True))
+        return _Work(self._c(group).send(tensor,
+                                         int(dst), True))
 
     def irecv(self, tensor, src=None, group=None, tag=0):  # noqa: ARG002
         if src is None:
@@ -402,7 +529,8 @@ class TorchCommsDist:
                 "torchcomms requires an explicit src for irecv; "
                 "wildcard receives are not supported by this backend."
             )
-        return _Work(self._c(group).recv(tensor, int(src), True))
+        return _Work(self._c(group).recv(tensor,
+                                         int(src), True))
 
     # -- lifecycle ---------------------------------------------------------
     def init_process_group(self, *args, **kwargs):  # noqa: ARG002
