@@ -75,7 +75,21 @@ LOG="$RESULTS/nixl_remote.log"
 
 # grep -c . not wc -l: a PBS nodefile with no trailing newline makes wc -l
 # return nodes-1, and 0 for a single node, which then launches nothing.
-NNODES=$(grep -c . "${PBS_NODEFILE:-/dev/null}" 2>/dev/null || echo 1)
+if [ -n "${PBS_NODEFILE:-}" ]; then
+    # grep -c . not `wc -l`: PBS nodefiles on some systems (Tara) have no
+    # trailing newline, so wc -l undercounts by one and a 1-node allocation
+    # builds `mpiexec --np 0`, which aborts with "Invalid -n/--np value 0".
+    # NOTE: grep -c prints the count AND exits 1 when the count is 0, so a
+    # `|| echo 1` fallback would emit two lines. Let it print 0 and let the
+    # guard below reject it. See tools/nodefile.sh for the measurement.
+    NNODES=$(grep -c . "$PBS_NODEFILE" 2>/dev/null || true)
+    case "${NNODES:-}" in ""|*[!0-9]*) NNODES=0 ;; esac
+    if [ "$NNODES" -lt 1 ]; then
+        echo "FATAL: counted $NNODES nodes in $PBS_NODEFILE" >&2; exit 1
+    fi
+else
+    NNODES=1
+fi
 [[ "$NNODES" -lt 1 ]] && NNODES=1
 RANKS_PER_NODE="${RANKS_PER_NODE:-4}"
 NRANKS=$(( NNODES * RANKS_PER_NODE ))

@@ -61,7 +61,21 @@ mkdir -p "$RUN_LOG_DIR"
 # ============================================================================
 CONFIG_NAME="6_all_collectives_scale_xccl"
 
-NNODES=`wc -l < $PBS_NODEFILE`
+if [ -n "${PBS_NODEFILE:-}" ]; then
+    # grep -c . not `wc -l`: PBS nodefiles on some systems (Tara) have no
+    # trailing newline, so wc -l undercounts by one and a 1-node allocation
+    # builds `mpiexec --np 0`, which aborts with "Invalid -n/--np value 0".
+    # NOTE: grep -c prints the count AND exits 1 when the count is 0, so a
+    # `|| echo 1` fallback would emit two lines. Let it print 0 and let the
+    # guard below reject it. See tools/nodefile.sh for the measurement.
+    NNODES=$(grep -c . "$PBS_NODEFILE" 2>/dev/null || true)
+    case "${NNODES:-}" in ""|*[!0-9]*) NNODES=0 ;; esac
+    if [ "$NNODES" -lt 1 ]; then
+        echo "FATAL: counted $NNODES nodes in $PBS_NODEFILE" >&2; exit 1
+    fi
+else
+    NNODES=1
+fi
 RANKS_PER_NODE=12
 NRANKS=$(( NNODES * RANKS_PER_NODE ))
 
