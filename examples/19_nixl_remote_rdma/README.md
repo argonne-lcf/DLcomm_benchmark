@@ -179,3 +179,65 @@ limitation rather than leaving it to be discovered on a hung 4-node job.
 
 Pairings are never *assumed* to be cross-node: the runner compares actual
 hostnames and records the answer in the result row.
+
+## Interpreting the bandwidth number (measured, PBS job 8576)
+
+A cross-node run at the 64 MiB default reports roughly 2.8-5.5 GB/s against a
+~24 GB/s Slingshot link, which looks like NIXL achieving ~20% of line rate.
+It is not. The transfer reaches full line rate; the reported figure is
+dominated by a fixed per-transfer cost.
+
+Two nodes, one rank each, best-of-10 after 3 warmups, versus a GPU-aware MPI
+point-to-point baseline on the same nodes in the same allocation:
+
+| bytes | NIXL best_s | MPI best_s | NIXL GB/s | MPI GB/s |
+|------:|------------:|-----------:|----------:|---------:|
+| 1 MiB | 0.015254 | 0.000069 | 0.07 | 15.23 |
+| 4 MiB | 0.017603 | 0.000198 | 0.24 | 21.23 |
+| 16 MiB | 0.017329 | 0.000716 | 0.97 | 23.43 |
+| 64 MiB | 0.024197 | 0.002791 | 2.77 | 24.04 |
+| 256 MiB | 0.025211 | 0.011082 | 10.65 | 24.22 |
+| 1 GiB | 0.058771 | 0.044235 | 18.27 | 24.27 |
+
+The NIXL time is almost flat from 1 MiB to 64 MiB -- 15.3 ms to 24.2 ms while
+the payload grows 64x. That is the signature of a fixed cost, not a slow
+link. Fitting `time = fixed + bytes / rate` over the two largest sizes:
+
+    fixed overhead = 14.02 ms per transfer
+    marginal rate  = 24.00 GB/s
+    MPI line rate  = 24.27 GB/s
+
+So NIXL moves bytes at 98.9% of what MPI achieves. At the 64 MiB default,
+14.0 ms of the 24.2 ms measured is fixed overhead -- 58% of the number is not
+transfer at all. The two curves converge as the payload grows: 8.7x apart at
+64 MiB, 2.3x at 256 MiB, 1.3x at 1 GiB. Break-even, where the fixed cost
+equals the wire time, is around 337 MB.
+
+Practical consequences:
+
+- Do not read the 64 MiB figure as NIXL's achievable bandwidth. Quote the
+  large-message number, or report the fitted marginal rate.
+- Use `--sizes` to sweep rather than a single `--bytes`, so the fixed cost is
+  visible instead of being silently folded into one rate.
+- The overhead is per *transfer*, not per byte, and it is not registration:
+  `register_memory` is timed separately (`reg_s`, ~2.1-2.4 s) and sits
+  outside the timed loop. The 14 ms is inside the post/await path, consistent
+  with one outstanding operation per iteration plus completion polling.
+
+Reproduce with:
+
+    mpiexec --np 2 -ppn 1 python run_nixl_remote.py \
+        --sizes 1048576,4194304,16777216,67108864,268435456,1073741824 \
+        --iterations 10 --warmup 3
+
+### A note on the libfabric warning
+
+Runs emit:
+
+    libfabric_rail_manager.cpp:680 Could not deduce average bandwidth limit
+    per NUMA node, NUMA-aware rail selection for DRAM type aborted
+    libfabric_rail_manager.cpp:271 Using default (all) rail selection policy
+
+This is a warning, not the cause of the gap above -- the marginal rate still
+matches MPI. It means NIXL could not read per-NUMA bandwidth and fell back to
+using all rails.
