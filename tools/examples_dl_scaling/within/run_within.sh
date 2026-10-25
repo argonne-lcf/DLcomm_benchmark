@@ -39,4 +39,16 @@ export CCL_PROCESS_LAUNCHER=pmix
 export CCL_KVS_MODE=mpi
 export PALS_PMI=pmix
 
-mpiexec --np ${NRANKS} --ppn ${RANKS_PER_NODE} --cpu-bind ${CPU_BINDING} python within.py
+# Resolve the interpreter explicitly instead of letting mpiexec inherit a bare
+# `python` from PATH. On tara the system python3 is 3.6.15, which predates
+# `from __future__ import annotations` and has no mpi4py, so a bare name there
+# fails on every rank before any measurement runs. Honour PYTHON_BIN if the
+# caller set one; otherwise take whatever the conda activate above selected,
+# resolved to an absolute path now so each rank runs the same binary.
+PYTHON_BIN="${PYTHON_BIN:-$(command -v python3 || command -v python)}"
+if [ -z "$PYTHON_BIN" ]; then
+    echo "ERROR: no python interpreter found; set PYTHON_BIN" >&2
+    exit 1
+fi
+echo "using interpreter: $PYTHON_BIN ($("$PYTHON_BIN" --version 2>&1))"
+mpiexec --np ${NRANKS} --ppn ${RANKS_PER_NODE} --cpu-bind ${CPU_BINDING} "$PYTHON_BIN" within.py
