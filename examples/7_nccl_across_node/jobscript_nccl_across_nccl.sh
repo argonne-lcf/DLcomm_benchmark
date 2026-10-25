@@ -49,6 +49,17 @@ fi
 RANKS_PER_NODE=4
 NRANKS=$(( NNODES * RANKS_PER_NODE ))
 
+# GPU-aware MPI is OFF for this step by default: these runs drive the GPUs
+# through NCCL, not through MPI, so MPI only ever sees host buffers.
+#
+# Do NOT change this to =1 in place. Setting MPICH_GPU_SUPPORT_ENABLED=1
+# without the Cray GTL actually loaded aborts every rank at MPI init with
+# "MPIDI_CRAY_init: GPU_SUPPORT_ENABLED is requested, but GTL library is not
+# linked" -- loading craype-accel-nvidia90 is NOT sufficient for python
+# ranks, because the GTL only gets linked when the cc wrapper builds the
+# binary. If a step needs MPI on device buffers, source tools/gpu_aware_mpi.sh
+# and call dlcomm_enable_gpu_aware_mpi, which LD_PRELOADs the GTL and puts its
+# matching CUDA runtime on the path.
 export MPICH_GPU_SUPPORT_ENABLED=0
 export TORCH_CUDA_ARCH_LIST="8.0"
 export CCL_LOG_LEVEL=info
