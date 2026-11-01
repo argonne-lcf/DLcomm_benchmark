@@ -22,14 +22,14 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 
-# The driver sits at examples/19_cuda_layer_sweeps/ in the repo and at
-# code/19_cuda_layer_sweeps/ in the packaged deliverable. Look in both, and
+# The driver sits at examples/21_cuda_layer_sweeps/ in the repo and at
+# code/21_cuda_layer_sweeps/ in the packaged deliverable. Look in both, and
 # allow an explicit override, so the suite runs from either location instead
 # of silently failing all 29 tests on a path that does not exist here.
 _CANDIDATES = [
     Path(os.environ["DLCOMM_SWEEP"]) if os.environ.get("DLCOMM_SWEEP") else None,
-    HERE.parent / "examples" / "19_cuda_layer_sweeps" / "sweep_layers_cuda.sh",
-    HERE.parent / "code" / "19_cuda_layer_sweeps" / "sweep_layers_cuda.sh",
+    HERE.parent / "examples" / "21_cuda_layer_sweeps" / "sweep_layers_cuda.sh",
+    HERE.parent / "code" / "21_cuda_layer_sweeps" / "sweep_layers_cuda.sh",
 ]
 SWEEP = next((p for p in _CANDIDATES if p and p.is_file()), _CANDIDATES[1])
 
