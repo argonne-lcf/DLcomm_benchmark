@@ -13,7 +13,16 @@ ROOT = pathlib.Path(sys.argv[1] if len(sys.argv) > 1 else ".")
 MB = ROOT / "src/utils/libfabric/meson.build"
 RAIL = ROOT / "src/utils/libfabric/libfabric_rail.cpp"
 
-changed = []
+for required in (MB, RAIL):
+    if not required.is_file():
+        sys.exit(f"FATAL: expected file not found: {required}")
+
+# Both edits are validated before either is written. Writing meson.build and
+# then failing on libfabric_rail.cpp leaves a half-patched tree that builds
+# with the probe defined but the guard still on the version test -- a state
+# neither the patched nor unpatched build expects, and one a re-run cannot
+# detect because the first fix reports "already patched".
+pending = []   # (path, new_text)
 
 # ---- Fix 1: meson probe -------------------------------------------------
 mb = MB.read_text()
@@ -43,9 +52,7 @@ int main(void) { struct fi_mr_attr a; a.device.rocr = 0; return 0; }
         message('libfabric lacks fi_mr_attr.device.rocr - ROCr device id not set')
     endif
 """
-    mb = mb.replace(anchor, probe, 1)
-    MB.write_text(mb)
-    changed.append(str(MB))
+    pending.append((MB, mb.replace(anchor, probe, 1)))
 
 # ---- Fix 2: use the probe macro ----------------------------------------
 rail = RAIL.read_text()
@@ -54,10 +61,29 @@ new = "#ifdef NIXL_HAVE_FI_MR_ATTR_DEVICE_ROCR\n                mr_attr.device.r
 if new in rail:
     print("libfabric_rail.cpp: already patched")
 elif old in rail:
-    RAIL.write_text(rail.replace(old, new, 1))
-    changed.append(str(RAIL))
+    pending.append((RAIL, rail.replace(old, new, 1)))
 else:
+    # Nothing has been written yet, so the tree is still pristine.
     sys.exit("FATAL: libfabric_rail.cpp rocr guard not found in expected form")
+
+# ---- commit: every edit validated, now apply ----------------------------
+changed = []
+written = []
+try:
+    for path, text in pending:
+        backup = path.with_suffix(path.suffix + ".prepatch")
+        if not backup.exists():
+            backup.write_text(path.read_text())
+        path.write_text(text)
+        written.append((path, backup))
+        changed.append(str(path))
+except Exception as exc:                                  # pragma: no cover
+    for path, backup in written:
+        try:
+            path.write_text(backup.read_text())
+        except OSError:
+            print(f"  WARNING: could not roll back {path}", file=sys.stderr)
+    sys.exit(f"FATAL: patch failed, rolled back {len(written)} file(s): {exc}")
 
 print("PATCHED:" if changed else "NO CHANGES")
 for c in changed:

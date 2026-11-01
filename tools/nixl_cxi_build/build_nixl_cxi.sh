@@ -63,7 +63,9 @@ echo "BUILD_RC=$BUILD_RC"
 echo
 echo "=== install ==="
 ninja -C build install
-echo "INSTALL_RC=$?"
+INSTALL_RC=$?
+echo "INSTALL_RC=$INSTALL_RC"
+[ $INSTALL_RC -eq 0 ] || { echo "FATAL: install failed"; exit 1; }
 
 echo
 echo "=== resulting plugin libs ==="
@@ -73,7 +75,17 @@ if [ -n "$LFSO" ]; then
   echo "LIBFABRIC_PLUGIN_BUILT=$LFSO"
   echo "--- links ---"
   ldd "$LFSO" | grep -E "fabric|cuda|not found"
+  # A plugin that cannot resolve its own dependencies is not a usable build.
+  if ldd "$LFSO" 2>&1 | grep -q "not found"; then
+    echo "FATAL: plugin has unresolved shared-library dependencies"
+    exit 1
+  fi
 else
+  # The entire point of this script is to produce the LIBFABRIC plugin that
+  # the pip wheel advertises but does not ship. Exiting 0 here would let a
+  # caller proceed as if the backend existed and then silently fall back.
   echo "LIBFABRIC_PLUGIN_MISSING"
+  echo "FATAL: no libfabric plugin was produced"
+  exit 1
 fi
 echo "# nixl libfabric build end $(date -u '+%Y-%m-%dT%H:%M:%SZ')"
