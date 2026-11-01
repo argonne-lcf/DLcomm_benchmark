@@ -3,8 +3,13 @@
 # rather than trusting the README. Uses the offline stub world so no cluster
 # is involved: if these numbers disagree with the README, the README is wrong.
 set -uo pipefail
-cd /home/kvelusamy/Desktop/dlcomm-hardening/DLcomm_benchmark
-/tmp/dlcvenv/bin/python - <<'PY'
+# Resolve the repo from this script's own location: hardcoding an author's
+# home directory and venv made the README's "regenerate with" instruction
+# unrunnable for everyone else, so the published counts could not be checked.
+cd "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)" || exit 1
+PYTHON="${PYTHON:-$(command -v python3 || command -v python)}"
+[ -x "$PYTHON" ] || { echo "FATAL: no python3 found; set PYTHON=/path/to/python" >&2; exit 1; }
+"$PYTHON" - <<'PY'
 import sys, csv, shutil
 sys.path.insert(0, "tests")
 from test_sweep_layers import SweepHarness

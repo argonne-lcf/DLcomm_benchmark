@@ -113,7 +113,51 @@ echo " rank0   : $MASTER_ADDR (first nodefile line, unsorted)"
 echo " msg     : $MSG_MIN .. $MSG_MAX   quick=$QUICK"
 echo "=================================================================="
 
-want() { case ",$LAYERS," in *",$1,"*) return 0;; *) return 1;; esac; }
+want() { case ",$LAYERS,"  in *",$1,"*) return 0;; *) return 1;; esac; }
+
+# ------------------------------------------------------------------
+# Correctness gate, shared by every layer.
+#
+# Exit 0 plus a numeric-looking row is NOT success. nccl-tests prints
+# "Out of bounds values : N FAILED" and still exits 0; a benchmark that
+# returns wrong data quickly is a failure, not a measurement. Every
+# status decision in this script routes through here so the fail-open
+# class is closed in one place rather than per call site.
+#
+# Returns 0 (clean) or 1, and echoes a reason on failure.
+# ------------------------------------------------------------------
+validation_failed() {
+    local f="$1"
+    [ -f "$f" ] || { echo "no_output_file"; return 0; }
+    # nccl-tests / osu explicit validation verdicts
+    if grep -qaE 'Out of bounds values[[:space:]]*:[[:space:]]*[0-9]+[[:space:]]*FAILED' "$f"; then
+        echo "nccl_validation_failed"; return 0
+    fi
+    # a nonzero wrong-element count, even without the FAILED word
+    if grep -qaE 'Out of bounds values[[:space:]]*:[[:space:]]*[1-9][0-9]*' "$f"; then
+        echo "nccl_wrong_elements"; return 0
+    fi
+    if grep -qaE 'MISMATCH|byte-exact[[:space:]]+FAIL|CHECK FAILED|DATA CORRUPT' "$f"; then
+        echo "payload_mismatch"; return 0
+    fi
+    if grep -qaE 'NIXL_ERR|NCCL WARN .*(error|failed)|segmentation fault|CUDA error' "$f"; then
+        echo "runtime_error_in_log"; return 0
+    fi
+    return 1
+}
+
+# Decide a cell status with validation applied.
+#   score_cell <logfile> <rc> <count> [min_count]
+# Sets ST and DET. Failure is dominant over any positive signal.
+score_cell() {
+    local f="$1" rc="$2" n="$3" minn="${4:-1}" why
+    if why=$(validation_failed "$f"); then
+        ST=failed; DET="$why"; return
+    fi
+    if [ "$rc" -eq 0 ] && [ "$n" -ge "$minn" ]; then ST=ok; DET=-
+    elif [ "$rc" -eq 124 ] || [ "$rc" -eq 143 ]; then ST=failed; DET="timeout_$rc"
+    else ST=failed; DET="exit_$rc"; fi
+}
 
 # csv <layer> <cell> <axis> <value> <coll> <dtype> <extra> <exit> <rows> <status> <detail>
 csv() {
@@ -165,7 +209,15 @@ if [ -x "$FI_BIN_DIR/fi_info" ]; then
 # Same CUDA-aware libfabric, so source the full env wrapper rather than
 # hand-rolling LD_LIBRARY_PATH (that produced a 127, job 6952).
 export FI_CXI_DEVICE_NAME=cxi$rail
-if [ "\${PALS_RANKID:-0}" = "0" ]; then
+# PALS_RANKID must come from the launcher. Defaulting it to 0 made BOTH
+# ranks take the server branch when the variable was absent, so the two
+# processes never paired up and the cell still looked like a measurement.
+# An unset rank id is a launcher failure, not rank 0.
+if [ -z "\${PALS_RANKID:-}" ]; then
+    echo "FATAL: PALS_RANKID unset - launcher did not provide rank identity" >&2
+    exit 3
+fi
+if [ "\$PALS_RANKID" = "0" ]; then
     exec bash "$W/pals_nixl_env.sh" "$FI_BIN_DIR/fi_pingpong" -e rdm -p cxi -S 6291456
 else
     sleep 8
@@ -222,8 +274,9 @@ if [ -x "$OSU_COLL/osu_allreduce" ]; then
             # An invalid CLI form prints usage and exits 0 -- that is not a run.
             if grep -qE "Usage:|\(null\) \[-d\]" "$F"; then
                 ST=failed; DET=usage_printed_invalid_args; ROWS=0
-            elif [ "$RC" -eq 0 ] && [ "$ROWS" -gt 0 ]; then ST=ok; DET=-
-            else ST=failed; DET="exit_$RC"; fi
+            else
+                score_cell "$F" "$RC" "$ROWS" 1
+            fi
             printf '  %-16s %-6s exit=%-3s rows=%-3s %s\n' "$coll" "$buf" "$RC" "$ROWS" "$ST"
             csv osu "${coll}_${buf}" buffer "$buf" "$coll" - - "$RC" "$ROWS" "$ST" "$DET"
         done
@@ -256,9 +309,9 @@ if [ -x "$NCCL_TESTS/all_reduce_perf" ]; then
           "$W/pals_nccl_env.sh" "$NCCL_TESTS/$bin" \
           -b $MSG_MIN -e $MSG_MAX -f 4 -g 1 -d "$dt" "${OPARG[@]}" > "$F" 2>&1
       local RC=$? ROWS; ROWS=$(grep -cE '^ *[0-9]+ ' "$F")
-      local ST; { [ "$RC" -eq 0 ] && [ "$ROWS" -gt 0 ]; } && ST=ok || ST=failed
-      printf '  %-34s exit=%-3s rows=%-3s %s\n' "$cell" "$RC" "$ROWS" "$ST"
-      csv nccl "$cell" "$axis" "$value" "$coll" "$dt" "$extra" "$RC" "$ROWS" "$ST" "-"
+      local ST DET; score_cell "$F" "$RC" "$ROWS" 1
+      printf '  %-34s exit=%-3s rows=%-3s %s %s\n' "$cell" "$RC" "$ROWS" "$ST" "$DET"
+      csv nccl "$cell" "$axis" "$value" "$coll" "$dt" "$extra" "$RC" "$ROWS" "$ST" "$DET"
   }
 
   # axis: collective (baseline float/sum/default)
@@ -310,9 +363,9 @@ if [ -f "$TORCH_BENCH" ]; then
           --min-bytes $MSG_MIN --max-bytes $MSG_MAX \
           --json-out "$RUN/torch_${cell}.json" "$@" > "$F" 2>&1
       local RC=$? ROWS; ROWS=$(grep -cE '^ *[0-9]+ ' "$F")
-      local ST; { [ "$RC" -eq 0 ] && [ "$ROWS" -gt 0 ]; } && ST=ok || ST=failed
-      printf '  %-34s exit=%-3s rows=%-3s %s\n' "$cell" "$RC" "$ROWS" "$ST"
-      csv torch_dist "$cell" "$axis" "$value" "$coll" "$dt" "${*:-}" "$RC" "$ROWS" "$ST" "-"
+      local ST DET; score_cell "$F" "$RC" "$ROWS" 1
+      printf '  %-34s exit=%-3s rows=%-3s %s %s\n' "$cell" "$RC" "$ROWS" "$ST" "$DET"
+      csv torch_dist "$cell" "$axis" "$value" "$coll" "$dt" "${*:-}" "$RC" "$ROWS" "$ST" "$DET"
   }
   for coll in allreduce allgather reducescatter alltoall broadcast reduce barrier send_recv; do
       run_torch "coll_$coll" collective "$coll" "$coll" float32
@@ -379,11 +432,27 @@ elif [ -f "$NIXL_BENCH" ]; then
       # (22.4 GB/s at 1 GiB, byte-exact), so this is a transport capability
       # limit, not a broken benchmark. Restrict the NIXL_ERR_BACKEND reading
       # to WRITE: on READ that same error means something genuinely wrong.
-      if grep -qaE 'Flags not supported|-260' "$F" 2>/dev/null ||
-         { [ "$op" = "WRITE" ] && grep -qa 'NIXL_ERR_BACKEND' "$F" 2>/dev/null; }; then
+      # The capability exemption applies to WRITE ONLY. Previously the
+      # -260 branch was unguarded, so a READ failure whose log happened to
+      # contain "-260" was excused as an unsupported WRITE. A READ failure
+      # on this path means something is genuinely wrong and must not be
+      # laundered into "unsupported".
+      #
+      # It is also restricted to the transfer stage: a failure during agent
+      # construction or memory registration is not a transport capability
+      # limit, so it must not inherit the exemption either.
+      WRITE_CAP_LIMIT=0
+      if [ "$op" = "WRITE" ] &&
+         ! grep -qaE 'createAgent|registerMem|register_memory' "$F" 2>/dev/null &&
+         { grep -qaE 'Flags not supported|[^0-9-]-260([^0-9]|$)' "$F" 2>/dev/null ||
+           grep -qa 'NIXL_ERR_BACKEND' "$F" 2>/dev/null; }; then
+          WRITE_CAP_LIMIT=1
+      fi
+      if [ "$WRITE_CAP_LIMIT" -eq 1 ]; then
           ST=unsupported; DET="cxi_rma_write_unsupported"
-      elif [ "$RC" -eq 0 ] && [ "$NP" -gt 0 ]; then ST=ok; DET=-
-      else ST=failed; DET="exit_$RC"; fi
+      else
+          score_cell "$F" "$RC" "$NP" 1
+      fi
       printf '  %-14s exit=%-3s pass=%-3s %s %s\n' "$CELL" "$RC" "$NP" "$ST" "$DET"
       csv nixl "$CELL" op "$op" putget "$mem" "$EXPECT" "$RC" "$NP" "$ST" "$DET"
     done
@@ -401,7 +470,8 @@ elif [ -f "$NIXL_BENCH" ]; then
       --sizes "$NIXL_LADDER" --json-out "$RUN/nixl_LADDER_VRAM.json" > "$F" 2>&1
   RC=$?; NP=$(grep -c 'byte-exact check: PASS' "$F" 2>/dev/null)
   NPTS=$(echo "$NIXL_LADDER" | tr ',' '\n' | grep -c .)
-  if [ "$RC" -eq 0 ] && [ "$NP" -eq "$NPTS" ]; then ST=ok; DET="${NP}_of_${NPTS}_sizes"
+  if VWHY=$(validation_failed "$F"); then ST=failed; DET="$VWHY"
+  elif [ "$RC" -eq 0 ] && [ "$NP" -eq "$NPTS" ]; then ST=ok; DET="${NP}_of_${NPTS}_sizes"
   elif [ "$RC" -eq 0 ]; then ST=failed; DET="only_${NP}_of_${NPTS}_sizes_verified"
   else ST=failed; DET="exit_$RC"; fi
   printf '  %-14s exit=%-3s pass=%-3s %s %s\n' "LADDER_VRAM" "$RC" "$NP" "$ST" "$DET"
@@ -431,7 +501,8 @@ elif [ -f "$NIXL_BENCH" ]; then
           --json-out "$RUN/nixl_${CELL}.json" > "$F" 2>&1
       RC=$?; NP=$(grep -c 'byte-exact check: PASS' "$F" 2>/dev/null)
       # introspect makes one transfer, so one PASS is the full score there.
-      if [ "$RC" -eq 0 ] && [ "$NP" -gt 0 ]; then ST=ok; DET="${NP}_verified"
+      if VWHY=$(validation_failed "$F"); then ST=failed; DET="$VWHY"
+      elif [ "$RC" -eq 0 ] && [ "$NP" -gt 0 ]; then ST=ok; DET="${NP}_verified"
       elif [ "$RC" -eq 124 ] || [ "$RC" -eq 143 ]; then ST=failed; DET="timeout_$RC"
       else ST=failed; DET="exit_$RC"; fi
       printf '  %-14s exit=%-3s pass=%-3s %s %s\n' "$CELL" "$RC" "$NP" "$ST" "$DET"
@@ -471,7 +542,8 @@ if [ -f "$LAYER_PROFILE" ]; then
       --layer provenance > "$F" 2>&1
   RC=$?
   NP=$(grep -c '"host"' "$F" 2>/dev/null | head -1)
-  if [ "$RC" = 0 ] && [ "$NP" -gt 0 ]; then ST=ok; DET="${NP}_ranks_reported"
+  if VWHY=$(validation_failed "$F"); then ST=failed; DET="$VWHY"
+  elif [ "$RC" = 0 ] && [ "$NP" -gt 0 ]; then ST=ok; DET="${NP}_ranks_reported"
   else ST=failed; DET="exit_$RC"; fi
   printf '  %-22s exit=%-3s pass=%-3s %s %s\n' provenance "$RC" "$NP" "$ST" "$DET"
   csv profile provenance env all - - - "$RC" "$NP" "$ST" "$DET"
@@ -502,7 +574,8 @@ if [ -f "$LAYER_PROFILE" ]; then
       --json-out "$J" > "$F" 2>&1
   RC=$?
   NP=$(grep -c 'allreduce(device)' "$F" 2>/dev/null | head -1)
-  if [ "$RC" = 0 ] && [ "$NP" -gt 0 ]; then ST=ok; DET="${NP}_sizes_phase_profiled"
+  if VWHY=$(validation_failed "$F"); then ST=failed; DET="$VWHY"
+  elif [ "$RC" = 0 ] && [ "$NP" -gt 0 ]; then ST=ok; DET="${NP}_sizes_phase_profiled"
   else ST=failed; DET="exit_$RC"; fi
   printf '  %-22s exit=%-3s pass=%-3s %s %s\n' phases "$RC" "$NP" "$ST" "$DET"
   # PROF_SIZES contains commas; embedding it raw shifts every later CSV
@@ -520,7 +593,8 @@ if [ -f "$LAYER_PROFILE" ]; then
       --only-size 16MiB --iters "$PROF_ITERS" > "$F" 2>&1
   RC=$?
   NP=$(grep -c 'allreduce(device)' "$F" 2>/dev/null | head -1)
-  if [ "$RC" = 0 ] && [ "$NP" -gt 0 ]; then ST=ok; DET="isolated_16MiB_measured"
+  if VWHY=$(validation_failed "$F"); then ST=failed; DET="$VWHY"
+  elif [ "$RC" = 0 ] && [ "$NP" -gt 0 ]; then ST=ok; DET="isolated_16MiB_measured"
   else ST=failed; DET="exit_$RC"; fi
   printf '  %-22s exit=%-3s pass=%-3s %s %s\n' isolation_control "$RC" "$NP" "$ST" "$DET"
   csv profile isolation_control control 16MiB allreduce float32 - "$RC" "$NP" "$ST" "$DET"

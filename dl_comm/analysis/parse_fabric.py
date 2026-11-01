@@ -150,6 +150,7 @@ def parse_nixl_transfer(text: str, pattern: str = "read_dram",
     best_bps: float | None = None
     mean_bps: float | None = None
     saw_fail = False
+    saw_pass = False
 
     for line in text.splitlines():
         m = _BEST.search(line)
@@ -173,13 +174,20 @@ def parse_nixl_transfer(text: str, pattern: str = "read_dram",
             continue
 
         if _PASS.search(line):
-            ev.byte_exact = True
+            saw_pass = True
             continue
         if _FAIL.search(line):
             saw_fail = True
 
-    if saw_fail and ev.byte_exact is not True:
+    # Failure is dominant. A PASS from one rank must never mask a FAIL from
+    # another: a collective is correct only if EVERY participant verified.
+    # The previous form (`saw_fail and byte_exact is not True`) let whichever
+    # marker appeared first decide, so an 8-rank run with one corrupt rank
+    # published a clean bandwidth number.
+    if saw_fail:
         ev.byte_exact = False
+    elif saw_pass:
+        ev.byte_exact = True
 
     # Correctness gates the measurement. An unverified transfer is reported as
     # unavailable with the reason attached, never as a bandwidth number.

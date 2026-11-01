@@ -35,6 +35,7 @@ Usage (under mpiexec, one rank per GPU):
 """
 import argparse
 import json
+import math
 import os
 import re
 import socket
@@ -239,24 +240,49 @@ def profile_torch_layers(sizes, iters, prov):
           f"mem={g['total_mem_GiB']}GiB sm={g['sm']}", flush=True)
 
     out = {"world": world, "rank": rank, "sizes": {}}
+    failures: list[str] = []
     for sz in sizes:
         n = sz // 4
         g = torch.ones(n, dtype=torch.float32, device=dev)
         h = torch.ones(n, dtype=torch.float32, device="cpu").pin_memory()
         ph = Phases(torch, dev)
 
+        # ---- correctness gate, before any timing ----------------------
+        # A bandwidth number from a collective that returns wrong data is
+        # not a measurement. Use a rank-distinct deterministic payload so
+        # the expected sum is known and a silently-dropped or duplicated
+        # contribution cannot pass: sum over ranks of (r+1) = world(world+1)/2.
+        # This is the 1 MiB CXI corruption class -- NCCL returned success
+        # with wrong bytes, so only an explicit value check catches it.
+        chk = torch.full((n,), float(rank + 1), dtype=torch.float32, device=dev)
+        dist.all_reduce(chk, op=dist.ReduceOp.SUM)
+        torch.cuda.synchronize()
+        expect = float(world * (world + 1) // 2)
+        if not torch.isfinite(chk).all().item():
+            failures.append(f"{human(sz)}:nonfinite")
+        elif (chk - expect).abs().max().item() > 1e-3:
+            bad = int((chk - expect).abs().gt(1e-3).sum().item())
+            failures.append(f"{human(sz)}:allreduce_wrong_{bad}_of_{n}")
+        del chk
+
         # staging: the cost of getting data to/from the device at all
         ph.device("h2d_pinned", lambda: g.copy_(h, non_blocking=True), iters)
         ph.device("d2h_pinned", lambda: h.copy_(g, non_blocking=True), iters)
 
-        # the collective itself, device-timed
+        # the collective itself, device-timed. Reset the buffer each call:
+        # reducing the previous output repeatedly inflates magnitudes toward
+        # inf and measures a different operand distribution every iteration.
+        def _timed_ar():
+            g.fill_(1.0)
+            dist.all_reduce(g, op=dist.ReduceOp.SUM)
+
         dist.barrier()
-        ph.device("allreduce",
-                  lambda: dist.all_reduce(g, op=dist.ReduceOp.SUM), iters)
+        ph.device("allreduce", _timed_ar, iters)
 
         # the same call host-timed: the gap vs device time is launch +
         # synchronisation overhead that a device-only measurement hides
         def _sync_ar():
+            g.fill_(1.0)
             dist.all_reduce(g, op=dist.ReduceOp.SUM)
             torch.cuda.synchronize()
         ph.host("allreduce_host_observed", _sync_ar, iters)
@@ -268,6 +294,9 @@ def profile_torch_layers(sizes, iters, prov):
         algbw = sz / (ar * 1e-6) / 1e9 if ar else 0.0
         # busbw for allreduce = algbw * 2(n-1)/n
         busbw = algbw * 2 * (world - 1) / world if world > 1 else algbw
+        if not math.isfinite(algbw) or not math.isfinite(busbw):
+            failures.append(f"{human(sz)}:nonfinite_bandwidth")
+            algbw = busbw = 0.0
         out["sizes"][human(sz)] = {
             "bytes": sz,
             "phases": ph.spans,
@@ -279,6 +308,22 @@ def profile_torch_layers(sizes, iters, prov):
         }
         del g, h
         torch.cuda.empty_cache()
+
+    # Aggregate failure state globally before anything is published: a
+    # corrupt rank that is not rank 0 must still fail the whole profile.
+    local_bad = torch.tensor([len(failures)], dtype=torch.int64, device=dev)
+    dist.all_reduce(local_bad, op=dist.ReduceOp.SUM)
+    torch.cuda.synchronize()
+    total_bad = int(local_bad.item())
+    out["verified"] = total_bad == 0
+    out["verification_failures"] = failures
+    out["verification_failures_all_ranks"] = total_bad
+    if total_bad:
+        # Do not publish bandwidth that failed its own correctness check.
+        for cell in out["sizes"].values():
+            cell["algbw_GBs"] = None
+            cell["busbw_GBs"] = None
+            cell["note"] = "suppressed: collective verification failed"
 
     if rank == 0:
         out["provenance"] = prov

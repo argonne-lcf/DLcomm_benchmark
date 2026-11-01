@@ -53,6 +53,12 @@ class SweepHarness(unittest.TestCase):
         self._bin("mpiexec", f"""
             #!/bin/bash
             echo "MPIEXEC $*" >> {self.calls}
+            # A real launcher always gives each rank its identity. The stub
+            # must too, or wrappers that (correctly) refuse to guess a rank
+            # will fail here for a reason that has nothing to do with the
+            # behaviour under test.
+            export PALS_RANKID="${{PALS_RANKID:-0}}"
+            export PALS_LOCAL_RANKID="${{PALS_LOCAL_RANKID:-0}}"
             args=("$@")
             for ((i=0; i<${{#args[@]}}; i++)); do
               case "${{args[i]}}" in
@@ -234,6 +240,8 @@ class TestOsuAxes(SweepHarness):
         self._bin("mpiexec", f"""
             #!/bin/bash
             echo "GPUFLAG=${{MPICH_GPU_SUPPORT_ENABLED:-unset}} ARGS=$*" >> {self.calls}
+            export PALS_RANKID="${{PALS_RANKID:-0}}"
+            export PALS_LOCAL_RANKID="${{PALS_LOCAL_RANKID:-0}}"
             args=("$@")
             for ((i=0; i<${{#args[@]}}; i++)); do
               case "${{args[i]}}" in
@@ -323,6 +331,8 @@ class TestNcclAxes(SweepHarness):
         self._bin("mpiexec", f"""
             #!/bin/bash
             echo "ALGO=${{NCCL_ALGO:-unset}} PROTO=${{NCCL_PROTO:-unset}}" >> {self.calls}
+            export PALS_RANKID="${{PALS_RANKID:-0}}"
+            export PALS_LOCAL_RANKID="${{PALS_LOCAL_RANKID:-0}}"
             args=("$@")
             for ((i=0; i<${{#args[@]}}; i++)); do
               case "${{args[i]}}" in
@@ -442,6 +452,38 @@ class TestFiLayer(SweepHarness):
         inv = [r for r in rows if r["cell"] == "inventory"][0]
         self.assertEqual(inv["status"], "ok")
         self.assertEqual(inv["rows"], "2")
+
+    def test_missing_rank_identity_is_a_failure_not_rank_zero(self):
+        """An absent PALS_RANKID must not be read as "I am rank 0".
+
+        The pingpong wrapper branches on rank: rank 0 is the server, everyone
+        else connects to it. Defaulting an unset rank id to 0 made BOTH ranks
+        take the server branch, so the two processes never paired up -- and
+        the cell still looked like a completed measurement. Launcher identity
+        is something to require, not to guess.
+        """
+        # A launcher that forgets to publish rank identity.
+        self._bin("mpiexec", f"""
+            #!/bin/bash
+            echo "MPIEXEC $*" >> {self.calls}
+            unset PALS_RANKID
+            unset PALS_LOCAL_RANKID
+            args=("$@")
+            for ((i=0; i<${{#args[@]}}; i++)); do
+              case "${{args[i]}}" in
+                -n|-ppn|--hostfile) ((i++)) ;;
+                *) exec "${{args[@]:i}}" ;;
+              esac
+            done
+        """)
+        _, rows = self.sweep("fi", nodes="2")
+        pp = [r for r in rows if r["cell"] == "pingpong"]
+        self.assertTrue(pp, "no pingpong cells emitted")
+        for r in pp:
+            self.assertNotEqual(
+                r["status"], "ok",
+                f"a run with no rank identity was reported as a "
+                f"measurement: {r}")
 
 
 class TestLoaderErrorsAreNotMeasurements(SweepHarness):

@@ -6,6 +6,7 @@ file a job wrote; anything absent is printed as missing rather than inferred.
 """
 import csv
 import json
+import math
 import re
 import sys
 from collections import defaultdict
@@ -19,7 +20,70 @@ def load(csv_path):
     return list(csv.DictReader(open(csv_path)))
 
 
+_VALIDATION_FAIL = re.compile(
+    r"Out of bounds values\s*:\s*[0-9]+\s*FAILED"
+    r"|Out of bounds values\s*:\s*[1-9][0-9]*"
+    r"|MISMATCH"
+    r"|byte-exact\s+FAIL"
+    r"|CHECK FAILED"
+    r"|DATA CORRUPT"
+    r"|STATUS=FAILED"
+    r"|NIXL_ERR"
+    r"|CUDA error"
+    r"|segmentation fault",
+    re.IGNORECASE,
+)
+
+
+def validation_failure(path):
+    """Return a reason string if this log self-reports bad data, else None.
+
+    The per-layer extractors below skip '#' comment lines, which is exactly
+    where nccl-tests writes its verdict ('# Out of bounds values : N FAILED').
+    Without this gate the report scrapes a bandwidth number out of a run that
+    announced its own payload was wrong. A fast wrong answer is not a result,
+    so a failing log contributes no measurement to the report at all.
+    """
+    try:
+        with open(path, errors="ignore") as fh:
+            for line in fh:
+                m = _VALIDATION_FAIL.search(line)
+                if m:
+                    return m.group(0).strip()
+    except OSError as exc:
+        return f"unreadable: {exc}"
+    return None
+
+
+def log_ranks(path):
+    """Rank count this log was produced with, or None if not stated.
+
+    Bandwidth at 4 ranks and at 8 ranks are different quantities; printing
+    them in one column with no rank attribution invites a false comparison.
+    Read it from the log rather than inferring it from the scale label.
+    """
+    ranks = set()
+    try:
+        with open(path, errors="ignore") as fh:
+            for line in fh:
+                m = re.search(r"^#\s+Rank\s+(\d+)\s+Group", line)
+                if m:
+                    ranks.add(int(m.group(1)))
+                    continue
+                m = re.search(r"\bRANKS=(\d+)", line)
+                if m:
+                    return int(m.group(1))
+                m = re.search(r"\bnRanks\s*[:=]\s*(\d+)", line)
+                if m:
+                    return int(m.group(1))
+    except OSError:
+        return None
+    return len(ranks) or None
+
+
 def nccl_best(path):
+    if validation_failure(path):
+        return None
     best = None
     for line in open(path, errors="ignore"):
         if line.lstrip().startswith("#") or not line.strip():
@@ -31,12 +95,16 @@ def nccl_best(path):
             size, algbw, busbw = int(f[0]), float(f[6]), float(f[7])
         except (ValueError, IndexError):
             continue
+        if not (math.isfinite(algbw) and math.isfinite(busbw)):
+            continue
         if best is None or busbw > best[2]:
             best = (size, algbw, busbw)
     return best
 
 
 def torch_best(path):
+    if validation_failure(path):
+        return None
     best = None
     for line in open(path, errors="ignore"):
         s = line.strip()
@@ -49,12 +117,16 @@ def torch_best(path):
             size, algbw, busbw = int(f[0]), float(f[3]), float(f[4])
         except (ValueError, IndexError):
             continue
+        if not (math.isfinite(algbw) and math.isfinite(busbw)):
+            continue
         if best is None or busbw > best[2]:
             best = (size, algbw, busbw)
     return best
 
 
 def osu_last(path):
+    if validation_failure(path):
+        return None
     last = None
     for line in open(path, errors="ignore"):
         s = line.strip()
@@ -70,6 +142,8 @@ def osu_last(path):
 
 def nixl_best(path):
     """[nixl_putget] transfer best  N us -> X GB/s | mean ..."""
+    if validation_failure(path):
+        return []
     rows = []
     size = None
     for line in open(path, errors="ignore"):
@@ -145,13 +219,19 @@ def main():
     L.append("| Scale | Job | layer | cell | status | recorded reason |")
     L.append("|---|---|---|---|---|---|")
     any_non_ok = False
+    total_rows = sum(len(rows) for _, _, rows in runs.values())
     for tag, (job, _, rows) in runs.items():
         for r in rows:
             if r["status"] != "ok":
                 any_non_ok = True
                 L.append(f"| {tag} | {job} | {r['layer']} | {r['cell']} | "
                          f"{r['status']} | `{r['detail']}` |")
-    if not any_non_ok:
+    if total_rows == 0:
+        # No input is not a clean sweep. Absence of failure rows is only
+        # evidence of success when there were rows to begin with.
+        L.append("| - | - | - | - | NO DATA | no result rows were found; "
+                 "this report covers nothing |")
+    elif not any_non_ok:
         L.append("| - | - | - | - | - | every cell produced a measurement |")
     L.append("")
 
@@ -277,25 +357,46 @@ Layer 1 touches no GPU at all -- it is the NIC ceiling the others inherit.
         nc = sorted(d.glob("nccl_*.txt"))
         if nc:
             L.append("\n### Layer 3 — NCCL\n")
-            L.append("| cell | peak busbw (GB/s) | algbw | at size |")
-            L.append("|---|---|---|---|")
+            L.append("Peak bandwidth is only comparable across rows with the "
+                     "same rank count. The `ranks` column is read from each "
+                     "log, not assumed from the scale.\n")
+            L.append("| cell | ranks | peak busbw (GB/s) | algbw | at size |")
+            L.append("|---|---|---|---|---|")
             for f in nc:
-                b = nccl_best(f)
                 name = f.stem.replace("nccl_", "")
-                L.append(f"| {name} | {b[2]:.2f} | {b[1]:.2f} | {b[0]//1024} KiB |"
-                         if b else f"| {name} | no rows | - | - |")
+                vf = validation_failure(f)
+                if vf:
+                    L.append(f"| {name} | - | **suppressed** | - | "
+                             f"validation failed: `{vf}` |")
+                    continue
+                b = nccl_best(f)
+                nr = log_ranks(f)
+                L.append(f"| {name} | {nr if nr else '?'} | {b[2]:.2f} | "
+                         f"{b[1]:.2f} | {b[0]//1024} KiB |"
+                         if b else f"| {name} | {nr if nr else '?'} | "
+                                   f"no rows | - | - |")
 
         # ---- torch ----
         tf = sorted(d.glob("torch_*.txt"))
         if tf:
             L.append("\n### Layer 4 — torch.distributed (NCCL backend)\n")
-            L.append("| cell | peak busbw (GB/s) | algbw | at size |")
-            L.append("|---|---|---|---|")
+            L.append("Peak bandwidth is only comparable across rows with the "
+                     "same rank count.\n")
+            L.append("| cell | ranks | peak busbw (GB/s) | algbw | at size |")
+            L.append("|---|---|---|---|---|")
             for f in tf:
-                b = torch_best(f)
                 name = f.stem.replace("torch_", "")
-                L.append(f"| {name} | {b[2]:.2f} | {b[1]:.2f} | {b[0]//1024} KiB |"
-                         if b else f"| {name} | no rows | - | - |")
+                vf = validation_failure(f)
+                if vf:
+                    L.append(f"| {name} | - | **suppressed** | - | "
+                             f"validation failed: `{vf}` |")
+                    continue
+                b = torch_best(f)
+                nr = log_ranks(f)
+                L.append(f"| {name} | {nr if nr else '?'} | {b[2]:.2f} | "
+                         f"{b[1]:.2f} | {b[0]//1024} KiB |"
+                         if b else f"| {name} | {nr if nr else '?'} | "
+                                   f"no rows | - | - |")
 
         # ---- nixl ----
         # Driven by the CSV, not by the presence of output files. At 1 node
@@ -399,6 +500,22 @@ Layer 1 touches no GPU at all -- it is the NIC ceiling the others inherit.
                 "absence is recorded here rather than left as a silent hole. "
                 "Nothing in this report should be read as a torchcomms "
                 "measurement.\n")
+
+    # The narrative below quotes specific measured figures from the campaign
+    # this tool was written against. It is interpretation of real data, not
+    # something derived from the inputs at hand, so it must not be emitted
+    # when this invocation parsed no results -- otherwise an empty run
+    # produces a confident report full of numbers it never measured.
+    if total_rows == 0:
+        L.append(section("What each layer's numbers mean"))
+        L.append(
+            "Not generated: this invocation parsed no result rows, so there "
+            "is nothing to interpret. The per-layer narrative is written "
+            "against measured data and is suppressed rather than printed "
+            "from memory.\n")
+        OUT.write_text("\n".join(L) + "\n")
+        print(f"wrote {OUT}  ({len(L)} lines) — NO DATA")
+        return
 
     L.append(section("What each layer's numbers mean"))
     L.append("""

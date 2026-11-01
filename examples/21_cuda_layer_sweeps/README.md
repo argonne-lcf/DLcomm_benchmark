@@ -1,4 +1,4 @@
-# Example 19 — per-layer option sweeps (CUDA / aarch64)
+# Example 21 — per-layer option sweeps (CUDA / aarch64)
 
 Example 16 asks *"does every layer work?"* — one setting per collective, one
 number per layer. This example asks the harder question: **which of the
@@ -44,20 +44,30 @@ Counted by executing the driver against the offline stubs, not by hand:
 | `osu` | 18 | 18 |
 | `nccl` | 19 | 19 |
 | `torch_dist` | 11 | 11 |
-| `nixl` | 4 | 4 |
-| **total** | **54** | **57** |
+| `nixl` | 9 | 9 |
+| `profile` | 4 | 4 |
+| **total** | **63** | **66** |
 
 `fi` grows from 2 to 5 because the four per-rail pingpongs need a second node.
-Regenerate with `bash tools/count_cells.sh`.
+Regenerate with `bash tools/count_cells.sh` (set `PYTHON=` to pick an
+interpreter; the script resolves the repo from its own location).
 
 ### Measured outcome
 
 Final runs on Tara North (GH200, Slingshot/CXI):
 
-| Scale | Job | ok | failed | unsupported | unavailable |
-|---|---|---|---|---|---|
-| 1 node / 4 GPUs | 6956 | 49 | 0 | 4 | 1 |
-| 2 nodes / 8 GPUs | 6957 | 55 | 0 | 2 | 0 |
+| Scale | Job | ok | failed | unsupported | unavailable | row total |
+|---|---|---|---|---|---|---|
+| 1 node / 4 GPUs | 6956 | 49 | 0 | 4 | 1 | 54 |
+| 2 nodes / 8 GPUs | 6957 | 55 | 0 | 2 | 0 | 57 |
+
+These two jobs predate the current cell set. They recorded 54 and 57 rows,
+while `tools/count_cells.sh` now reports 63 and 66 for the driver as it
+stands — the `nixl` layer gained cells and the `profile` layer was added
+after these jobs ran. The counts are therefore **not** expected to match,
+and the job rows are reported as measured rather than rescaled to the
+current total. Re-running the sweep is what would reconcile them; no such
+run has been made, so none is claimed here.
 
 Nothing is left in a `failed` state. The non-ok cells are two real platform
 limits, each recorded with its reason rather than as a bug to chase:
