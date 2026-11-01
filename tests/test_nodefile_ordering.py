@@ -28,7 +28,7 @@ NODEFILE_6935 = "x4820c7s6b1n0\nx4820c7s0b0n0\n"
 
 SCRIPTS = [
     REPO / "tools" / "run_all_scales.sh",
-    REPO / "examples" / "18_fabric_layers" / "jobscript_fabric_layers.sh",
+    REPO / "examples" / "20_fabric_layers" / "jobscript_fabric_layers.sh",
 ]
 
 
