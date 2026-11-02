@@ -137,7 +137,10 @@ validation_failed() {
     if grep -qaE 'Out of bounds values[[:space:]]*:[[:space:]]*[1-9][0-9]*' "$f"; then
         echo "nccl_wrong_elements"; return 0
     fi
-    if grep -qaE 'MISMATCH|byte-exact[[:space:]]+FAIL|CHECK FAILED|DATA CORRUPT' "$f"; then
+    # Payload corruption, in any of the forms the layers actually emit.
+    # 'byte-exact[[:space:]]+FAIL' missed the real wording, which is
+    # 'byte-exact check: FAIL'.
+    if grep -qaE 'MISMATCH|byte[- ]exact.{0,40}FAIL|FAIL.{0,40}byte[- ]exact|CHECK[[:space:]]+FAILED|VERIFICATION[[:space:]]+FAILED|verification_failed|DATA CORRUPT|STATUS[[:space:]]*=[[:space:]]*FAILED|WRONG[[:space:]]*=[[:space:]]*[1-9]' "$f"; then
         echo "payload_mismatch"; return 0
     fi
     if grep -qaE 'NIXL_ERR|NCCL WARN .*(error|failed)|segmentation fault|CUDA error' "$f"; then
@@ -190,8 +193,12 @@ if [ -x "$FI_BIN_DIR/fi_info" ]; then
         csv fi inventory provider - - - - "$FI_INFO_RC" 0 \
             failed "${WHY:-fi_info_rc_$FI_INFO_RC}"
     else
+        # Was an inline "providers>0 -> ok", bypassing the shared gate: an
+        # fi_info log carrying a runtime error still scored ok as long as it
+        # had listed at least one provider.
+        score_cell "$RUN/fi_info.txt" 0 "$NPROV" 1
         csv fi inventory provider cxi - - - 0 "$NPROV" \
-            "$([ "$NPROV" -gt 0 ] && echo ok || echo failed)" "providers=$NPROV"
+            "$ST" "providers=$NPROV${DET:+_$DET}"
     fi
 
     # One pingpong per CXI rail. Same-node pingpong is not a wire measurement
@@ -227,9 +234,12 @@ EOS
             chmod +x "$RUN/pp_wrap.sh"
             timeout 180 $MPIEXEC -n 2 -ppn 1 "$RUN/pp_wrap.sh" > "$F" 2>&1
             RC=$?; ROWS=$(grep -cE '^[[:space:]]*[0-9]' "$F")
-            echo "  cxi$rail exit=$RC rows=$ROWS"
-            csv fi pingpong rail "cxi$rail" pingpong - - "$RC" "$ROWS" \
-                "$([ "$RC" -eq 0 ] && [ "$ROWS" -gt 0 ] && echo ok || echo failed)" "-"
+            # Was an inline "rc==0 && rows>0 -> ok", which bypassed the
+            # shared gate entirely: a pingpong log containing CHECK FAILED
+            # still scored ok.
+            score_cell "$F" "$RC" "$ROWS" 1
+            echo "  cxi$rail exit=$RC rows=$ROWS $ST $DET"
+            csv fi pingpong rail "cxi$rail" pingpong - - "$RC" "$ROWS" "$ST" "$DET"
         done
     else
         csv fi pingpong rail all pingpong - - 0 0 unavailable \
@@ -448,7 +458,21 @@ elif [ -f "$NIXL_BENCH" ]; then
            grep -qa 'NIXL_ERR_BACKEND' "$F" 2>/dev/null; }; then
           WRITE_CAP_LIMIT=1
       fi
-      if [ "$WRITE_CAP_LIMIT" -eq 1 ]; then
+      # Corruption dominates the capability exemption. A log that reports a
+      # payload MISMATCH *and* NIXL_ERR_BACKEND was being scored
+      # "unsupported", which hid the corruption behind a capability limit.
+      # An unsupported capability cannot also have moved wrong bytes.
+      #
+      # The test is deliberately narrower than validation_failed(): the
+      # NIXL_ERR_BACKEND that justifies the exemption is itself a
+      # runtime_error_in_log, so reusing the full gate here would make the
+      # exemption unreachable. Only evidence that BYTES WERE WRONG overrides
+      # a capability limit.
+      CORRUPT=0
+      if grep -qaE 'MISMATCH|byte[- ]exact.{0,40}FAIL|FAIL.{0,40}byte[- ]exact|CHECK[[:space:]]+FAILED|VERIFICATION[[:space:]]+FAILED|verification_failed|DATA CORRUPT|Out of bounds values[[:space:]]*:[[:space:]]*[1-9]|WRONG[[:space:]]*=[[:space:]]*[1-9]' "$F" 2>/dev/null; then
+          CORRUPT=1
+      fi
+      if [ "$WRITE_CAP_LIMIT" -eq 1 ] && [ "$CORRUPT" -eq 0 ]; then
           ST=unsupported; DET="cxi_rma_write_unsupported"
       else
           score_cell "$F" "$RC" "$NP" 1
@@ -560,8 +584,17 @@ if [ -f "$LAYER_PROFILE" ]; then
   RC=$?
   NET=$(grep -ohE 'NET/[A-Za-z]+' "$F" 2>/dev/null | sort -u | paste -sd'|' -)
   [ -z "$NET" ] && NET=no_NET_line_in_output
-  if [ "$RC" = 0 ]; then ST=ok; DET="transport=$NET"
-  else ST=failed; DET="exit_${RC}_transport=$NET"; fi
+  # An absent NET line is missing evidence, not a passing transport: the
+  # cell was scored ok with transport=no_NET_line_in_output. Route through
+  # the shared gate so a corrupt log fails, then require real evidence.
+  score_cell "$F" "$RC" 1 1
+  if [ "$ST" = ok ] && [ "$NET" = no_NET_line_in_output ]; then
+      ST=unavailable; DET="transport_unverified_no_NET_line"
+  elif [ "$ST" = ok ]; then
+      DET="transport=$NET"
+  else
+      DET="${DET}_transport=$NET"
+  fi
   printf '  %-22s exit=%-3s %s %s\n' nccl_transport "$RC" "$ST" "$DET"
   csv profile nccl_transport transport "$NET" - - - "$RC" 1 "$ST" "$DET"
 

@@ -362,23 +362,40 @@ def main():
     if not res:
         return 1
 
+    def gb(v):
+        """Suppressed metrics are None. Formatting one with :.3f raises
+        TypeError and kills the process *before* the diagnostic JSON is
+        written -- so a corrupted run left no record at all. A suppressed
+        value must print as such and still be reported."""
+        return f"{v:.3f} GB/s" if isinstance(v, (int, float)) else "SUPPRESSED"
+
+    def us(v):
+        return f"{v:10.1f} us" if isinstance(v, (int, float)) else "  SUPPRESSED"
+
     if res.get("rank") == 0:
         for name, r in res["sizes"].items():
             p = r["phases"]
             log(f"---- {name} ----")
-            log(f"  h2d_pinned        {p['h2d_pinned']['best_us']:10.1f} us")
-            log(f"  d2h_pinned        {p['d2h_pinned']['best_us']:10.1f} us")
-            log(f"  allreduce(device) {p['allreduce']['best_us']:10.1f} us"
-                f"  -> algbw {r['algbw_GBs']:.3f} GB/s"
-                f"  busbw {r['busbw_GBs']:.3f} GB/s")
+            log(f"  h2d_pinned        {us(p['h2d_pinned']['best_us'])}")
+            log(f"  d2h_pinned        {us(p['d2h_pinned']['best_us'])}")
+            log(f"  allreduce(device) {us(p['allreduce']['best_us'])}"
+                f"  -> algbw {gb(r['algbw_GBs'])}"
+                f"  busbw {gb(r['busbw_GBs'])}")
             log(f"  allreduce(host)   "
-                f"{p['allreduce_host_observed']['best_us']:10.1f} us")
-            log(f"  launch+sync gap   {r['launch_overhead_us']:10.1f} us")
-            log(f"  barrier           {p['barrier']['best_us']:10.1f} us")
+                f"{us(p['allreduce_host_observed']['best_us'])}")
+            log(f"  launch+sync gap   {us(r['launch_overhead_us'])}")
+            log(f"  barrier           {us(p['barrier']['best_us'])}")
         if a.json_out:
             with open(a.json_out, "w") as f:
                 json.dump(res, f, indent=2)
             log(f"wrote {a.json_out}")
+
+    # A run that failed its correctness check is a failed run on every rank,
+    # not just the one that printed the diagnosis. Returning 0 here let a
+    # corrupted sweep look successful to the harness.
+    if res.get("failures"):
+        log(f"FATAL: correctness failures: {res['failures']}")
+        return 1
     return 0
 
 

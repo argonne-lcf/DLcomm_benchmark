@@ -24,13 +24,20 @@ _VALIDATION_FAIL = re.compile(
     r"Out of bounds values\s*:\s*[0-9]+\s*FAILED"
     r"|Out of bounds values\s*:\s*[1-9][0-9]*"
     r"|MISMATCH"
-    r"|byte-exact\s+FAIL"
-    r"|CHECK FAILED"
+    # 'byte-exact\s+FAIL' missed the real emitted form, 'byte-exact check:
+    # FAIL' -- anything may sit between the label and the verdict.
+    r"|byte[- ]exact[^\n]{0,40}?\bFAIL(?:ED)?\b"
+    r"|\bFAIL(?:ED)?\b[^\n]{0,40}?byte[- ]exact"
+    r"|CHECK\s+FAILED"
+    r"|VERIFICATION\s+FAILED"
+    r"|verification_failed"
     r"|DATA CORRUPT"
-    r"|STATUS=FAILED"
+    r"|STATUS\s*=\s*FAILED"
+    r"|WRONG\s*=\s*[1-9][0-9]*"
     r"|NIXL_ERR"
     r"|CUDA error"
-    r"|segmentation fault",
+    r"|segmentation fault"
+    r"|\bnan\b|\binf\b|-inf",
     re.IGNORECASE,
 )
 
@@ -81,11 +88,31 @@ def log_ranks(path):
     return len(ranks) or None
 
 
+def cell_ok(rows, log_path):
+    """True only if the authoritative CSV says this cell succeeded.
+
+    Report tables previously scraped logs independently of the run record,
+    so a cell recorded failed/timeout_124 could still publish a peak from
+    whatever partial output the log happened to contain. The CSV status is
+    the decision; the log is only the detail. A log with no matching record
+    is unverified, not passing.
+    """
+    stem = Path(log_path).stem
+    hits = [r for r in rows
+            if r.get("cell") and (r["cell"] in stem or stem.endswith(r["cell"]))]
+    if not hits:
+        return False
+    return all(r.get("status") == "ok" for r in hits)
+
+
 def nccl_best(path):
     if validation_failure(path):
         return None
     best = None
+    saw_summary = False
     for line in open(path, errors="ignore"):
+        if "Out of bounds values" in line:
+            saw_summary = True
         if line.lstrip().startswith("#") or not line.strip():
             continue
         f = line.split()
@@ -95,10 +122,34 @@ def nccl_best(path):
             size, algbw, busbw = int(f[0]), float(f[6]), float(f[7])
         except (ValueError, IndexError):
             continue
+        # nccl-tests reports a per-row wrong-element count for each of the
+        # in-place and out-of-place halves (columns 8 and 12). A row that
+        # admits wrong elements is not a measurement, even when the run
+        # never printed a summary line.
+        row_bad = False
+        for idx in (8, 12):
+            try:
+                v = f[idx]
+            except IndexError:
+                continue
+            if v in ("N/A", "-"):
+                continue
+            try:
+                if float(v) != 0.0:
+                    row_bad = True
+            except ValueError:
+                row_bad = True
+        if row_bad:
+            return None
         if not (math.isfinite(algbw) and math.isfinite(busbw)):
             continue
         if best is None or busbw > best[2]:
             best = (size, algbw, busbw)
+    # Absence of a verdict is not a pass. nccl-tests always prints the
+    # 'Out of bounds values' summary on a completed run; without it the log
+    # is truncated, and a truncated log must not publish a peak.
+    if best is not None and not saw_summary:
+        return None
     return best
 
 
@@ -137,6 +188,10 @@ def osu_last(path):
             last = (0, float(f[0])) if len(f) == 1 else (int(f[0]), float(f[1]))
         except (ValueError, IndexError):
             continue
+        # float() happily parses 'inf' and 'nan'. A nonfinite latency is not
+        # a measurement; printing it as one is worse than printing nothing.
+        if not math.isfinite(last[1]):
+            return None
     return last
 
 
@@ -154,6 +209,9 @@ def nixl_best(path):
                 seg = line.split("best", 1)[1]
                 best_gbs = float(seg.split("->")[1].split("GB/s")[0])
                 mean_gbs = float(seg.split("mean")[1].split("->")[1].split("GB/s")[0])
+                # Reject nan/inf rather than rendering 'nan GB/s' in a table.
+                if not (math.isfinite(best_gbs) and math.isfinite(mean_gbs)):
+                    return []
                 rows.append((size, best_gbs, mean_gbs))
             except (IndexError, ValueError):
                 pass
@@ -314,6 +372,13 @@ Layer 1 touches no GPU at all -- it is the NIC ceiling the others inherit.
                 # columns: bytes #sent #ack total time MB/sec usec/xfer Mxfers/sec
                 # MB/sec is field 5 and usec/xfer field 6; "total" and "time"
                 # are not bandwidth. Take the best of the repeated blocks.
+                # This block had no gate at all: it scraped bandwidth
+                # straight out of the log regardless of validation or the
+                # recorded cell status.
+                if validation_failure(f) or not cell_ok(rows, f):
+                    L.append(f"\n- `{f.stem}`: suppressed "
+                             f"(cell not recorded ok, or log failed validation)")
+                    continue
                 best = None
                 for line in open(f, errors="ignore"):
                     p = line.split()
@@ -341,7 +406,8 @@ Layer 1 touches no GPU at all -- it is the NIC ceiling the others inherit.
                 stem = f.stem.replace("osu_", "")
                 for suf in ("_device", "_host"):
                     if stem.endswith(suf):
-                        pairs[stem[: -len(suf)]][suf[1:]] = osu_last(f)
+                        pairs[stem[: -len(suf)]][suf[1:]] = (
+                            osu_last(f) if cell_ok(rows, f) else None)
             for coll, dd in sorted(pairs.items()):
                 dev, host = dd.get("device"), dd.get("host")
                 if dev and host and dev[1]:
@@ -369,7 +435,10 @@ Layer 1 touches no GPU at all -- it is the NIC ceiling the others inherit.
                     L.append(f"| {name} | - | **suppressed** | - | "
                              f"validation failed: `{vf}` |")
                     continue
-                b = nccl_best(f)
+                # The CSV status is authoritative: a cell recorded
+                # failed/timeout must not publish a peak scraped from its
+                # partial log.
+                b = nccl_best(f) if cell_ok(rows, f) else None
                 nr = log_ranks(f)
                 L.append(f"| {name} | {nr if nr else '?'} | {b[2]:.2f} | "
                          f"{b[1]:.2f} | {b[0]//1024} KiB |"
@@ -391,7 +460,7 @@ Layer 1 touches no GPU at all -- it is the NIC ceiling the others inherit.
                     L.append(f"| {name} | - | **suppressed** | - | "
                              f"validation failed: `{vf}` |")
                     continue
-                b = torch_best(f)
+                b = torch_best(f) if cell_ok(rows, f) else None
                 nr = log_ranks(f)
                 L.append(f"| {name} | {nr if nr else '?'} | {b[2]:.2f} | "
                          f"{b[1]:.2f} | {b[0]//1024} KiB |"
@@ -433,7 +502,7 @@ Layer 1 touches no GPU at all -- it is the NIC ceiling the others inherit.
                          "microseconds and matches the benchmark's own printed "
                          "value.\n")
             for f in nx:
-                rr = nixl_best(f)
+                rr = nixl_best(f) if cell_ok(rows, f) else []
                 name = f.stem.replace("nixl_", "")
                 if not rr:
                     st = [r for r in rows if r["cell"] == name]

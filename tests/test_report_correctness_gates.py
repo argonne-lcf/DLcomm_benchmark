@@ -35,15 +35,20 @@ def _load_build_report(tmp_path):
 
 # nccl-tests writes its verdict on a '#' comment line, which every data
 # parser skips. A validation failure there must still suppress the row.
-NCCL_ROW = ("     1048576    262144     float     sum      -1    12.3   85.21"
-            "   85.21    1.2    12.3   85.21   85.21")
+# A real nccl-tests data row, 13 fields in the real column order:
+#   size count type redop root | time algbw busbw #wrong | time algbw busbw #wrong
+# The out-of-place wrong-count is field 8 and the in-place one field 12.
+# The earlier fixture put a time value in field 8, so it could not express
+# "this row admits wrong elements" and the row-level check went untested.
+NCCL_ROW = ("     1048576    262144     float     sum      -1"
+            "    12.3   85.21   85.21")
 
 
 class TestCorruptLogsYieldNoBandwidth:
     def test_nccl_failed_validation_is_suppressed(self, tmp_path):
         br = _load_build_report(tmp_path)
         log = tmp_path / "nccl_bad.txt"
-        log.write_text(f"{NCCL_ROW}     99\n"
+        log.write_text(f"{NCCL_ROW}     99    12.4   85.00   85.00     99\n"
                        "# Out of bounds values : 99 FAILED\n")
         assert br.nccl_best(log) is None, (
             "a run that reported FAILED validation must contribute no "
@@ -52,7 +57,7 @@ class TestCorruptLogsYieldNoBandwidth:
     def test_nccl_clean_log_still_reports(self, tmp_path):
         br = _load_build_report(tmp_path)
         log = tmp_path / "nccl_ok.txt"
-        log.write_text(f"{NCCL_ROW}      0\n"
+        log.write_text(f"{NCCL_ROW}      0    12.4   85.00   85.00      0\n"
                        "# Out of bounds values : 0 OK\n")
         best = br.nccl_best(log)
         assert best is not None, "the gate must not suppress a clean run"

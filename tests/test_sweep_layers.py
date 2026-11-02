@@ -82,6 +82,12 @@ class SweepHarness(unittest.TestCase):
             """)
 
         # nccl-tests stub: nccl-tests' own row format (leading spaces).
+        # The fixture must be FAITHFUL or the gates it is meant to exercise
+        # are never reached: real rows carry 13 fields including a
+        # wrong-element count for each of the out-of-place and in-place
+        # halves, and a completed run always prints the summary verdict.
+        # The previous 7-field, verdict-less stub could not distinguish a
+        # clean run from a corrupt one.
         nt = self.w / "bench_src/nccl-tests/build"
         nt.mkdir(parents=True)
         for b in ("all_reduce all_gather alltoall broadcast reduce_scatter "
@@ -89,8 +95,10 @@ class SweepHarness(unittest.TestCase):
             self._exe(nt / f"{b}_perf", f"""
                 #!/bin/bash
                 echo "NCCL {b} $*" >> {self.calls}
-                echo "#  size  count  type  redop  time  algbw  busbw"
-                echo "     4096   1024  float    sum  10.1   1.23   2.34"
+                echo "#       size         count      type   redop    root     time   algbw   busbw #wrong     time   algbw   busbw #wrong"
+                echo "        4096          1024     float     sum      -1    10.1    1.23    2.34      0     10.4    1.20    2.30      0"
+                echo "# Out of bounds values : 0 OK"
+                echo "# Avg bus bandwidth    : 2.34"
             """)
 
         # ldd stub: the sweep gates OSU on "is the GTL linked?" and refuses to
@@ -271,6 +279,58 @@ class TestOsuGtlGate(SweepHarness):
         self.assertIn("GTL", rows[0]["detail"])
 
 
+class TestCorruptionIsScoredFailed(SweepHarness):
+    """Behavioural fault injection.
+
+    Review finding: the suite asserted on strings and ran only clean
+    fixtures, so it could not show the gate rejects anything. These tests
+    rewrite a stub to emit real corruption and require the sweep to score
+    the affected cell failed -- the property actually claimed.
+    """
+
+    def _rewrite_nccl(self, body: str):
+        nt = self.w / "bench_src/nccl-tests/build"
+        for exe in nt.iterdir():
+            self._exe(exe, f"""
+                #!/bin/bash
+                echo "NCCL $*" >> {self.calls}
+{body}
+            """)
+
+    def test_nonzero_wrong_count_is_failed(self):
+        # A row admitting wrong elements, with an otherwise clean summary.
+        self._rewrite_nccl(
+            '                echo "#       size         count      type   redop    root     time   algbw   busbw #wrong     time   algbw   busbw #wrong"\n'
+            '                echo "        4096          1024     float     sum      -1    10.1    1.23    2.34     99     10.4    1.20    2.30     99"\n'
+            '                echo "# Out of bounds values : 99 FAILED"')
+        _, rows = self.sweep("nccl")
+        nccl = [r for r in rows if r["layer"] == "nccl"]
+        self.assertTrue(nccl, "no nccl cells produced")
+        self.assertTrue(all(r["status"] == "failed" for r in nccl),
+                        f"corruption scored as: {[r['status'] for r in nccl]}")
+
+    def test_payload_mismatch_is_failed(self):
+        self._rewrite_nccl(
+            '                echo "#       size         count      type   redop    root     time   algbw   busbw #wrong     time   algbw   busbw #wrong"\n'
+            '                echo "        4096          1024     float     sum      -1    10.1    1.23    2.34      0     10.4    1.20    2.30      0"\n'
+            '                echo "byte-exact check: FAIL"\n'
+            '                echo "# Out of bounds values : 0 OK"')
+        _, rows = self.sweep("nccl")
+        nccl = [r for r in rows if r["layer"] == "nccl"]
+        self.assertTrue(nccl)
+        self.assertTrue(all(r["status"] == "failed" for r in nccl),
+                        f"'byte-exact check: FAIL' scored as: "
+                        f"{[r['status'] for r in nccl]}")
+
+    def test_clean_run_is_still_ok(self):
+        # The gate must not simply fail everything.
+        _, rows = self.sweep("nccl")
+        nccl = [r for r in rows if r["layer"] == "nccl"]
+        self.assertTrue(nccl)
+        self.assertTrue(any(r["status"] == "ok" for r in nccl),
+                        f"clean run over-blocked: {[r['status'] for r in nccl]}")
+
+
 class TestIndentedRows(SweepHarness):
     def test_indented_barrier_value_counts_as_a_row(self):
         """osu_barrier indents its single latency value. Counting only
@@ -373,6 +433,31 @@ class TestNixlAxes(SweepHarness):
         self.assertTrue(w)
         for r in w:
             self.assertEqual(r["status"], "unsupported")
+
+    def test_write_error_plus_corruption_is_not_laundered(self):
+        """A capability limit must not hide wrong bytes.
+
+        Review finding: a log carrying both WRITE MISMATCH and
+        postXferReq NIXL_ERR_BACKEND was scored "unsupported", so real
+        corruption disappeared behind the CXI exemption.
+        """
+        self._exe(self.w / "python_stub", """
+            #!/bin/bash
+            case "$*" in
+              *"--op WRITE"*)
+                 echo "[nixl_putget] WRITE MISMATCH at offset 4096"
+                 echo "nixl_cu12._bindings.nixlBackendError: NIXL_ERR_BACKEND"
+                 exit 1 ;;
+              *) echo "[nixl_putget] byte-exact check: PASS"; exit 0 ;;
+            esac
+        """)
+        _, rows = self.sweep("nixl", nodes="2")
+        w = [r for r in rows if r["cell"].startswith("WRITE")]
+        self.assertTrue(w, "no WRITE cells produced")
+        for r in w:
+            self.assertEqual(
+                r["status"], "failed",
+                f"corruption laundered into {r['status']}: {r}")
 
     def test_write_backend_error_is_unsupported(self):
         """CXI cannot do RMA WRITE: postXferReq raises NIXL_ERR_BACKEND."""
