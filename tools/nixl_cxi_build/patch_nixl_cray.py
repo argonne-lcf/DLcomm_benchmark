@@ -26,15 +26,55 @@ pending = []   # (path, new_text)
 
 # ---- Fix 1: meson probe -------------------------------------------------
 mb = MB.read_text()
-# A bare substring match treats a COMMENT mentioning the macro as a completed
-# probe, so a half-done tree reported success with no cpp.compiles() check.
-# Require the actual probe structure, ignoring comment lines.
-_mb_code = "\n".join(l for l in mb.splitlines()
-                     if not l.lstrip().startswith("#"))
-_already = ("NIXL_HAVE_FI_MR_ATTR_DEVICE_ROCR" in _mb_code
-            and "cpp.compiles" in _mb_code)
+# Review finding P1-7: the previous predicate tested two UNRELATED
+# substrings -- "NIXL_HAVE_FI_MR_ATTR_DEVICE_ROCR" anywhere and
+# "cpp.compiles" anywhere -- and only stripped WHOLE comment lines. A tree
+# with an unrelated cpp.compiles() call plus an INLINE comment naming the
+# macro satisfied both, so the patcher exited 0, left meson.build
+# unchanged, and still rewrote the C++ guard to a macro that was never
+# defined. Validate the probe as one structure: the rocr source, the
+# compile condition, and the resulting conditional argument must all be
+# present and must refer to each other.
+def _strip_comments(text):
+    """Drop whole-line AND inline # comments (outside quotes)."""
+    out = []
+    for line in text.splitlines():
+        buf, quote = [], None
+        for ch in line:
+            if quote:
+                buf.append(ch)
+                if ch == quote:
+                    quote = None
+            elif ch in "'\"":
+                quote = ch
+                buf.append(ch)
+            elif ch == "#":
+                break
+            else:
+                buf.append(ch)
+        out.append("".join(buf))
+    return "\n".join(out)
+
+
+_mb_code = _strip_comments(mb)
+# The probe is only "already applied" if all three parts exist together:
+#   1. a cpp.compiles() call that actually compiles the rocr source,
+#   2. that source naming the fi_mr_attr device.rocr member,
+#   3. the macro being added as a compile argument under that result.
+_has_probe_call = re.search(r"cpp\.compiles\s*\(", _mb_code) is not None
+_has_rocr_source = re.search(r"device\s*\.\s*rocr", _mb_code) is not None
+_has_macro_arg = re.search(
+    r"NIXL_HAVE_FI_MR_ATTR_DEVICE_ROCR", _mb_code) is not None
+_already = _has_probe_call and _has_rocr_source and _has_macro_arg
 if _already:
-    print("meson.build: already patched")
+    print("meson.build: already patched (probe structure verified)")
+elif _has_macro_arg and not (_has_probe_call and _has_rocr_source):
+    # The macro is referenced but no real probe defines it. Refusing is the
+    # only safe action: patching the C++ guard would gate on a macro that
+    # nothing ever sets.
+    sys.exit("FATAL: meson.build references NIXL_HAVE_FI_MR_ATTR_DEVICE_ROCR "
+             "with no rocr compile probe; refusing to patch an unfamiliar "
+             "structure")
 else:
     anchor = "        message('libfabric does not support FI_OPT_EFA_USE_UNSOLICITED_WRITE_RECV')\n    endif\n"
     if anchor not in mb:

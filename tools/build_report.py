@@ -88,21 +88,77 @@ def log_ranks(path):
     return len(ranks) or None
 
 
-def cell_ok(rows, log_path):
-    """True only if the authoritative CSV says this cell succeeded.
+def cell_of(log_path, layer):
+    """Cell name for a log, from the sweep's own <layer>_<cell>.ext naming.
+
+    The sweep writes $RUN/<layer>_<cell>.txt (e.g. nccl_dtype_half.txt,
+    osu_allreduce_host.txt). Deriving the cell from that prefix gives an
+    exact identity to join on instead of a substring search, which is what
+    review finding P1-4 was about.
+    """
+    stem = Path(log_path).stem
+    pref = layer + "_"
+    return stem[len(pref):] if stem.startswith(pref) else None
+
+
+def cell_ok(rows, log_path, layer=None, cell=None):
+    """True only if the authoritative CSV records THIS cell as ok.
 
     Report tables previously scraped logs independently of the run record,
     so a cell recorded failed/timeout_124 could still publish a peak from
     whatever partial output the log happened to contain. The CSV status is
-    the decision; the log is only the detail. A log with no matching record
-    is unverified, not passing.
+    the decision; the log is only the detail.
+
+    Review finding P1-4: the first version ignored `layer` entirely and
+    matched on a CELL SUBSTRING, which is not an identity join. Observed
+    consequences: a passing NCCL `dtype_half` row authorised
+    `torch_dtype_half.txt` even though torch had no record at all; a failed
+    NCCL `coll_alltoall` row suppressed an independently passing torch
+    `coll_alltoall`; and a failed OSU `reduce_host` suppressed a passing
+    `allreduce_host` because "reduce_host" is a substring of it.
+
+    The join is now exact on (layer, cell). A missing record is unverified
+    (False), and an AMBIGUOUS match -- several records claiming the same
+    identity with disagreeing status -- is also refused rather than being
+    resolved by borrowing one of them.
     """
-    stem = Path(log_path).stem
+    if layer is None or cell is None:
+        # Caller did not supply an identity, so no record can be proven to
+        # belong to this log. Refuse rather than guess via substrings.
+        return False
     hits = [r for r in rows
-            if r.get("cell") and (r["cell"] in stem or stem.endswith(r["cell"]))]
+            if r.get("layer") == layer and r.get("cell") == cell]
     if not hits:
         return False
-    return all(r.get("status") == "ok" for r in hits)
+    statuses = {r.get("status") for r in hits}
+    if len(statuses) > 1:
+        # Disagreeing duplicate records: ambiguous identity, fail closed.
+        return False
+    return statuses == {"ok"}
+
+
+def api_blocked(path, layer, cell):
+    """True if this API artifact must NOT be used to publish a number.
+
+    The API-coverage section reads fixed job paths rather than iterating a
+    run directory, and originally skipped both gates the per-cell tables
+    use. It now applies the same two rules: a validation marker in the
+    artifact blocks it, and the CSV belonging to that job must record the
+    cell as ok. A missing CSV means unverified, which also blocks.
+    """
+    if validation_failure(path):
+        return True
+    job_dir = Path(path).parent
+    csv_candidates = sorted(job_dir.glob("*.csv")) + \
+        sorted(job_dir.parent.glob("*.csv"))
+    if not csv_candidates:
+        return True
+    import csv as _csv
+    rows = []
+    for c in csv_candidates:
+        with open(c, newline="", errors="ignore") as fh:
+            rows.extend(list(_csv.DictReader(fh)))
+    return not cell_ok(rows, path, layer, cell)
 
 
 def nccl_best(path):
@@ -278,6 +334,13 @@ def main():
     L.append("|---|---|---|---|---|---|")
     any_non_ok = False
     total_rows = sum(len(rows) for _, _, rows in runs.values())
+    # Review finding P1-8: the narrative guard tested total_rows == 0, which
+    # counts rows regardless of status. A fixture of 50 FAILED rows passed
+    # that guard and the report still printed 327.57 / 22.81 / 38.35 GB/s as
+    # this invocation's measured outcome. Gate on VERIFIED evidence instead:
+    # a report with rows but no ok row has measured nothing.
+    verified_rows = sum(1 for _, _, rows in runs.values()
+                        for r in rows if r.get("status") == "ok")
     for tag, (job, _, rows) in runs.items():
         for r in rows:
             if r["status"] != "ok":
@@ -375,7 +438,8 @@ Layer 1 touches no GPU at all -- it is the NIC ceiling the others inherit.
                 # This block had no gate at all: it scraped bandwidth
                 # straight out of the log regardless of validation or the
                 # recorded cell status.
-                if validation_failure(f) or not cell_ok(rows, f):
+                if validation_failure(f) or not cell_ok(
+                        rows, f, "fi", cell_of(f, "fi")):
                     L.append(f"\n- `{f.stem}`: suppressed "
                              f"(cell not recorded ok, or log failed validation)")
                     continue
@@ -407,7 +471,9 @@ Layer 1 touches no GPU at all -- it is the NIC ceiling the others inherit.
                 for suf in ("_device", "_host"):
                     if stem.endswith(suf):
                         pairs[stem[: -len(suf)]][suf[1:]] = (
-                            osu_last(f) if cell_ok(rows, f) else None)
+                            osu_last(f)
+                            if cell_ok(rows, f, "osu", cell_of(f, "osu"))
+                            else None)
             for coll, dd in sorted(pairs.items()):
                 dev, host = dd.get("device"), dd.get("host")
                 if dev and host and dev[1]:
@@ -438,7 +504,9 @@ Layer 1 touches no GPU at all -- it is the NIC ceiling the others inherit.
                 # The CSV status is authoritative: a cell recorded
                 # failed/timeout must not publish a peak scraped from its
                 # partial log.
-                b = nccl_best(f) if cell_ok(rows, f) else None
+                b = (nccl_best(f)
+                     if cell_ok(rows, f, "nccl", cell_of(f, "nccl"))
+                     else None)
                 nr = log_ranks(f)
                 L.append(f"| {name} | {nr if nr else '?'} | {b[2]:.2f} | "
                          f"{b[1]:.2f} | {b[0]//1024} KiB |"
@@ -460,7 +528,9 @@ Layer 1 touches no GPU at all -- it is the NIC ceiling the others inherit.
                     L.append(f"| {name} | - | **suppressed** | - | "
                              f"validation failed: `{vf}` |")
                     continue
-                b = torch_best(f) if cell_ok(rows, f) else None
+                b = (torch_best(f)
+                     if cell_ok(rows, f, "torch", cell_of(f, "torch"))
+                     else None)
                 nr = log_ranks(f)
                 L.append(f"| {name} | {nr if nr else '?'} | {b[2]:.2f} | "
                          f"{b[1]:.2f} | {b[0]//1024} KiB |"
@@ -502,7 +572,9 @@ Layer 1 touches no GPU at all -- it is the NIC ceiling the others inherit.
                          "microseconds and matches the benchmark's own printed "
                          "value.\n")
             for f in nx:
-                rr = nixl_best(f) if cell_ok(rows, f) else []
+                rr = (nixl_best(f)
+                      if cell_ok(rows, f, "nixl", cell_of(f, "nixl"))
+                      else [])
                 name = f.stem.replace("nixl_", "")
                 if not rr:
                     st = [r for r in rows if r["cell"] == name]
@@ -575,11 +647,12 @@ Layer 1 touches no GPU at all -- it is the NIC ceiling the others inherit.
     # something derived from the inputs at hand, so it must not be emitted
     # when this invocation parsed no results -- otherwise an empty run
     # produces a confident report full of numbers it never measured.
-    if total_rows == 0:
+    if verified_rows == 0:
         L.append(section("What each layer's numbers mean"))
         L.append(
-            "Not generated: this invocation parsed no result rows, so there "
-            "is nothing to interpret. The per-layer narrative is written "
+            f"Not generated: this invocation parsed {total_rows} result "
+            f"row(s) but NONE of them passed verification, so there is "
+            "nothing to interpret. The per-layer narrative is written "
             "against measured data and is suppressed rather than printed "
             "from memory.\n")
         OUT.write_text("\n".join(L) + "\n")
@@ -656,7 +729,11 @@ directly against layer 1's pure pingpong rate.
     lad = ROOT / "6959/2node/nixl_LADDER_VRAM.json"
     if not lad.exists():
         lad = ROOT / "6958/2node/nixl_LADDER_VRAM.json"
-    if lad.exists():
+    # Review finding P1-5: this extractor read a hardcoded JSON path and
+    # published its bandwidth without consulting either the CSV status or
+    # the validation gate, so a run whose every row was recorded failed
+    # still emitted a headline GB/s number. Gate it like every other cell.
+    if lad.exists() and not api_blocked(lad, "nixl", "LADDER_VRAM"):
         import json as _j
         d = _j.loads(lad.read_text())
         rows = d if isinstance(d, list) else d.get("rows", d.get("results", []))
@@ -698,7 +775,9 @@ This is why the headline NIXL figure must always carry the end-to-end caveat.
     prep = ROOT / "6959/2node/nixl_MODE_prepped.txt"
     if not prep.exists():
         prep = ROOT / "6958/2node/nixl_MODE_prepped.txt"
-    if prep.exists():
+    # Review finding P1-5: same bypass -- a prepped log carrying a MISMATCH
+    # marker still published its speedup.
+    if prep.exists() and not api_blocked(prep, "nixl", "MODE_prepped"):
         txt = prep.read_text(errors="replace")
         sp = re.findall(r"speedup\s+([\d.]+)x", txt)
         pr = re.findall(r"prep once\s+([\d.]+) ms", txt)

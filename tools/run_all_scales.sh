@@ -176,6 +176,55 @@ for nbytes in (1 << 20, 1 << 21, 1 << 22):
         # yet all five were being labelled VERIFIED=1 on the strength of it.
         # Rank-distinct payloads make a dropped or misplaced contribution
         # detectable per operation; the check runs OUTSIDE the timed region.
+        #
+        # Review finding P1-2: validating only after the whole loop meant a
+        # corrupt EARLY iteration was overwritten by later clean ones and the
+        # cell still published VERIFIED=1. Every timed iteration is now
+        # checked, outside its own timing interval, and failures accumulate.
+        def _check(op, i):
+            """Return the number of wrong elements for this iteration.
+
+            Review finding P1-1: NaN defeats abs().gt(1e-3) because every
+            comparison with NaN is False, so a payload of all-NaN scored
+            zero wrong elements and was certified. Finiteness is therefore
+            checked explicitly for EVERY operation, not just allreduce.
+            """
+            bad = 0
+            tot = float(world * (world + 1) // 2)
+            if op == "allreduce":
+                bad += int((x - tot).abs().gt(1e-3).sum().item())
+                if not bool(torch.isfinite(x).all().item()):
+                    bad += 1
+            elif op == "allgather":
+                exp = torch.repeat_interleave(
+                    torch.arange(1, world + 1, dtype=outg.dtype,
+                                 device=outg.device), count)
+                bad += int((outg - exp).abs().gt(1e-3).sum().item())
+                if not bool(torch.isfinite(outg).all().item()):
+                    bad += 1
+            elif op == "alltoall":
+                per = count_div // world
+                if per:
+                    exp = torch.repeat_interleave(
+                        torch.arange(1, world + 1, dtype=aout.dtype,
+                                     device=aout.device), per)
+                    bad += int((aout[:per * world] - exp).abs()
+                               .gt(1e-3).sum().item())
+                if not bool(torch.isfinite(aout).all().item()):
+                    bad += 1
+            elif op == "broadcast":
+                bad += int((x - 1.0).abs().gt(1e-3).sum().item())
+                if not bool(torch.isfinite(x).all().item()):
+                    bad += 1
+            elif op == "reduce":
+                # Only the root holds the reduced result, but EVERY rank's
+                # buffer must still be finite.
+                if rank == 0:
+                    bad += int((x - tot).abs().gt(1e-3).sum().item())
+                if not bool(torch.isfinite(x).all().item()):
+                    bad += 1
+            return bad
+
         op_bad = 0
         for i in range(WARMUP + ITERS):
             # Reset the operand: repeatedly reducing the previous output
@@ -206,34 +255,12 @@ for nbytes in (1 << 20, 1 << 21, 1 << 22):
             t1 = time.perf_counter()
             if i >= WARMUP:
                 ts.append(t1 - t0)
+            # Validate THIS iteration, outside its timing interval. A fault
+            # in an early iteration must not be overwritten by later clean
+            # ones (review finding P1-2).
+            op_bad += _check(op, i)
 
-        # ---- correctness of the timed operation, after timing ----
-        tot = float(world * (world + 1) // 2)
-        if op == "allreduce":
-            op_bad += int((x - tot).abs().gt(1e-3).sum().item())
-            op_bad += 0 if bool(torch.isfinite(x).all().item()) else 1
-        elif op == "allgather":
-            # Each rank's block must carry that rank's own value.
-            exp = torch.repeat_interleave(
-                torch.arange(1, world + 1, dtype=outg.dtype,
-                             device=outg.device), count)
-            op_bad += int((outg - exp).abs().gt(1e-3).sum().item())
-        elif op == "alltoall":
-            # Block j of the output came from rank j, carrying value j+1.
-            per = count_div // world
-            if per:
-                exp = torch.repeat_interleave(
-                    torch.arange(1, world + 1, dtype=aout.dtype,
-                                 device=aout.device), per)
-                op_bad += int((aout[:per * world] - exp).abs()
-                              .gt(1e-3).sum().item())
-        elif op == "broadcast":
-            # Every rank must now hold root's value.
-            op_bad += int((x - 1.0).abs().gt(1e-3).sum().item())
-        elif op == "reduce":
-            # Only the root holds the reduced result.
-            if rank == 0:
-                op_bad += int((x - tot).abs().gt(1e-3).sum().item())
+        # ---- correctness accumulated per iteration, in _check ----
 
         # A corrupt non-root rank must fail the whole operation.
         lb = torch.tensor([op_bad], dtype=torch.int64, device="xpu")

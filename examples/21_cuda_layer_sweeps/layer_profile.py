@@ -393,8 +393,22 @@ def main():
     # A run that failed its correctness check is a failed run on every rank,
     # not just the one that printed the diagnosis. Returning 0 here let a
     # corrupted sweep look successful to the harness.
-    if res.get("failures"):
-        log(f"FATAL: correctness failures: {res['failures']}")
+    #
+    # Review finding P1-3: this guard read res["failures"], a key the result
+    # dict NEVER sets -- the producer writes "verification_failures" and
+    # "verification_failures_all_ranks". res.get("failures") was therefore
+    # always None, the guard never fired, and a globally failed run still
+    # returned 0 on every rank. Read the keys that are actually produced,
+    # and use the ALL-RANKS count so a corrupt non-root rank fails the run
+    # for everyone, not just for itself.
+    local_fail = res.get("verification_failures") or []
+    global_fail = int(res.get("verification_failures_all_ranks") or 0)
+    if local_fail or global_fail:
+        # Emit a machine-readable marker so sweep scoring cannot mistake a
+        # SUPPRESSED row for a successful measurement.
+        log(f"STATUS=FAILED correctness_failures={global_fail} "
+            f"local={local_fail}")
+        log(f"FATAL: correctness failures: {local_fail or global_fail}")
         return 1
     return 0
 

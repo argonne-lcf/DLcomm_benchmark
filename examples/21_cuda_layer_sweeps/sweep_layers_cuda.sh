@@ -146,12 +146,58 @@ validation_failed() {
     if grep -qaE 'NIXL_ERR|NCCL WARN .*(error|failed)|segmentation fault|CUDA error' "$f"; then
         echo "runtime_error_in_log"; return 0
     fi
+    # Layer-1 (libfabric) failures. Found by the all-layers smoke test: a
+    # fi_info/fi_pingpong log carrying a NEGATIVE fi_getinfo return scored
+    # "ok" because none of the patterns above mention libfabric's own error
+    # reporting. fi_getinfo: -61 is ENODATA (no provider matched), which is
+    # the single most common way layer 1 fails on a misconfigured fabric.
+    if grep -qaE 'fi_(getinfo|pingpong|endpoint|domain|fabric)[[:space:]]*:?[[:space:]]*-[0-9]+' "$f"; then
+        echo "libfabric_error"; return 0
+    fi
+    if grep -qaE 'fi_[a-z_]+ failed|libfabric.*(error|failed)' "$f"; then
+        echo "libfabric_error"; return 0
+    fi
     return 1
 }
 
 # Decide a cell status with validation applied.
 #   score_cell <logfile> <rc> <count> [min_count]
 # Sets ST and DET. Failure is dominant over any positive signal.
+# NCCL-specific correctness gate.
+#
+# Review finding P1-6: the row-column and mandatory-summary checks were
+# added to the REPORT extractor (nccl_best) but never to the authoritative
+# CSV scorer. A sweep run against fixtures with only field 8 wrong, only
+# field 12 wrong, or no summary line at all scored every NCCL cell "ok",
+# because score_cell only greps for summary text that those logs lack.
+#
+# nccl-tests data rows carry 13 whitespace-separated fields:
+#   1:size 2:count 3:type 4:redop 5:root
+#   6:time 7:algbw 8:busbw 9:#wrong      <- out-of-place
+#   10:time 11:algbw 12:busbw 13:#wrong  <- in-place
+# Fields 9 and 13 (1-based) are the wrong-element counts. Either being
+# nonzero is corruption, whatever the summary line says.
+nccl_rows_bad() {
+    local f="$1"
+    awk '
+      /^ *[0-9]+ / {
+        n = NF
+        # Only validate rows that actually have the full 13-field shape;
+        # a short row is malformed, which is itself a failure.
+        if (n < 13) { print "nccl_malformed_row_" n; exit }
+        if ($9  != "0" && $9  != "N/A") { print "nccl_wrong_oop_" $9; exit }
+        if ($13 != "0" && $13 != "N/A") { print "nccl_wrong_inplace_" $13; exit }
+      }
+    ' "$f"
+}
+
+# A completed nccl-tests run always prints its average-bandwidth summary.
+# Its absence means the run was truncated, not that it was clean.
+nccl_no_verdict() {
+    local f="$1"
+    grep -qaE 'Out of bounds values|Avg bus bandwidth' "$f" || echo "nccl_no_summary_verdict"
+}
+
 score_cell() {
     local f="$1" rc="$2" n="$3" minn="${4:-1}" why
     if why=$(validation_failed "$f"); then
@@ -320,6 +366,15 @@ if [ -x "$NCCL_TESTS/all_reduce_perf" ]; then
           -b $MSG_MIN -e $MSG_MAX -f 4 -g 1 -d "$dt" "${OPARG[@]}" > "$F" 2>&1
       local RC=$? ROWS; ROWS=$(grep -cE '^ *[0-9]+ ' "$F")
       local ST DET; score_cell "$F" "$RC" "$ROWS" 1
+      # NCCL-specific gates applied to the AUTHORITATIVE status (P1-6).
+      # Failure is dominant: only ever downgrade an otherwise-ok cell.
+      if [ "$ST" = ok ]; then
+          NW=$(nccl_rows_bad "$F")
+          NV=$(nccl_no_verdict "$F")
+          if [ -n "$NW" ]; then ST=failed; DET="$NW"
+          elif [ -n "$NV" ]; then ST=failed; DET="$NV"
+          fi
+      fi
       printf '  %-34s exit=%-3s rows=%-3s %s %s\n' "$cell" "$RC" "$ROWS" "$ST" "$DET"
       csv nccl "$cell" "$axis" "$value" "$coll" "$dt" "$extra" "$RC" "$ROWS" "$ST" "$DET"
   }
