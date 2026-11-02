@@ -32,6 +32,41 @@ Read the middle row as per-rank, not aggregate: 8 ranks at ~3–4 GB/s each is
 ~24 GB/s of concurrent traffic, against an MPI baseline that times **one**
 pair. The two rows answer different questions and should not be divided.
 
+> **Superseded for the single-pair case — see
+> [Queue depth, not the fabric, sets the ceiling](#queue-depth-not-the-fabric-sets-the-ceiling)
+> below.** A follow-up campaign (2026-10-29, PBS jobs 11012–11015) showed the
+> per-rank figure above is a **queue-depth artifact**, not a NIXL limit. One
+> transfer in flight at a time leaves ~22% of the link unused. At depth ≥ 8 a
+> single pair reaches **23.99 GB/s = 100.3%** of the raw-CXI reference.
+
+## Queue depth, not the fabric, sets the ceiling
+
+Measured 2026-10-29 on `x4819c4s0b1n0` ↔ `x4819c4s6b0n0`
+(`hsn4819.north.tara.alcf.anl.gov`), 2 GB per transfer, NIXL 1.6.0 built from
+source with the LIBFABRIC plugin. Reference is **23.92 GB/s** raw CXI RDMA on
+the same link.
+
+| queue depth | GB/s | % of line | data verified |
+|---|---|---|---|
+| 2 | 21.054 | 88.0 | PASS |
+| 4 | 22.765 | 95.2 | PASS |
+| 8 | 23.599 | 98.7 | PASS |
+| 16 | 23.696 | 99.1 | PASS |
+| 32 | 23.961 | 100.2 | PASS |
+| 16, pre-prepped descriptors | **23.994** | **100.3** | PASS |
+
+At fixed 2 GB and depth 1, every tuning knob lands within 17.2–18.6 GB/s (±4%).
+Tuning the knobs is a dead end; **depth is the variable that matters.**
+
+**Recommended production configuration: queue depth 8, 2 GB per transfer.**
+Expect ~23.6 GB/s GPU→GPU between two nodes. Larger single transfers are not
+better — there is a **2 GB per-transfer ceiling** (4 GB fails), and pipelining
+is cheap: 4 × 1 GB at depth 4 beats one 4 GB transfer.
+
+For context, NCCL + aws-ofi-nccl on the same link measures 22.89 GB/s, so NIXL
+at depth ≥ 8 is at parity with raw CXI and slightly ahead of NCCL for this
+point-to-point GPU→GPU pattern.
+
 ### Why the UCX path is a floor, not a measurement
 
 `nixl_cu12`'s bundled UCX has transports `ib`, `ib_mlx5`, `ib_efa`, `cma`,
