@@ -47,6 +47,22 @@ if [ "$NNODES" -lt 2 ]; then
     echo "FATAL: need 2 nodes to cover both scales, got $NNODES"
     exit 1
 fi
+# Both of these read $PBS_NODEFILE in its NATURAL order, and must keep doing
+# so. PALS assigns rank 0 to the first line of the nodefile as written; PBS
+# does not write that file sorted. Job 6935 was allocated [s6b1n0, s0b0n0],
+# so `sort -u | head -1` names a host that is NOT rank 0.
+#
+# Any address derived from a sorted list -- MASTER_ADDR, a pingpong server,
+# a rendezvous host -- then points at a node where nothing is listening, and
+# the failure surfaces as "Connection refused" or a hung init, which reads as
+# a fabric or network fault. In job 6935 the same allocation refused the
+# connection when the address came from sorted[0] and ran at 18.8 GB/s when
+# it came from natural[0].
+#
+# Rule: use `head -1 "$PBS_NODEFILE"` or `awk '!seen[$0]++'`. Never `sort -u`.
+# Better still, pass an explicit --hostfile so placement and prediction come
+# from the same list (job 6935 B2/B3 confirm --hostfile does control which
+# host receives rank 0).
 head -1 "$PBS_NODEFILE" > "$RUN/one_node.txt"
 
 # PALS sets no global size variable (proved by job 8824786), so every rank is
@@ -180,6 +196,57 @@ run_scale () {
     echo "################################################################"
     local out="$RUN/$tag"
     mkdir -p "$out"
+
+    # --- fabric layers: libfabric (FI) and NIXL -----------------------------
+    # Optional, and skipped cleanly where they do not apply. These are the
+    # bottom (FI) and the top (NIXL) of the stack; the collective layers below
+    # sit between them. Enable with DLCOMM_FABRIC=1 on a Slingshot/CXI machine
+    # with a NIXL repro script available.
+    #
+    # Kept out of the default path deliberately: Aurora has no CXI provider,
+    # so running these here would report "not measured" on every line and add
+    # nothing. A layer that cannot apply is skipped with a reason, never
+    # silently emitted as a zero.
+    if [ "${DLCOMM_FABRIC:-0}" = "1" ]; then
+        echo "---- libfabric (FI) inventory ----"
+        if command -v fi_info >/dev/null 2>&1; then
+            fi_info -p "${DLCOMM_FI_PROV:-cxi}" > "$out/fi_info.txt" 2>&1
+            echo "FI_INFO_EXIT=$?  providers=$(grep -c '^provider:' "$out/fi_info.txt" || true)"
+        else
+            echo "FI STATUS=unavailable REASON=no_fi_info_in_PATH"
+        fi
+
+        echo "---- NIXL transfers (DRAM, VRAM) ----"
+        if [ -n "${DLCOMM_NIXL_REPRO:-}" ] && [ -f "${DLCOMM_NIXL_REPRO}" ]; then
+            # NIXL is point-to-point: 2 ranks, one per node. It discovers its
+            # peer through --sync-dir (a file rendezvous), never by predicting
+            # a hostname from the nodefile, so it is immune to the PALS
+            # rank-ordering trap documented at the top of this file.
+            #
+            # At 1 node the repro script refuses outright ("a same-node
+            # transfer proves nothing about the fabric") and exits non-zero.
+            # That is correct -- an intra-node copy never reaches the NIC --
+            # so the stage records the refusal rather than a loopback number.
+            local nixl_ppn=1
+            [ "$nnodes" -eq 1 ] && nixl_ppn=2
+            # --mem takes dram|cuda; the output file keeps the friendlier
+            # dram/vram naming that compare_layers reads.
+            for mem in dram cuda; do
+                local memtag="$mem"
+                [ "$mem" = "cuda" ] && memtag="vram"
+                FI_CXI_DISABLE_HMEM_DEV_REGISTER=1 \
+                timeout 900 "$MPIEXEC" -n 2 -ppn "$nixl_ppn" $hostarg \
+                    python3 "${DLCOMM_NIXL_REPRO}" \
+                    --backend "${DLCOMM_NIXL_BACKEND:-LIBFABRIC}" \
+                    --mem "$mem" --op READ \
+                    --gib "${DLCOMM_NIXL_GIB:-0.25}" --iters "${DLCOMM_NIXL_ITERS:-5}" \
+                    --sync-dir "$out/nixl_sync" > "$out/nixl_$memtag.txt" 2>&1
+                echo "NIXL_${memtag}_EXIT=$?  pass=$(grep -ac 'byte-exact' "$out/nixl_$memtag.txt" || true)"
+            done
+        else
+            echo "NIXL STATUS=unavailable REASON=DLCOMM_NIXL_REPRO_not_set_or_missing"
+        fi
+    fi
 
     echo "---- C++ oneCCL collectives + p2p ----"
     # Keep MAP lines as well as LAYER lines: the tile-mapping assertion below

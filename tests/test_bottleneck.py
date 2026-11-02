@@ -142,7 +142,21 @@ def test_empty_input_rejected():
 
 
 def test_layer_order_is_stack_order():
-    assert LAYER_ORDER == ("osu", "cpp_ccl", "torch_dist", "torchcomms")
+    """Layers are ordered lowest to highest in the stack.
+
+    Asserted as relative ordering rather than an exact tuple, so adding a
+    layer does not break this test when the ordering it checks still holds.
+
+    NIXL sits above torchcomms, not below it: it is a separate consumer of
+    the fabric (inference KV transfer), not a transport the collective stack
+    is built on.
+    """
+    expected_below_to_above = ("fi", "osu", "cpp_ccl", "torch_dist",
+                               "torchcomms", "nixl")
+    for lower, upper in zip(expected_below_to_above,
+                            expected_below_to_above[1:]):
+        assert LAYER_ORDER.index(lower) < LAYER_ORDER.index(upper), (
+            f"{lower} must sit below {upper} in LAYER_ORDER")
 
 
 def test_report_lists_every_layer_even_when_absent():
