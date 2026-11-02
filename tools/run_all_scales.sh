@@ -110,7 +110,7 @@ mpicxx -cxx=icpx -fsycl -std=c++17 -O2 DLcomm_benchmark/dl_comm/transfer/pci_fix
 echo "PCI_BUILD_EXIT=${PIPESTATUS[0]}"
 
 cat > "$RUN/torch_dist_bench.py" <<'PYEOF'
-import os, time, statistics
+import os, time, statistics, math
 from datetime import timedelta
 import torch
 import torch.distributed as dist
@@ -145,9 +145,44 @@ for nbytes in (1 << 20, 1 << 21, 1 << 22):
     count_div = (count // world) * world
     xa = x[:count_div]
     outg = torch.empty(count * world, dtype=torch.float32, device="xpu")
+
+    # ---- correctness gate before any timing at this size ----------------
+    # A fast wrong answer is not a measurement. Rank-distinct payload makes
+    # a dropped or duplicated contribution detectable: sum = world(world+1)/2.
+    chk = torch.full((count,), float(rank + 1), dtype=torch.float32, device="xpu")
+    dist.all_reduce(chk)
+    torch.xpu.synchronize()
+    expect = float(world * (world + 1) // 2)
+    bad = int((chk - expect).abs().gt(1e-3).sum().item())
+    finite = bool(torch.isfinite(chk).all().item())
+    local_bad = torch.tensor([bad + (0 if finite else 1)],
+                             dtype=torch.int64, device="xpu")
+    # Aggregate globally: a corrupt non-root rank must fail the whole size.
+    dist.all_reduce(local_bad)
+    torch.xpu.synchronize()
+    size_bad = int(local_bad.item())
+    del chk
+    if size_bad:
+        if rank == 0:
+            print(f"LAYER=torch_dist BACKEND=xccl OP=verify BYTES={nbytes} "
+                  f"RANKS={world} STATUS=FAILED WRONG={size_bad} "
+                  f"DETAIL=allreduce_verification_failed", flush=True)
+        continue
+
     for op in ("allreduce", "allgather", "alltoall", "broadcast", "reduce"):
         ts = []
+        # Validate the operation that is actually being timed. A preflight
+        # allreduce says nothing about allgather/alltoall/broadcast/reduce,
+        # yet all five were being labelled VERIFIED=1 on the strength of it.
+        # Rank-distinct payloads make a dropped or misplaced contribution
+        # detectable per operation; the check runs OUTSIDE the timed region.
+        op_bad = 0
         for i in range(WARMUP + ITERS):
+            # Reset the operand: repeatedly reducing the previous output
+            # changes the operand distribution every iteration and drifts
+            # toward inf at scale.
+            x.fill_(float(rank + 1))
+            xa.fill_(float(rank + 1))
             dist.barrier()
             torch.xpu.synchronize()
             t0 = time.perf_counter()
@@ -161,7 +196,8 @@ for nbytes in (1 << 20, 1 << 21, 1 << 22):
                 # not by 24; the C++ layer already trims for this and the
                 # torch layer did not, which failed the whole stage at 24
                 # ranks after every other collective had succeeded.
-                dist.all_to_all_single(xa.clone(), xa)
+                aout = xa.clone()
+                dist.all_to_all_single(aout, xa)
             elif op == "broadcast":
                 dist.broadcast(x, 0)
             elif op == "reduce":
@@ -170,6 +206,41 @@ for nbytes in (1 << 20, 1 << 21, 1 << 22):
             t1 = time.perf_counter()
             if i >= WARMUP:
                 ts.append(t1 - t0)
+
+        # ---- correctness of the timed operation, after timing ----
+        tot = float(world * (world + 1) // 2)
+        if op == "allreduce":
+            op_bad += int((x - tot).abs().gt(1e-3).sum().item())
+            op_bad += 0 if bool(torch.isfinite(x).all().item()) else 1
+        elif op == "allgather":
+            # Each rank's block must carry that rank's own value.
+            exp = torch.repeat_interleave(
+                torch.arange(1, world + 1, dtype=outg.dtype,
+                             device=outg.device), count)
+            op_bad += int((outg - exp).abs().gt(1e-3).sum().item())
+        elif op == "alltoall":
+            # Block j of the output came from rank j, carrying value j+1.
+            per = count_div // world
+            if per:
+                exp = torch.repeat_interleave(
+                    torch.arange(1, world + 1, dtype=aout.dtype,
+                                 device=aout.device), per)
+                op_bad += int((aout[:per * world] - exp).abs()
+                              .gt(1e-3).sum().item())
+        elif op == "broadcast":
+            # Every rank must now hold root's value.
+            op_bad += int((x - 1.0).abs().gt(1e-3).sum().item())
+        elif op == "reduce":
+            # Only the root holds the reduced result.
+            if rank == 0:
+                op_bad += int((x - tot).abs().gt(1e-3).sum().item())
+
+        # A corrupt non-root rank must fail the whole operation.
+        lb = torch.tensor([op_bad], dtype=torch.int64, device="xpu")
+        dist.all_reduce(lb)
+        torch.xpu.synchronize()
+        op_bad = int(lb.item())
+
         if rank == 0:
             t = statistics.median(ts)
             # alltoall runs on the trimmed buffer xa (count_div elements), so
@@ -180,9 +251,19 @@ for nbytes in (1 << 20, 1 << 21, 1 << 22):
             moved = (nbytes_eff * world
                      if op in ("allgather", "reduce_scatter") else nbytes_eff)
             algbw = moved / t
+            if op_bad:
+                print(f"LAYER=torch_dist BACKEND=xccl OP={op} BYTES={nbytes_eff} "
+                      f"RANKS={world} STATUS=FAILED WRONG={op_bad} "
+                      f"DETAIL={op}_verification_failed", flush=True)
+                continue
+            if not math.isfinite(algbw):
+                print(f"LAYER=torch_dist BACKEND=xccl OP={op} BYTES={nbytes_eff} "
+                      f"RANKS={world} STATUS=FAILED DETAIL=nonfinite_bandwidth",
+                      flush=True)
+                continue
             print(f"LAYER=torch_dist BACKEND=xccl OP={op} BYTES={nbytes_eff} "
                   f"RANKS={world} T_MED={t:.6g} ALGBW={algbw:.6g} "
-                  f"BUSBW={algbw * busbw_factor(op, world):.6g}", flush=True)
+                  f"BUSBW={algbw * busbw_factor(op, world):.6g} VERIFIED=1", flush=True)
 dist.destroy_process_group()
 PYEOF
 

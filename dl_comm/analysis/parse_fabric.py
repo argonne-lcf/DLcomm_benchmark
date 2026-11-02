@@ -153,6 +153,14 @@ def parse_nixl_transfer(text: str, pattern: str = "read_dram",
     saw_pass = False
 
     for line in text.splitlines():
+        # Failure detection runs FIRST and unconditionally. Every other branch
+        # below ends in `continue`, so scanning for failure after them means a
+        # line that both matches a data pattern and carries a corruption marker
+        # skips the check entirely. Interleaved rank output produces exactly
+        # those hybrid lines, so order must not decide correctness.
+        if _FAIL.search(line):
+            saw_fail = True
+
         m = _BEST.search(line)
         if m:
             gbps = float(m.group("gbps"))
@@ -176,12 +184,12 @@ def parse_nixl_transfer(text: str, pattern: str = "read_dram",
         if _PASS.search(line):
             saw_pass = True
             continue
-        if _FAIL.search(line):
-            saw_fail = True
 
-    # Failure dominates. A PASS from one rank says nothing about the rank that
-    # reported a MISMATCH, so an 8-rank run with one corrupt rank is a failed
-    # run, not a passed one. Ordering must not decide this.
+    # Failure is dominant. A PASS from one rank must never mask a FAIL from
+    # another: a collective is correct only if EVERY participant verified.
+    # The previous form (`saw_fail and byte_exact is not True`) let whichever
+    # marker appeared first decide, so an 8-rank run with one corrupt rank
+    # published a clean bandwidth number.
     if saw_fail:
         ev.byte_exact = False
     elif saw_pass:

@@ -1,4 +1,4 @@
-# Example 18 — fabric layers (libfabric / NIXL)
+# Example 20 — fabric layers (libfabric / NIXL)
 
 Measures the two layers *below* the collectives stack on a Slingshot/CXI
 machine, and feeds them to the same cross-layer comparison as everything else.
