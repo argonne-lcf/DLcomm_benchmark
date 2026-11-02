@@ -26,7 +26,14 @@ pending = []   # (path, new_text)
 
 # ---- Fix 1: meson probe -------------------------------------------------
 mb = MB.read_text()
-if "NIXL_HAVE_FI_MR_ATTR_DEVICE_ROCR" in mb:
+# A bare substring match treats a COMMENT mentioning the macro as a completed
+# probe, so a half-done tree reported success with no cpp.compiles() check.
+# Require the actual probe structure, ignoring comment lines.
+_mb_code = "\n".join(l for l in mb.splitlines()
+                     if not l.lstrip().startswith("#"))
+_already = ("NIXL_HAVE_FI_MR_ATTR_DEVICE_ROCR" in _mb_code
+            and "cpp.compiles" in _mb_code)
+if _already:
     print("meson.build: already patched")
 else:
     anchor = "        message('libfabric does not support FI_OPT_EFA_USE_UNSOLICITED_WRITE_RECV')\n    endif\n"
@@ -71,16 +78,22 @@ changed = []
 written = []
 try:
     for path, text in pending:
+        # Snapshot the CURRENT bytes in memory and register the file as
+        # at-risk BEFORE writing. Registering only after a successful write
+        # meant a write that failed part-way was never rolled back. A stale
+        # .prepatch from an earlier run may hold older bytes, so it is not
+        # trusted as the restore source.
+        original = path.read_text()
+        written.append((path, original))
         backup = path.with_suffix(path.suffix + ".prepatch")
         if not backup.exists():
-            backup.write_text(path.read_text())
+            backup.write_text(original)
         path.write_text(text)
-        written.append((path, backup))
         changed.append(str(path))
 except Exception as exc:                                  # pragma: no cover
-    for path, backup in written:
+    for path, original in written:
         try:
-            path.write_text(backup.read_text())
+            path.write_text(original)
         except OSError:
             print(f"  WARNING: could not roll back {path}", file=sys.stderr)
     sys.exit(f"FATAL: patch failed, rolled back {len(written)} file(s): {exc}")
