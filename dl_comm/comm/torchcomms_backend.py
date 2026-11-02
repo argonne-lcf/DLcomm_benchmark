@@ -630,6 +630,33 @@ class TorchCommsDist:
                     os.environ[k] = v
 
     # -- capability probes --------------------------------------------------
+    def get_backend(self, group=None) -> str:  # noqa: ARG002 - parity
+        """Name of the transport moving this group's traffic.
+
+        dl_comm/analysis/correctness.py calls ``dist.get_backend(group)`` to
+        decide which DEVICE a payload-free check (e.g. barrier) should build
+        its probe tensor on. The adapter did not implement it, so under
+        torchcomms that call raised AttributeError. The call site catches
+        Exception and falls back to an empty name, which resolves to CPU --
+        so the check silently ran on the host even for a GPU group, and the
+        failure was invisible.
+
+        Returning the resolved transport name keeps the device selection
+        correct. The name comes from ``_backend``, which __init__ already
+        stores for exactly this kind of transport-dependent decision, and
+        falls back to the live comm object when it was not supplied.
+        """
+        name = getattr(self, "_backend", None)
+        if not name:
+            # Some construction paths do not pass the transport explicitly;
+            # ask the comm object before giving up.
+            for attr in ("backend", "transport", "name"):
+                val = getattr(self._comm, attr, None)
+                if isinstance(val, str) and val:
+                    name = val
+                    break
+        return str(name or "")
+
     def is_mpi_available(self) -> bool:
         """torchcomms has no MPI transport; report that honestly."""
         return False

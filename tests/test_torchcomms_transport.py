@@ -33,18 +33,57 @@ tcb = _load_backend()
 
 
 class TestResolveTransportDefaults:
-    """The unconfigured behaviour must not change."""
+    """Defaults are chosen from the REGISTERED transports, not guessed.
 
-    def test_gpu_still_defaults_to_xccl(self):
-        # Aurora relies on this default; changing it would silently
-        # repoint every existing GPU run at another transport.
-        assert tcb.resolve_transport("gpu") == "xccl"
+    These tests used to assert a hardcoded ``xccl`` for gpu/xpu. That was
+    the Aurora-only behaviour the function was later fixed to remove: on an
+    NVIDIA machine xccl is not registered, and returning it made every
+    torchcomms run die inside ``tc.new_comm``. The tests kept asserting the
+    old contract, so they failed on any machine that is not Aurora --
+    including a plain CPU box, where NO transports are registered at all.
 
-    def test_xpu_still_defaults_to_xccl(self):
+    They now pin the registration state explicitly instead of depending on
+    whatever the host happens to have installed, so the behaviour under
+    test is the resolution LOGIC rather than the machine.
+    """
+
+    def test_xpu_prefers_xccl_when_registered(self, monkeypatch):
+        """Aurora's contract, stated as a controlled condition."""
+        monkeypatch.setattr(tcb, "enumerate_transports",
+                            lambda: ("ok", ("xccl", "gloo")))
+        monkeypatch.setattr(tcb, "_accelerator_vendor", lambda: "xpu")
         assert tcb.resolve_transport("xpu") == "xccl"
 
-    def test_cpu_still_defaults_to_gloo(self):
+    def test_gpu_prefers_nccl_when_registered(self, monkeypatch):
+        """On NVIDIA, nccl -- not xccl -- is the correct default."""
+        monkeypatch.setattr(tcb, "enumerate_transports",
+                            lambda: ("ok", ("nccl", "gloo")))
+        monkeypatch.setattr(tcb, "_accelerator_vendor", lambda: "cuda")
+        assert tcb.resolve_transport("gpu") == "nccl"
+
+    def test_cpu_defaults_to_gloo_when_registered(self, monkeypatch):
+        monkeypatch.setattr(tcb, "enumerate_transports",
+                            lambda: ("ok", ("nccl", "gloo")))
         assert tcb.resolve_transport("cpu") == "gloo"
+
+    def test_accelerator_with_no_vendor_transport_fails_closed(
+            self, monkeypatch):
+        """The anti-regression this function exists for.
+
+        Silently returning gloo on an accelerator would run the whole
+        benchmark over the host network and report it as a normal result.
+        """
+        monkeypatch.setattr(tcb, "enumerate_transports",
+                            lambda: ("ok", ("gloo",)))
+        monkeypatch.setattr(tcb, "_accelerator_vendor", lambda: "cuda")
+        with pytest.raises((RuntimeError, ValueError)):
+            tcb.resolve_transport("gpu")
+
+    def test_empty_registration_fails_closed(self, monkeypatch):
+        """No registered backends is an incomplete install, not a default."""
+        monkeypatch.setattr(tcb, "enumerate_transports", lambda: ("ok", ()))
+        with pytest.raises(RuntimeError):
+            tcb.resolve_transport("gpu")
 
 
 class TestResolveTransportOverride:
@@ -72,9 +111,27 @@ class TestResolveTransportOverride:
         for name in ("nccl", "xccl", "gloo"):
             assert name in str(excinfo.value)
 
-    def test_empty_string_falls_back_to_default(self):
-        # "" is falsy: treated as unset, not as an invalid transport.
-        assert tcb.resolve_transport("gpu", "") == "xccl"
+    def test_empty_string_falls_back_to_default(self, monkeypatch):
+        """"" is falsy: treated as unset, not as an invalid transport.
+
+        The assertion was "" -> xccl, which encoded the old Aurora-only
+        default and failed anywhere xccl is not registered. What actually
+        matters is that an empty string takes the DEFAULT path rather than
+        the explicit-request path, so pin the registration state and check
+        it resolves to the vendor default.
+        """
+        monkeypatch.setattr(tcb, "enumerate_transports",
+                            lambda: ("ok", ("nccl", "gloo")))
+        monkeypatch.setattr(tcb, "_accelerator_vendor", lambda: "cuda")
+        assert tcb.resolve_transport("gpu", "") == "nccl"
+
+    def test_empty_string_is_not_treated_as_an_unknown_transport(
+            self, monkeypatch):
+        """The failure mode this guards: "" raising "Unknown transport"."""
+        monkeypatch.setattr(tcb, "enumerate_transports",
+                            lambda: ("ok", ("xccl", "gloo")))
+        monkeypatch.setattr(tcb, "_accelerator_vendor", lambda: "xpu")
+        assert tcb.resolve_transport("xpu", "") == "xccl"
 
 
 class TestConfigSpec:

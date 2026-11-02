@@ -139,9 +139,25 @@ def test_requesting_backend_without_library_raises_actionable_error():
     assert "ccl_backend" in msg, "error should name the config field to change"
 
 
-def test_transport_defaults_by_device_type():
-    assert tcb.resolve_transport("gpu") == "xccl"
+def test_transport_defaults_by_device_type(monkeypatch):
+    """Defaults follow the REGISTERED transports for the detected vendor.
+
+    This asserted a hardcoded xccl for gpu and xpu, which was the
+    Aurora-only behaviour resolve_transport() was fixed to stop doing. The
+    test therefore failed on every non-Aurora machine, including a plain
+    CPU box where nothing is registered. Pin the registration state so the
+    resolution logic is what is under test, not the host.
+    """
+    monkeypatch.setattr(tcb, "enumerate_transports",
+                        lambda: ("ok", ("nccl", "xccl", "gloo")))
+
+    monkeypatch.setattr(tcb, "_accelerator_vendor", lambda: "cuda")
+    assert tcb.resolve_transport("gpu") == "nccl"
+
+    monkeypatch.setattr(tcb, "_accelerator_vendor", lambda: "xpu")
     assert tcb.resolve_transport("xpu") == "xccl"
+
+    # cpu is explicit: it must not pick up the accelerator transport
     assert tcb.resolve_transport("cpu") == "gloo"
 
 

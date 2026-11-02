@@ -104,6 +104,7 @@
   "transport": [
     "ncclx",
     "nccl",
+    "nccl-lazy",
     "rcclx",
     "rccl",
     "xccl",
