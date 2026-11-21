@@ -14,9 +14,37 @@ The figure below illustrates a simple model of how DLComm can form different com
 
 ## Installation and running DLCOMM
 
-pip install -r requirements.txt
+Requires Python 3.9-3.13 (hydra-core 1.3.x does not start on Python 3.14).
 
-pip install DLcomm
+```bash
+pip install dlcomm            # latest release from PyPI
+# or the current master:
+pip install git+https://github.com/argonne-lcf/DLcomm_benchmark.git
+```
+
+The example configs live in `examples/` in this repository, so clone it to get them.
+`dlcomm` needs a config to start (`dlcomm --help` alone fails, by Hydra design):
+
+```bash
+dlcomm --config-path=examples/10_ulyss --config-name=10_ulyss_nccl --cfg job   # parse only
+```
+
+### ALCF Polaris
+
+A plain `pip install dlcomm` on Polaris gives a CUDA 13 PyTorch build and an mpi4py
+with its own bundled MPI instead of Cray MPICH. Use the install script instead:
+
+```bash
+bash scripts/install_dlcomm_polaris.sh <venv_dir> pypi   # or: git (current master)
+PYBASE=/path/to/python3.12 bash scripts/install_dlcomm_polaris.sh <venv_dir> pypi
+```
+
+It installs torch from the PyTorch cu128 index, builds mpi4py from source against
+Cray MPICH (with the `darshan` module unloaded, whose libdarshan needs a Cray MPICH
+library that is no longer shipped), installs dlcomm, and checks the imports. `PYBASE`
+must be a Python 3.9-3.13 with development headers (`Python.h`). Set
+`DLCOMM_EXAMPLE_YAML=<clone>/examples/10_ulyss/10_ulyss_nccl.yaml` to also check that a
+config loads.
 
 ## Running the benchmark
 
