@@ -46,6 +46,24 @@ must be a Python 3.9-3.13 with development headers (`Python.h`). Set
 `DLCOMM_EXAMPLE_YAML=<clone>/examples/10_ulyss/10_ulyss_nccl.yaml` to also check that a
 config loads.
 
+The C++ layers (`dl_comm/ccl/ccl_bench.cpp`, `dl_comm/transfer/pci_fixed_cuda.cu`) are
+not in the wheel; build them from a clone. The pip `nvidia-nccl` package ships only
+`libnccl.so.2`, so give the linker a `libnccl.so` link first:
+
+```bash
+NCCL_ROOT=$(ls -d <venv>/lib/python3.*/site-packages/nvidia/nccl)
+CUDA_HOME=/soft/compilers/cudatoolkit/cuda-12.8.1
+mkdir -p nccl_link && ln -sfn $NCCL_ROOT/lib/libnccl.so.2 nccl_link/libnccl.so
+mpicxx -std=c++17 -O2 -x c++ -DDLCOMM_NCCL dl_comm/ccl/ccl_bench.cpp -I$CUDA_HOME/include -I$NCCL_ROOT/include \
+  -L$CUDA_HOME/lib64 -Lnccl_link -lcudart -lnccl -Wl,-rpath,$NCCL_ROOT/lib -Wl,-rpath,$CUDA_HOME/lib64 -o ccl_bench
+$CUDA_HOME/bin/nvcc -std=c++17 -O2 -ccbin=$(command -v mpicxx) dl_comm/transfer/pci_fixed_cuda.cu -o pci_fixed
+```
+
+torchcomms is not on PyPI (only a 0.0.1 placeholder). If you expose a source-built
+torchcomms to the venv by symlinking, link its `torchcomms-<ver>.dist-info` as well as
+`torchcomms/`: backends are discovered through the dist-info entry points, and without it
+`new_comm("nccl")` fails with `failed to find backend nccl`.
+
 ## Running the benchmark
 
 ## YAML configuration file

@@ -104,6 +104,11 @@
 // RF8    The aggregate byte product N_byte * world_size * copies was asserted
 //        to be unwrappable. It is checked instead.
 //
+// FIX 6  Aggregate TIME_NS was MAX(end)-MIN(start) over per-node steady_clock
+//        timestamps, which have different epochs on different nodes, so every
+//        multi-node TIME_NS/GBPS was garbage. Now MAX over ranks of each
+//        rank's elapsed time. See datatransfer().
+//
 // BUILD  nvcc -O2 -arch=sm_90 pci_fixed_cuda.cu -o pci_fixed_cuda <mpi flags>
 //        (or: nvcc -O2 -DNO_MPI pci_fixed_cuda.cu -o pci_fixed_cuda)
 // RUN    mpiexec -n 4 -ppn 4 ./pci_fixed_cuda
@@ -202,10 +207,11 @@ static void fill_randomly(size_t N, int *a_cpu, int *b_cpu) {
 // set, so first-touch faults, context init and pageable staging allocation are
 // paid before the clock starts.
 //
-// The original reduces MIN(start) and MAX(end) across ranks, so the window it
-// measures spans from the earliest rank entering the copy to the latest rank
-// leaving it. With the barrier in place (FIX 1) that interval is the transfer
-// plus barrier-exit jitter. Without it, it is unbounded rank skew.
+// The aggregate window is the MAX over ranks of each rank's own elapsed time
+// (FIX 6). The original reduced MIN(start)/MAX(end) timestamps, which is only
+// valid when every rank shares one clock -- false across nodes for
+// steady_clock. With the barrier in place (FIX 1) every rank starts together,
+// so MAX(elapsed) is the transfer window less barrier-exit jitter.
 static void datatransfer(const std::vector<cudaStream_t> &streams,
                          size_t N_byte,
                          const std::vector<std::pair<void *, void *>> &ptrs,
@@ -244,14 +250,20 @@ static void datatransfer(const std::vector<cudaStream_t> &streams,
 
     min_local = std::min(l_end - l_start, min_local);
 
-    u64 start = l_start, end = l_end;
+    // FIX 6 (multi-node clock domains): reduce DURATIONS, never timestamps.
+    // steady_clock counts from an unspecified per-node epoch (boot time on
+    // Linux), so MIN(start)/MAX(end) across nodes subtracted two unrelated
+    // clocks: Polaris job 7873420 reported TIME_NS=2670020681130808 (~31 days)
+    // at 2 nodes while every rank's own window was ~95 us. Every rank starts
+    // its clock on barrier exit, so the slowest rank's elapsed time is the
+    // aggregate window (minus barrier-exit jitter) and is clock-domain free.
+    const u64 l_elapsed = l_end - l_start;
+    u64 window = l_elapsed;
 #ifndef NO_MPI
-    MPI_Reduce(&l_start, &start, 1, MPI_UNSIGNED_LONG_LONG, MPI_MIN, 0,
-               MPI_COMM_WORLD);
-    MPI_Reduce(&l_end, &end, 1, MPI_UNSIGNED_LONG_LONG, MPI_MAX, 0,
+    MPI_Reduce(&l_elapsed, &window, 1, MPI_UNSIGNED_LONG_LONG, MPI_MAX, 0,
                MPI_COMM_WORLD);
 #endif
-    min_agg = std::min(end - start, min_agg);
+    min_agg = std::min(window, min_agg);
   }
   *agg = min_agg;
   *local = min_local;

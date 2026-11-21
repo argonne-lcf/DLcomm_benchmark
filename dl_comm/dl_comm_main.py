@@ -1025,6 +1025,22 @@ def main(cfg: DictConfig):
             print(f"[dl_comm] jax shutdown raised (ignored): {exc}", flush=True)
     reset_times()
 
+    # Rank 0 hosts the c10d TCPStore. Without this barrier it can os._exit
+    # while other ranks are still inside destroy_process_group, and the NCCL
+    # watchdog on those ranks logs "TCPStore ... Failed to recv, got 0 bytes"
+    # (Polaris job 7873420, ranks 2 and 6, after a clean 800/800 run). Hold
+    # every rank until all have finished teardown. Bounded, like the verdict
+    # barrier, so a rank wedged in a vendor destructor cannot hang the job;
+    # the verdict is already latched in exit_code.
+    try:
+        _treq = MPI.COMM_WORLD.Ibarrier()
+        _tdeadline = time.time() + float(
+            os.environ.get("DLCOMM_TEARDOWN_TIMEOUT", "60"))
+        while not _treq.Test() and time.time() < _tdeadline:
+            time.sleep(0.01)
+    except Exception as exc:                           # pragma: no cover
+        print(f"[dl_comm] teardown barrier raised (ignored): {exc}", flush=True)
+
     # Flush stdio before _exit: os._exit skips atexit handlers and buffers.
     sys.stdout.flush()
     sys.stderr.flush()

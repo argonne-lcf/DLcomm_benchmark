@@ -230,6 +230,21 @@ class PciFixedSourceContract(unittest.TestCase):
         self.assertLess(guard, bidir,
                         "error check must precede the bandwidth report")
 
+    def test_aggregate_window_is_clock_domain_free(self):
+        """FIX 6: never subtract timestamps taken on different nodes.
+
+        steady_clock has a per-node epoch, so MAX(end)-MIN(start) across a
+        2-node job reported TIME_NS=2670020681130808 (Polaris job 7873420).
+        The aggregate must be a reduction of per-rank DURATIONS.
+        """
+        body = self.code[self.code.index("static void datatransfer("):
+                         self.code.index("static long long g_checks")]
+        self.assertNotIn("MPI_MIN", body)
+        self.assertNotIn("&l_start, &start", body)
+        self.assertIn("l_end - l_start", body)
+        self.assertRegex(body, r"MPI_Reduce\(&l_elapsed, &window, 1, "
+                               r"MPI_UNSIGNED_LONG_LONG, MPI_MAX")
+
     def test_timing_uses_explicit_nanosecond_cast(self):
         # TIME_NS must actually be nanoseconds.
         self.assertIn("duration_cast<std::chrono::nanoseconds>", self.code)
