@@ -691,8 +691,19 @@ class TorchCommsDist:
     def gather(self, tensor, gather_list=None, dst=0, group=None, async_op=False):
         # torch.distributed passes gather_list=None on non-root ranks;
         # torchcomms wants a sequence, so hand it an empty one.
+        # CUDA native blocking gather can strand a peer after mixed
+        # collectives (Tara two-node repro). Use the native asynchronous
+        # operation with explicit completion for blocking callers. This is
+        # still gather, not an all_gather emulation with different traffic.
+        device = getattr(tensor, "device", None)
+        cuda_blocking = not async_op and getattr(device, "type", None) == "cuda"
         w = self._c(group).gather(gather_list or [], tensor,
-                                  self._local_rank_in(group, dst), async_op)
+                                  self._local_rank_in(group, dst),
+                                  async_op or cuda_blocking)
+        if cuda_blocking:
+            w.wait()
+            import torch
+            torch.cuda.synchronize(device)
         return _Work(w) if async_op else None
 
     def scatter(self, tensor, scatter_list=None, src=0, group=None, async_op=False):
