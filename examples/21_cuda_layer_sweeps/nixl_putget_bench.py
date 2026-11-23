@@ -158,6 +158,9 @@ def one_transfer(agent, handle, timeout):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--backend", default="LIBFABRIC")
+    ap.add_argument("--progress-mode", choices=("thread", "manual"), default="thread",
+                    help="thread enables NIXL's progress thread (default); manual "
+                         "disables it and progresses initiator transfers via API polling")
     ap.add_argument("--mem", choices=("VRAM", "DRAM"), default="VRAM",
                     help="VRAM = GPU buffers (cuda), DRAM = pinned host "
                          "buffers. DRAM isolates the NIC path from GPU "
@@ -229,7 +232,7 @@ def run_benchmark(args, rv):
     if rv:
         config = {key: getattr(args, key) for key in
                   ("backend", "mem", "op", "sizes", "iters", "warmup", "expect",
-                   "transfer_timeout")}
+                   "transfer_timeout", "progress_mode")}
         if rv.exchange("config", config) != config:
             raise RuntimeError("MPI benchmark configuration mismatch")
         peer_host = rv.exchange("hosts", {"host": host})["host"]
@@ -268,8 +271,9 @@ def run_benchmark(args, rv):
     except Exception as exc:
         sys.exit(f"ERROR: cannot import nixl ({exc})")
 
-    agent = nixl_agent(f"{role}-r{rank}", nixl_agent_config(backends=[args.backend]))
-    log(f"agent up, backend={args.backend} mem={args.mem}")
+    agent = nixl_agent(f"{role}-r{rank}", nixl_agent_config(
+        backends=[args.backend], enable_prog_thread=(args.progress_mode == "thread")))
+    log(f"agent up, backend={args.backend} mem={args.mem} progress_mode={args.progress_mode}")
 
     sizes = args.sizes
     results = []
@@ -440,6 +444,7 @@ def run_benchmark(args, rv):
         with open(args.json_out, "w") as fh:
             json.dump(dict(layer="nixl_putget", op=args.op,
                            placement=placement, backend=args.backend,
+                           progress_mode=args.progress_mode,
                            host=host, peer_host=peer_host, rows=results),
                       fh, indent=1)
 

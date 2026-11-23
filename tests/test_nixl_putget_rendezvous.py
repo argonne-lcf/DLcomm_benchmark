@@ -195,6 +195,7 @@ class IntegrationComm(FakeComm):
         self.phases = []
         self.aborted = []
         self.checkpoints = []
+        self.agent_configs = []
         self.mismatch_config = False
         self.peer_gpu = 0
     def sendrecv(self, value, dest, source):
@@ -221,6 +222,10 @@ class IntegratedTests(unittest.TestCase):
         comm.rank = rank
         comm.mismatch_config = mismatch_config
         buffers = []
+
+        def agent_config(**kwargs):
+            comm.agent_configs.append(kwargs)
+            return kwargs
         def zeros(size, **kwargs):
             buf = Buffer(size)
             buffers.append(buf)
@@ -260,7 +265,7 @@ class IntegratedTests(unittest.TestCase):
                 pass
         modules = {"torch": torch, "nixl": types.ModuleType("nixl"),
                    "nixl._api": types.SimpleNamespace(nixl_agent=lambda *a: Agent(),
-                                   nixl_agent_config=lambda **kw: kw),
+                                   nixl_agent_config=agent_config),
                    "mpi4py": types.SimpleNamespace(MPI=types.SimpleNamespace(COMM_WORLD=comm))}
         with tempfile.TemporaryDirectory() as tmp:
             output = Path(tmp) / "result.json"
@@ -286,6 +291,83 @@ class IntegratedTests(unittest.TestCase):
                     code = exc.code
             result = json.loads(output.read_text()) if output.exists() else None
             return code, result, stdout.getvalue(), comm
+
+    def test_manual_progress_disables_thread_and_reports_effective_mode(self):
+        code, result, stdout, comm = self.run_benchmark(extra=("--progress-mode", "manual"))
+        self.assertEqual(code, 0, stdout)
+        self.assertEqual(comm.agent_configs,
+                         [{"backends": ["LIBFABRIC"], "enable_prog_thread": False}])
+        self.assertIn("progress_mode=manual", stdout)
+        self.assertEqual(result["progress_mode"], "manual")
+
+    def test_mpi_rejects_peer_progress_mode_mismatch_before_agent_creation(self):
+        original = IntegrationComm.sendrecv
+        def exchange(comm, value, dest, source):
+            if value[0] == "config":
+                peer = dict(value[1])
+                peer["progress_mode"] = "thread"
+                return value[0], peer
+            return original(comm, value, dest, source)
+        with patch.object(IntegrationComm, "sendrecv", exchange):
+            code, result, stdout, comm = self.run_benchmark(
+                extra=("--progress-mode", "manual"))
+        self.assertEqual(code, 1, stdout)
+        self.assertIn("configuration mismatch", stdout)
+        self.assertEqual(comm.agent_configs, [])
+        self.assertEqual(comm.aborted, [1])
+
+    def test_mpi_exchanges_effective_progress_mode(self):
+        configs = []
+        original = IntegrationComm.sendrecv
+        def exchange(comm, value, dest, source):
+            if value[0] == "config":
+                configs.append(value[1])
+            return original(comm, value, dest, source)
+        with patch.object(IntegrationComm, "sendrecv", exchange):
+            code, result, stdout, comm = self.run_benchmark(
+                extra=("--progress-mode", "manual"))
+        self.assertEqual(code, 0, stdout)
+        self.assertEqual(configs[0].get("progress_mode"), "manual")
+
+    def test_default_and_explicit_thread_progress_preserve_enabled_thread(self):
+        for extra in ((), ("--progress-mode", "thread")):
+            with self.subTest(extra=extra):
+                code, result, stdout, comm = self.run_benchmark(extra=extra)
+                self.assertEqual(code, 0, stdout)
+                self.assertEqual(comm.agent_configs,
+                                 [{"backends": ["LIBFABRIC"], "enable_prog_thread": True}])
+                self.assertEqual(result["progress_mode"], "thread")
+                self.assertIn("progress_mode=thread", stdout)
+
+    def test_manual_progress_polls_initiator_for_dram_vram_and_file_mode(self):
+        for mode, mem in (("mpi", "DRAM"), ("mpi", "VRAM"), ("file", "DRAM")):
+            with self.subTest(mode=mode, mem=mem), \
+                 patch.object(bench, "one_transfer", wraps=bench.one_transfer) as polling:
+                code, result, stdout, comm = self.run_benchmark(
+                    mode=mode, mem=mem,
+                    extra=("--progress-mode", "manual", "--warmup", "2", "--iters", "3"))
+                self.assertEqual(code, 0, stdout)
+                self.assertTrue(result["rows"][0]["byte_exact"])
+                self.assertEqual(polling.call_count, 5)
+
+    def test_manual_read_target_uses_control_channel_without_transfer_polling(self):
+        with patch.object(bench, "one_transfer", wraps=bench.one_transfer) as polling:
+            code, result, stdout, comm = self.run_benchmark(
+                rank=1, extra=("--progress-mode", "manual"))
+        self.assertEqual(code, 0, stdout)
+        polling.assert_not_called()
+        self.assertFalse(comm.agent_configs[0]["enable_prog_thread"])
+        self.assertIn(("xfer.1MiB", None), comm.checkpoints)
+
+    def test_manual_progress_preserves_timeout_and_unsupported_write_errors(self):
+        for kwargs, message in (({"busy": True}, "within 0.01s"),
+                                ({"op": "WRITE", "unsupported": True}, "unsupported")):
+            with self.subTest(kwargs=kwargs):
+                code, result, stdout, comm = self.run_benchmark(
+                    extra=("--progress-mode", "manual"), **kwargs)
+                self.assertEqual(code, 1, stdout)
+                self.assertIn(message, stdout)
+                self.assertEqual(comm.aborted, [1])
 
     def test_mpi_main_uses_control_channel_without_sync_directory(self):
         try:
@@ -409,11 +491,19 @@ class CommandLineTests(unittest.TestCase):
                 self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
                 self.assertIn("error:", result.stderr)
 
+    def test_invalid_progress_mode_is_rejected_before_imports(self):
+        result = subprocess.run([sys.executable, str(SCRIPT), "--sync-dir", "/unused",
+                                 "--progress-mode", "auto"],
+                                capture_output=True, text=True, timeout=10)
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("invalid choice", result.stderr)
+
     def test_help_exposes_optional_mpi_and_timeouts(self):
         result = subprocess.run([sys.executable, str(SCRIPT), "--help"],
                                 capture_output=True, text=True, timeout=10)
         self.assertEqual(result.returncode, 0, result.stderr)
-        for option in ("--rendezvous {file,mpi}", "--transfer-timeout", "--rendezvous-timeout"):
+        for option in ("--rendezvous {file,mpi}", "--transfer-timeout", "--rendezvous-timeout",
+                       "--progress-mode {thread,manual}"):
             self.assertIn(option, result.stdout)
 
 
