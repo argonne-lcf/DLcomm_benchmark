@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "dlcomm"
-version = "0.4.1"
+version = "0.4.2"
 description = "Distributed GPU Communication Benchmarking Framework for Deep Learning"
 authors = [
     { name = "Musa Cim", email = "musaoguzhancim@gmail.com" },
