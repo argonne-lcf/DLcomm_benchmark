@@ -37,6 +37,7 @@
 #include <mpi.h>
 
 #if defined(DLCOMM_NCCL) || defined(DLCOMM_RCCL)
+#include "ccl_correctness.hpp"
 #if defined(DLCOMM_NCCL)
 #include <cuda_runtime.h>
 #include <nccl.h>
@@ -45,6 +46,10 @@
 #define GPU_SYNC() cudaDeviceSynchronize()
 #define GPU_SET_DEVICE(d) cudaSetDevice(d)
 #define GPU_GET_DEVICE_COUNT(p) cudaGetDeviceCount(p)
+#define GPU_COPY_H2D(d, s, n) cudaMemcpy((d), (s), (n), cudaMemcpyHostToDevice)
+#define GPU_COPY_D2H(d, s, n) cudaMemcpy((d), (s), (n), cudaMemcpyDeviceToHost)
+#define GPU_MEMSET(p, v, n) cudaMemset((p), (v), (n))
+#define GPU_ERROR_STRING(e) cudaGetErrorString(e)
 #define BACKEND_NAME "nccl"
 #else
 #include <hip/hip_runtime.h>
@@ -54,6 +59,10 @@
 #define GPU_SYNC() hipDeviceSynchronize()
 #define GPU_SET_DEVICE(d) hipSetDevice(d)
 #define GPU_GET_DEVICE_COUNT(p) hipGetDeviceCount(p)
+#define GPU_COPY_H2D(d, s, n) hipMemcpy((d), (s), (n), hipMemcpyHostToDevice)
+#define GPU_COPY_D2H(d, s, n) hipMemcpy((d), (s), (n), hipMemcpyDeviceToHost)
+#define GPU_MEMSET(p, v, n) hipMemset((p), (v), (n))
+#define GPU_ERROR_STRING(e) hipGetErrorString(e)
 #define BACKEND_NAME "rccl"
 #endif
 #else
@@ -378,161 +387,192 @@ int main(int argc, char **argv) {
     sycl::free(rbuf, q);
   }
 #else
-  // NCCL / RCCL path. Compiled only where the runtime exists.
+  // NCCL / RCCL path. No GPU validation is claimed without executing here.
+  auto fatal = [&](const char* api, const char* detail) {
+    std::cerr << "LAYER=cpp_ccl BACKEND=" << BACKEND_NAME
+              << " ERROR=api_or_config rank=" << rank << " API=" << api
+              << " CHECKS=0 FAILURES=1 detail=" << detail << std::endl;
+    // Do not attempt a collective after an API failure: peers may already
+    // be blocked in NCCL. MPI_Abort terminates the entire MPI job nonzero.
+    MPI_Abort(MPI_COMM_WORLD, 2);
+    std::abort();
+  };
+#define GPU_CHECK(call) do { auto status = (call); if (status != 0) \
+    fatal(#call, GPU_ERROR_STRING(status)); } while (0)
+#define NCCL_CHECK(call) do { ncclResult_t status = (call); if (status != ncclSuccess) \
+    fatal(#call, ncclGetErrorString(status)); } while (0)
+#define MPI_CHECK(call) do { if ((call) != MPI_SUCCESS) \
+    fatal(#call, "MPI failure"); } while (0)
+
+  if (iters <= 0 || iters > std::numeric_limits<int>::max() - warmup ||
+      world > dlcomm_correctness::max_exact_world || local_rank < 0)
+    fatal("configuration", "invalid iteration/rank/exact-reduction bound");
+  const std::set<std::string> supported = {"allreduce", "allgather", "broadcast",
+      "reduce", "reduce_scatter", "sendrecv", "alltoall"};
+  for (const auto& op : only_ops)
+    if (!supported.count(op)) fatal("DLCOMM_OPS", "unsupported operation");
+  for (size_t nbytes : sizes) {
+    if (nbytes < sizeof(float) || nbytes % sizeof(float) != 0 ||
+        nbytes > std::numeric_limits<size_t>::max() / static_cast<size_t>(world))
+      fatal("DLCOMM_SIZES", "sizes must be nonzero float multiples without overflow");
+  }
+  // DLCOMM_INJECT_CORRUPTION=1 corrupts exactly one device output tail after
+  // the first measured iteration. Pick the last participating rank to test
+  // non-root failure aggregation (reduce only defines root's output).
+  bool inject = false, injected = false;
+  if (const char* option = std::getenv("DLCOMM_INJECT_CORRUPTION")) {
+    if (std::string(option) != "0" && std::string(option) != "1")
+      fatal("DLCOMM_INJECT_CORRUPTION", "expected 0 or 1");
+    inject = std::string(option) == "1";
+  }
+
   ncclComm_t comm;
   ncclUniqueId id;
-  if (rank == 0) ncclGetUniqueId(&id);
-  MPI_Bcast(&id, sizeof(id), MPI_BYTE, 0, MPI_COMM_WORLD);
-  // Device selection must use the node-local rank and the real device count.
-  // `rank % 8` assumes eight GPUs per node and indexes with the global rank:
-  // on a 4-GPU node at 8 ranks, ranks 4-7 request devices 4-7, which do not
-  // exist. cudaSetDevice fails, the error is discarded, those ranks stay on
-  // device 0, and ncclCommInitRank spins because the topology is
-  // inconsistent. `local_rank` is already computed above for exactly this
-  // purpose and is what the SYCL path uses.
+  if (rank == 0) NCCL_CHECK(ncclGetUniqueId(&id));
+  MPI_CHECK(MPI_Bcast(&id, sizeof(id), MPI_BYTE, 0, MPI_COMM_WORLD));
   int dev_count = 0;
-  if (GPU_GET_DEVICE_COUNT(&dev_count) != 0 || dev_count <= 0) {
-    if (rank == 0)
-      std::cerr << "LAYER=cpp_ccl ERROR=no_gpu_visible" << std::endl;
-    MPI_Abort(MPI_COMM_WORLD, 1);
-  }
-  int dev_idx = local_rank % dev_count;
-  if (GPU_SET_DEVICE(dev_idx) != 0) {
-    std::cerr << "LAYER=cpp_ccl ERROR=set_device_failed rank=" << rank
-              << " local_rank=" << local_rank << " dev_idx=" << dev_idx
-              << " dev_count=" << dev_count << std::endl;
-    MPI_Abort(MPI_COMM_WORLD, 1);
-  }
+  GPU_CHECK(GPU_GET_DEVICE_COUNT(&dev_count));
+  if (dev_count <= 0) fatal("GPU_GET_DEVICE_COUNT", "no visible GPUs");
+  const int dev_idx = local_rank % dev_count;
+  GPU_CHECK(GPU_SET_DEVICE(dev_idx));
   std::cout << "LAYER=cpp_ccl MAP rank=" << rank
             << " local_rank=" << local_rank << " dev_idx=" << dev_idx
             << " dev_count=" << dev_count << std::endl;
+  NCCL_CHECK(ncclCommInitRank(&comm, world, id, rank));
 
-  ncclResult_t nrc = ncclCommInitRank(&comm, world, id, rank);
-  if (nrc != ncclSuccess) {
-    std::cerr << "LAYER=cpp_ccl ERROR=nccl_init rank=" << rank << " "
-              << ncclGetErrorString(nrc) << std::endl;
-    MPI_Abort(MPI_COMM_WORLD, 1);
-  }
-
-  // Correctness is checked per size, outside the timing loop. Rank r fills
-  // its buffer with (r+1), so a sum allreduce has the closed form
-  // world*(world+1)/2 at every element. Without this the benchmark reduces
-  // uninitialized device memory and reports bandwidth for a result nobody
-  // ever inspected.
-  long long ccl_checks = 0, ccl_failures = 0;
-
+  unsigned long long tot_checks = 0, tot_failures = 0, tot_injected = 0;
   for (size_t nbytes : sizes) {
-    size_t count = nbytes / sizeof(float);
+    const size_t count = nbytes / sizeof(float);
     void *sbuf = nullptr, *rbuf = nullptr;
-    GPU_MALLOC(&sbuf, nbytes);
-    GPU_MALLOC(&rbuf, nbytes * world);
-
-    {
-      std::vector<float> host_in(count, static_cast<float>(rank + 1));
-      cudaMemcpy(sbuf, host_in.data(), nbytes, cudaMemcpyHostToDevice);
-      cudaMemset(rbuf, 0, nbytes);
-      ncclAllReduce(sbuf, rbuf, count, ncclFloat, ncclSum, comm, 0);
-      GPU_SYNC();
-
-      std::vector<float> host_out(count, 0.0f);
-      cudaMemcpy(host_out.data(), rbuf, nbytes, cudaMemcpyDeviceToHost);
-      const double expect = world * (world + 1) / 2.0;
-      size_t idxs[3] = {0, count / 2, count - 1};
-      for (size_t k = 0; k < 3; ++k) {
-        size_t idx = idxs[k];
-        double got = host_out[idx];
-        ccl_checks++;
-        if (!(got == got) || std::fabs(got - expect) > 1e-3) {
-          ccl_failures++;
-          if (ccl_failures <= 3) {
-            std::cerr << "LAYER=cpp_ccl MISMATCH rank=" << rank
-                      << " bytes=" << nbytes << " idx=" << idx
-                      << " got=" << got << " expected=" << expect
-                      << std::endl;
-          }
-        }
+    GPU_CHECK(GPU_MALLOC(&sbuf, nbytes));
+    GPU_CHECK(GPU_MALLOC(&rbuf, nbytes * world));
+    std::vector<float> host_in(count);
+    for (const std::string op : {"allreduce", "allgather", "broadcast", "reduce",
+                                 "reduce_scatter", "sendrecv", "alltoall"}) {
+      if (!want(op)) continue;
+      if ((op == "reduce_scatter" || op == "alltoall") && count % world != 0) {
+        if (rank == 0)
+          std::cout << "LAYER=cpp_ccl BACKEND=" << BACKEND_NAME << " OP=" << op
+                    << " BYTES=" << nbytes << " STATUS=SKIP REASON=nondivisible_count"
+                    << " CHECKS=0 FAILURES=0" << std::endl;
+        continue;  // Never silently truncate the requested buffer.
       }
-    }
-
-    std::vector<double> ts;
-    for (int i = 0; i < warmup + iters; i++) {
-      MPI_Barrier(MPI_COMM_WORLD);
-      auto t0 = clk::now();
-      ncclAllReduce(sbuf, rbuf, count, ncclFloat, ncclSum, comm, 0);
-      GPU_SYNC();
-      auto t1 = clk::now();
-      if (i >= warmup)
-        ts.push_back(std::chrono::duration<double>(t1 - t0).count());
-    }
-    emit({"allreduce", nbytes, median(ts)}, world, rank);
-
-    ts.clear();
-    for (int i = 0; i < warmup + iters; i++) {
-      MPI_Barrier(MPI_COMM_WORLD);
-      auto t0 = clk::now();
-      ncclAllGather(sbuf, rbuf, count, ncclFloat, comm, 0);
-      GPU_SYNC();
-      auto t1 = clk::now();
-      if (i >= warmup)
-        ts.push_back(std::chrono::duration<double>(t1 - t0).count());
-    }
-    emit({"allgather", nbytes, median(ts)}, world, rank);
-
-    ts.clear();
-    for (int i = 0; i < warmup + iters; i++) {
-      MPI_Barrier(MPI_COMM_WORLD);
-      auto t0 = clk::now();
-      ncclBroadcast(sbuf, rbuf, count, ncclFloat, 0, comm, 0);
-      GPU_SYNC();
-      auto t1 = clk::now();
-      if (i >= warmup)
-        ts.push_back(std::chrono::duration<double>(t1 - t0).count());
-    }
-    emit({"broadcast", nbytes, median(ts)}, world, rank);
-
-    if (world >= 2 && want("sendrecv")) {
-      ts.clear();
-      for (int i = 0; i < warmup + iters; i++) {
-        MPI_Barrier(MPI_COMM_WORLD);
+      if (op == "sendrecv" && world < 2) {
+        if (rank == 0)
+          std::cout << "LAYER=cpp_ccl BACKEND=" << BACKEND_NAME << " OP=" << op
+                    << " BYTES=" << nbytes << " STATUS=SKIP REASON=requires_two_ranks"
+                    << " CHECKS=0 FAILURES=0" << std::endl;
+        continue;
+      }
+      unsigned long long local[3] = {0, 0, 0}, global[3] = {0, 0, 0};
+      std::vector<double> ts;
+      for (int i = 0; i < warmup + iters; ++i) {
+        const dlcomm_correctness::Expected expected(op, count, world, rank, i);
+        const size_t output_count = expected.output_count();
+        std::vector<float> host_out(output_count);
+        for (size_t j = 0; j < count; ++j)
+          host_in[j] = dlcomm_correctness::input_value(rank, j, i);
+        GPU_CHECK(GPU_COPY_H2D(sbuf, host_in.data(), nbytes));
+        // Poison all defined output elements to catch missing writes, even
+        // when the expected pattern repeats after its 1021-element period.
+        if (output_count) GPU_CHECK(GPU_MEMSET(rbuf, 0xff, output_count * sizeof(float)));
+        GPU_CHECK(GPU_SYNC());
+        MPI_CHECK(MPI_Barrier(MPI_COMM_WORLD));
         auto t0 = clk::now();
-        ncclGroupStart();
-        if (rank == 0) {
-          ncclSend(sbuf, count, ncclFloat, 1, comm, 0);
-          ncclRecv(rbuf, count, ncclFloat, 1, comm, 0);
-        } else if (rank == 1) {
-          ncclRecv(rbuf, count, ncclFloat, 0, comm, 0);
-          ncclSend(sbuf, count, ncclFloat, 0, comm, 0);
+        if (op == "allreduce") {
+          NCCL_CHECK(ncclAllReduce(sbuf, rbuf, count, ncclFloat, ncclSum, comm, 0));
+        } else if (op == "allgather") {
+          NCCL_CHECK(ncclAllGather(sbuf, rbuf, count, ncclFloat, comm, 0));
+        } else if (op == "broadcast") {
+          NCCL_CHECK(ncclBroadcast(sbuf, rbuf, count, ncclFloat, 0, comm, 0));
+        } else if (op == "reduce") {
+          NCCL_CHECK(ncclReduce(sbuf, rbuf, count, ncclFloat, ncclSum, 0, comm, 0));
+        } else if (op == "reduce_scatter") {
+          NCCL_CHECK(ncclReduceScatter(sbuf, rbuf, count / world, ncclFloat, ncclSum, comm, 0));
+        } else if (op == "sendrecv") {
+          NCCL_CHECK(ncclGroupStart());
+          if (rank == 0 || rank == 1) {
+            const int peer = 1 - rank;
+            NCCL_CHECK(ncclSend(sbuf, count, ncclFloat, peer, comm, 0));
+            NCCL_CHECK(ncclRecv(rbuf, count, ncclFloat, peer, comm, 0));
+          }
+          NCCL_CHECK(ncclGroupEnd());
+        } else if (op == "alltoall") {
+          const size_t per = count / world;
+#ifdef DLCOMM_NCCL_HAS_ALLTOALL
+          // Opt in only when the installed NCCL/RCCL declares ncclAllToAll.
+          NCCL_CHECK(ncclAllToAll(sbuf, rbuf, per, ncclFloat, comm, 0));
+#else
+          // Portable NCCL/RCCL implementation using the same peer layout.
+          NCCL_CHECK(ncclGroupStart());
+          for (int peer = 0; peer < world; ++peer) {
+            NCCL_CHECK(ncclSend(static_cast<float*>(sbuf) + peer * per,
+                                per, ncclFloat, peer, comm, 0));
+            NCCL_CHECK(ncclRecv(static_cast<float*>(rbuf) + peer * per,
+                                per, ncclFloat, peer, comm, 0));
+          }
+          NCCL_CHECK(ncclGroupEnd());
+#endif
         }
-        ncclGroupEnd();
-        GPU_SYNC();
+        GPU_CHECK(GPU_SYNC());
         auto t1 = clk::now();
-        if (i >= warmup)
-          ts.push_back(std::chrono::duration<double>(t1 - t0).count());
+        // Error inspection, injection, copy and verification are NOT timed.
+        ncclResult_t async_status = ncclSuccess;
+        NCCL_CHECK(ncclCommGetAsyncError(comm, &async_status));
+        if (async_status != ncclSuccess) fatal("nccl_async", ncclGetErrorString(async_status));
+        const int injection_rank = op == "reduce" ? 0 : (op == "sendrecv" ? 1 : world - 1);
+        if (inject && !injected && i == warmup && rank == injection_rank && output_count) {
+          const float corrupt = expected.value(output_count - 1) + 1.0f;
+          GPU_CHECK(GPU_COPY_H2D(static_cast<float*>(rbuf) + output_count - 1,
+                                 &corrupt, sizeof(float)));
+          injected = true;
+          ++local[2];
+        }
+        if (output_count)
+          GPU_CHECK(GPU_COPY_D2H(host_out.data(), rbuf, output_count * sizeof(float)));
+        const auto checked = dlcomm_correctness::verify(host_out.data(), output_count, expected);
+        if (checked.failures && local[1] == 0)
+          std::cerr << "LAYER=cpp_ccl MISMATCH rank=" << rank << " OP=" << op
+                    << " BYTES=" << nbytes << " ITER=" << i
+                    << " IDX=" << checked.first_index << " GOT=" << checked.first_got
+                    << " EXPECTED=" << checked.first_expected << std::endl;
+        local[0] += checked.checks;
+        local[1] += checked.failures;
+        if (i >= warmup) ts.push_back(std::chrono::duration<double>(t1 - t0).count());
       }
-      emit({"sendrecv", nbytes, median(ts)}, world, rank);
+      MPI_CHECK(MPI_Allreduce(local, global, 3, MPI_UNSIGNED_LONG_LONG, MPI_SUM, MPI_COMM_WORLD));
+      // All ranks remember injection completion; inject once per whole run.
+      if (global[2]) injected = true;
+      tot_checks += global[0];
+      tot_failures += global[1];
+      tot_injected += global[2];
+      if (rank == 0) {
+        const double t_med = median(ts);
+        const size_t moved = traffic_bytes(op, nbytes, world);
+        const double algbw = t_med > 0 ? double(moved) / t_med : 0;
+        std::cout << "LAYER=cpp_ccl BACKEND=" << BACKEND_NAME << " OP=" << op
+                  << " BYTES=" << nbytes << " MOVED_BYTES=" << moved << " RANKS=" << world
+                  << " T_MED=" << t_med << " ALGBW=" << algbw
+                  << " BUSBW=" << algbw * busbw_factor(op, world)
+                  << " CHECKS=" << global[0] << " FAILURES=" << global[1]
+                  << " INJECTED=" << global[2]
+                  << " STATUS=" << (global[1] ? "FAIL" : "PASS")
+                  << " VERIFIED_ITERS=" << warmup + iters << std::endl;
+      }
     }
-
-    GPU_FREE(sbuf);
-    GPU_FREE(rbuf);
+    GPU_CHECK(GPU_FREE(sbuf));
+    GPU_CHECK(GPU_FREE(rbuf));
   }
-  {
-    long long tot_checks = 0, tot_failures = 0;
-    MPI_Reduce(&ccl_checks, &tot_checks, 1, MPI_LONG_LONG, MPI_SUM, 0,
-               MPI_COMM_WORLD);
-    MPI_Reduce(&ccl_failures, &tot_failures, 1, MPI_LONG_LONG, MPI_SUM, 0,
-               MPI_COMM_WORLD);
-    if (rank == 0) {
-      std::cout << "LAYER=cpp_ccl CORRECTNESS checks=" << tot_checks
-                << " failures=" << tot_failures << std::endl;
-    }
-    if (tot_failures > 0) {
-      ncclCommDestroy(comm);
-      MPI_Finalize();
-      return 1;
-    }
-  }
-
-  ncclCommDestroy(comm);
+  if (inject && tot_injected == 0) fatal("injection", "no eligible output was exercised");
+  NCCL_CHECK(ncclCommDestroy(comm));
+  if (rank == 0)
+    std::cout << "LAYER=cpp_ccl CORRECTNESS checks=" << tot_checks
+              << " failures=" << tot_failures << " INJECTED=" << tot_injected << std::endl;
+  MPI_CHECK(MPI_Finalize());
+#undef GPU_CHECK
+#undef NCCL_CHECK
+#undef MPI_CHECK
+  return tot_failures > 0 ? 1 : 0;
 #endif
 
   MPI_Finalize();

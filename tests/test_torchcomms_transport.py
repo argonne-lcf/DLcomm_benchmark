@@ -90,7 +90,9 @@ class TestResolveTransportOverride:
     """An explicit request wins over the device-based guess."""
 
     @pytest.mark.parametrize("transport", ["nccl", "rccl", "gloo", "ncclx"])
-    def test_request_overrides_device_default(self, transport):
+    def test_request_overrides_device_default(self, transport, monkeypatch):
+        monkeypatch.setattr(tcb, "enumerate_transports",
+                            lambda: ("ok", tuple(tcb.SUPPORTED_TRANSPORTS)))
         assert tcb.resolve_transport("gpu", transport) == transport
 
     def test_request_is_case_insensitive(self):
@@ -143,7 +145,9 @@ class TestConfigSpec:
     def test_spec_matches_backend_supported_transports(self):
         assert sorted(SPEC["transport"]) == sorted(tcb.SUPPORTED_TRANSPORTS)
 
-    def test_every_spec_transport_resolves(self):
+    def test_every_spec_transport_resolves(self, monkeypatch):
+        monkeypatch.setattr(tcb, "enumerate_transports",
+                            lambda: ("ok", tuple(tcb.SUPPORTED_TRANSPORTS)))
         for transport in SPEC["transport"]:
             assert tcb.resolve_transport("gpu", transport) == transport
 

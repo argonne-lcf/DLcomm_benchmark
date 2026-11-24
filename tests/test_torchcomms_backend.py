@@ -168,7 +168,11 @@ def test_explicit_transport_is_validated_not_trusted():
     assert "nccl-typo" in str(e.value)
 
 
-def test_every_supported_transport_resolves():
+def test_every_supported_transport_resolves(monkeypatch):
+    # Test accepted names independently of this host's optional backend build.
+    # Live registration rejection is exercised by transport-resolution tests.
+    monkeypatch.setattr(tcb, "enumerate_transports",
+                        lambda: ("ok", tuple(tcb.SUPPORTED_TRANSPORTS)))
     for t in tcb.SUPPORTED_TRANSPORTS:
         assert tcb.resolve_transport("gpu", t) == t
 

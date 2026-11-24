@@ -29,13 +29,26 @@ node that is GPU0 -> GPU1 on the same host (traffic stays on NVLink/PCIe and
 never reaches a NIC). On two nodes it is GPU0@hostA -> GPU0@hostB (traffic
 crosses Slingshot). The two cases are labelled so they are never conflated.
 
-Peer discovery uses a file rendezvous under --sync-dir, so this is immune to
-the PALS rank-ordering trap (rank 0 is not assumed to be on any particular
-host).
+Peer discovery defaults to a file rendezvous under --sync-dir (use a fresh
+shared directory per run). --rendezvous mpi uses mpi4py COMM_WORLD instead,
+requires exactly two ranks, and needs no shared directory. Both discover the
+actual peer host rather than assuming PALS rank ordering. MPI exchanges only
+control messages; NIXL still performs READ/WRITE and unsupported backend
+operations remain errors. For example:
+
+    mpiexec -n 2 python nixl_putget_bench.py --rendezvous mpi --mem DRAM
+
+--transfer-timeout bounds NIXL state polling, not a blocking vendor API call.
+--rendezvous-timeout bounds file waits only. Blocking MPI has no portable
+peer-failure timeout: set a launcher/job walltime for a hung or crashed rank.
+Unexpected local MPI-mode errors abort COMM_WORLD so the peer does not wait
+forever in a different control phase. Whole-buffer verification is untimed;
+either rank detecting corruption makes both ranks exit nonzero.
 """
 
 import argparse
 import json
+import math
 import os
 import socket
 import sys
@@ -75,8 +88,8 @@ def publish(sync_dir, name, data):
 
 def collect(sync_dir, name, timeout=180):
     path = os.path.join(sync_dir, name)
-    deadline = time.time() + timeout
-    while time.time() < deadline:
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
         if os.path.exists(path):
             with open(path, "rb") as fh:
                 return fh.read()
@@ -86,8 +99,8 @@ def collect(sync_dir, name, timeout=180):
 
 def barrier(sync_dir, rank, tag, peers=2, timeout=180):
     publish(sync_dir, f"bar.{tag}.{rank}", b"1")
-    deadline = time.time() + timeout
-    while time.time() < deadline:
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
         if all(os.path.exists(os.path.join(sync_dir, f"bar.{tag}.{r}"))
                for r in range(peers)):
             return
@@ -95,9 +108,59 @@ def barrier(sync_dir, rank, tag, peers=2, timeout=180):
     raise TimeoutError(f"barrier {tag} timed out")
 
 
+class MPIRendezvous:
+    """Ordered MPI control messages; NIXL, not MPI, carries buffer data.
+
+    sendrecv avoids eager-buffer-size dependent deadlocks. Collectives carry
+    recoverable phase errors to both ranks. A crashed/hung peer inside MPI
+    still requires the launcher's job timeout (blocking MPI has no portable
+    timeout); unexpected local failures must abort the communicator.
+    """
+
+    def __init__(self, comm):
+        if comm.Get_size() != 2:
+            raise ValueError(f"MPI rendezvous requires exactly 2 ranks, got {comm.Get_size()}")
+        self.comm = comm
+        self.rank = comm.Get_rank()
+        self.peer_rank = 1 - self.rank
+
+    def exchange(self, phase, payload):
+        peer_phase, peer_payload = self.comm.sendrecv(
+            (phase, payload), dest=self.peer_rank, source=self.peer_rank)
+        if peer_phase != phase:
+            raise RuntimeError(f"MPI phase mismatch: {phase} != {peer_phase}")
+        return peer_payload
+
+    def checkpoint(self, phase, error=None):
+        states = self.comm.allgather((phase, str(error) if error else None))
+        failures = [f"rank {rank}: {err}" for rank, (tag, err) in enumerate(states)
+                    if err]
+        if any(tag != phase for tag, _ in states):
+            failures.append(f"MPI phase mismatch at {phase}")
+        if failures:
+            raise RuntimeError("; ".join(failures))
+
+
+def one_transfer(agent, handle, timeout):
+    deadline = time.monotonic() + timeout
+    if agent.transfer(handle) == "ERR":
+        raise RuntimeError("transfer() returned ERR")
+    while True:
+        state = agent.check_xfer_state(handle)
+        if state == "DONE":
+            return
+        if state == "ERR":
+            raise RuntimeError("transfer entered ERR state")
+        if time.monotonic() >= deadline:
+            raise TimeoutError(f"transfer did not complete within {timeout}s (state={state})")
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--backend", default="LIBFABRIC")
+    ap.add_argument("--progress-mode", choices=("thread", "manual"), default="thread",
+                    help="thread enables NIXL's progress thread (default); manual "
+                         "disables it and progresses initiator transfers via API polling")
     ap.add_argument("--mem", choices=("VRAM", "DRAM"), default="VRAM",
                     help="VRAM = GPU buffers (cuda), DRAM = pinned host "
                          "buffers. DRAM isolates the NIC path from GPU "
@@ -112,28 +175,73 @@ def main():
                          "control buffer to a large bulk buffer")
     ap.add_argument("--iters", type=int, default=10)
     ap.add_argument("--warmup", type=int, default=2)
-    ap.add_argument("--sync-dir", required=True)
+    ap.add_argument("--rendezvous", choices=("file", "mpi"), default="file",
+                    help="peer discovery/control channel; mpi requires mpi4py")
+    ap.add_argument("--sync-dir", default="",
+                    help="required for file rendezvous; use a fresh directory per run")
+    ap.add_argument("--rendezvous-timeout", type=float, default=180,
+                    help="seconds for file control waits; MPI waits require a launcher/job timeout")
+    ap.add_argument("--transfer-timeout", type=float, default=180,
+                    help="seconds to wait for each NIXL transfer")
     ap.add_argument("--json-out", default="")
     ap.add_argument("--expect", choices=("same-node", "cross-node", "any"),
                     default="any",
                     help="assert the placement actually achieved, so an "
                          "intra-node run cannot be reported as cross-node")
     args = ap.parse_args()
+    if args.rendezvous == "file" and not args.sync_dir:
+        ap.error("--sync-dir is required for file rendezvous")
+    if args.iters < 1 or args.warmup < 0:
+        ap.error("--iters must be positive and --warmup must be nonnegative")
+    for name in ("transfer_timeout", "rendezvous_timeout"):
+        value = getattr(args, name)
+        if not math.isfinite(value) or value <= 0:
+            ap.error(f"--{name.replace('_', '-')} must be finite and positive")
+    try:
+        sizes = [int(s) for s in args.sizes.split(",") if s.strip()]
+    except ValueError:
+        ap.error("--sizes must contain comma-separated positive integers")
+    if not sizes or any(size <= 0 for size in sizes):
+        ap.error("--sizes must contain at least one positive byte size")
+    args.sizes = sizes
 
-    rank = int(os.environ.get("PALS_RANKID", os.environ.get("RANK", "0")))
+    rv = None
+    if args.rendezvous == "mpi":
+        from mpi4py import MPI
+        rv = MPIRendezvous(MPI.COMM_WORLD)
+    try:
+        return run_benchmark(args, rv)
+    except (Exception, SystemExit) as exc:
+        log(f"ERROR: {exc}")
+        if rv:
+            # The peer may be in sendrecv/allgather. Trying another collective
+            # here would deadlock if its current phase differs from ours.
+            rv.comm.Abort(1)
+        return 1
+
+
+def run_benchmark(args, rv):
+    rank = rv.rank if rv else int(os.environ.get("PALS_RANKID", os.environ.get("RANK", "0")))
     local_rank = int(os.environ.get("PALS_LOCAL_RANKID",
                                     os.environ.get("LOCAL_RANK", "0")))
     host = socket.gethostname().split(".")[0]
     is_initiator = (rank == 0)
     role = "initiator" if is_initiator else "target"
 
-    os.makedirs(args.sync_dir, exist_ok=True)
-
-    # --- placement: publish, then verify it is what was asked for ----------
-    publish(args.sync_dir, f"host.{rank}", host)
-    barrier(args.sync_dir, rank, "hosts")
     peer_rank = 1 - rank
-    peer_host = collect(args.sync_dir, f"host.{peer_rank}").decode().strip()
+    if rv:
+        config = {key: getattr(args, key) for key in
+                  ("backend", "mem", "op", "sizes", "iters", "warmup", "expect",
+                   "transfer_timeout", "progress_mode")}
+        if rv.exchange("config", config) != config:
+            raise RuntimeError("MPI benchmark configuration mismatch")
+        peer_host = rv.exchange("hosts", {"host": host})["host"]
+    else:
+        os.makedirs(args.sync_dir, exist_ok=True)
+        publish(args.sync_dir, f"host.{rank}", host)
+        barrier(args.sync_dir, rank, "hosts", timeout=args.rendezvous_timeout)
+        peer_host = collect(args.sync_dir, f"host.{peer_rank}",
+                            timeout=args.rendezvous_timeout).decode().strip()
     same_node = (peer_host == host)
     placement = "same-node" if same_node else "cross-node"
 
@@ -153,7 +261,8 @@ def main():
                  f"(host={host} peer={peer_host}). Refusing to report a "
                  f"{placement} result as {args.expect}.")
 
-    if same_node and gpu == (peer_rank % max(dev_count, 1)):
+    peer_gpu = rv.exchange("gpus", gpu) if rv else (peer_rank % max(dev_count, 1))
+    if same_node and gpu == peer_gpu:
         sys.exit("ERROR: both ranks landed on the same GPU; that measures a "
                  "device copying to itself, not a GPU-to-GPU transfer.")
 
@@ -162,11 +271,13 @@ def main():
     except Exception as exc:
         sys.exit(f"ERROR: cannot import nixl ({exc})")
 
-    agent = nixl_agent(f"{role}-r{rank}", nixl_agent_config(backends=[args.backend]))
-    log(f"agent up, backend={args.backend} mem={args.mem}")
+    agent = nixl_agent(f"{role}-r{rank}", nixl_agent_config(
+        backends=[args.backend], enable_prog_thread=(args.progress_mode == "thread")))
+    log(f"agent up, backend={args.backend} mem={args.mem} progress_mode={args.progress_mode}")
 
-    sizes = [int(s) for s in args.sizes.split(",") if s.strip()]
+    sizes = args.sizes
     results = []
+    failed = False
 
     for nbytes in sizes:
         tag = size_label(nbytes)
@@ -220,13 +331,19 @@ def main():
 
         # ---------------- exchange metadata ----------------
         t0 = time.perf_counter()
-        publish(args.sync_dir, f"meta.{tag}.{rank}", agent.get_agent_metadata())
-        publish(args.sync_dir, f"descs.{tag}.{rank}", agent.get_serialized_descs(local_descs))
-        barrier(args.sync_dir, rank, f"meta.{tag}")
-        peer_meta = collect(args.sync_dir, f"meta.{tag}.{peer_rank}")
+        if rv:
+            peer_meta, peer_serialized = rv.exchange(f"meta.{tag}",
+                (agent.get_agent_metadata(), agent.get_serialized_descs(local_descs)))
+        else:
+            publish(args.sync_dir, f"meta.{tag}.{rank}", agent.get_agent_metadata())
+            publish(args.sync_dir, f"descs.{tag}.{rank}", agent.get_serialized_descs(local_descs))
+            barrier(args.sync_dir, rank, f"meta.{tag}", timeout=args.rendezvous_timeout)
+            peer_meta = collect(args.sync_dir, f"meta.{tag}.{peer_rank}",
+                                timeout=args.rendezvous_timeout)
+            peer_serialized = collect(args.sync_dir, f"descs.{tag}.{peer_rank}",
+                                      timeout=args.rendezvous_timeout)
         peer_name = agent.add_remote_agent(peer_meta)
-        remote_descs = agent.deserialize_descs(
-            collect(args.sync_dir, f"descs.{tag}.{peer_rank}"))
+        remote_descs = agent.deserialize_descs(peer_serialized)
         t_exchange = time.perf_counter() - t0
         log(f"metadata exchanged with {peer_name}, mem_type={mem_type}")
 
@@ -234,69 +351,79 @@ def main():
                    register_s=t_register, describe_s=t_describe,
                    exchange_s=t_exchange)
 
-        if is_initiator:
-            # ---------------- create transfer ----------------
-            t0 = time.perf_counter()
-            handle = agent.initialize_xfer(args.op, local_descs, remote_descs,
-                                           peer_name, b"done")
-            t_create = time.perf_counter() - t0
-            if not handle:
-                sys.exit("ERROR: initialize_xfer returned no handle")
-
-            def one_transfer():
-                if agent.transfer(handle) == "ERR":
-                    sys.exit("ERROR: transfer() returned ERR")
-                while True:
-                    st = agent.check_xfer_state(handle)
-                    if st == "DONE":
-                        return
-                    if st == "ERR":
-                        sys.exit("ERROR: transfer entered ERR state")
-
-            for _ in range(args.warmup):
-                one_transfer()
-
-            # ---------------- post + wait, timed ----------------
-            samples = []
-            for _ in range(args.iters):
+        transfer_error = None
+        try:
+            if is_initiator:
+                # ---------------- create transfer ----------------
                 t0 = time.perf_counter()
-                one_transfer()
-                samples.append(time.perf_counter() - t0)
+                handle = agent.initialize_xfer(args.op, local_descs, remote_descs,
+                                               peer_name, b"done")
+                t_create = time.perf_counter() - t0
+                if not handle:
+                    sys.exit("ERROR: initialize_xfer returned no handle")
 
-            best = min(samples)
-            mean = sum(samples) / len(samples)
-            row.update(create_s=t_create,
-                       best_s=best, mean_s=mean,
-                       best_gbps=nbytes / best / 1e9,
-                       mean_gbps=nbytes / mean / 1e9,
-                       best_us=best * 1e6, mean_us=mean * 1e6)
+                for _ in range(args.warmup):
+                    one_transfer(agent, handle, args.transfer_timeout)
 
-            log(f"register {t_register*1e3:8.3f} ms | describe {t_describe*1e3:7.3f} ms | "
-                f"exchange {t_exchange*1e3:7.3f} ms | create {t_create*1e3:7.3f} ms")
-            log(f"transfer best {best*1e6:10.1f} us -> {nbytes/best/1e9:7.3f} GB/s | "
-                f"mean {mean*1e6:10.1f} us -> {nbytes/mean/1e9:7.3f} GB/s")
+                # ---------------- post + wait, timed ----------------
+                samples = []
+                for _ in range(args.iters):
+                    t0 = time.perf_counter()
+                    one_transfer(agent, handle, args.transfer_timeout)
+                    samples.append(time.perf_counter() - t0)
 
-            agent.release_xfer_handle(handle)
+                best = min(samples)
+                mean = sum(samples) / len(samples)
+                row.update(create_s=t_create,
+                           best_s=best, mean_s=mean,
+                           best_gbps=nbytes / best / 1e9,
+                           mean_gbps=nbytes / mean / 1e9,
+                           best_us=best * 1e6, mean_us=mean * 1e6)
 
-        barrier(args.sync_dir, rank, f"xfer.{tag}")
+                log(f"register {t_register*1e3:8.3f} ms | describe {t_describe*1e3:7.3f} ms | "
+                    f"exchange {t_exchange*1e3:7.3f} ms | create {t_create*1e3:7.3f} ms")
+                log(f"transfer best {best*1e6:10.1f} us -> {nbytes/best/1e9:7.3f} GB/s | "
+                    f"mean {mean*1e6:10.1f} us -> {nbytes/mean/1e9:7.3f} GB/s")
+
+                agent.release_xfer_handle(handle)
+
+        except TimeoutError as exc:
+            if not rv:
+                raise
+            transfer_error = exc
+
+        if rv:
+            rv.checkpoint(f"xfer.{tag}", transfer_error)
+        else:
+            barrier(args.sync_dir, rank, f"xfer.{tag}", timeout=args.rendezvous_timeout)
 
         # ---------------- correctness ----------------
         # The side that RECEIVES data checks it. READ: initiator pulled from
         # target, so initiator checks. WRITE: initiator pushed, target checks.
         checker = is_initiator if args.op == "READ" else (not is_initiator)
+        ok = True
         if checker:
             if args.mem == "VRAM":
                 torch.cuda.synchronize()
-            _dev = f"cuda:{gpu}" if args.mem == "VRAM" else "cpu"
-            expected = torch.full((min(nbytes, 1 << 20),), 0xAB,
-                                  dtype=torch.uint8, device=_dev)
-            got = buf[:min(nbytes, 1 << 20)]
-            ok = bool(torch.equal(got, expected))
+            # Chunked reductions cover every byte without a second full-size
+            # allocation. Verification is outside all transfer timing samples.
+            nz = 0
+            for start in range(0, nbytes, 1 << 20):
+                nz += int((buf[start:start + (1 << 20)] != 0xAB).sum().item())
+            ok = (nz == 0)
             row["byte_exact"] = ok
             log(f"byte-exact check: {'PASS' if ok else 'FAIL'}")
             if not ok:
-                nz = int((got != 0xAB).sum().item())
-                log(f"  mismatching bytes in first MiB: {nz}")
+                log(f"  mismatching bytes across entire buffer: {nz}")
+
+        if rv:
+            peer_ok = rv.exchange(f"check.{tag}", ok)
+        else:
+            publish(args.sync_dir, f"check.{tag}.{rank}", json.dumps(ok))
+            peer_ok = json.loads(collect(args.sync_dir, f"check.{tag}.{peer_rank}",
+                                         timeout=args.rendezvous_timeout))
+        row["byte_exact"] = bool(ok and peer_ok)
+        failed |= not row["byte_exact"]
 
         # ---------------- deregisterMem ----------------
         t0 = time.perf_counter()
@@ -308,16 +435,21 @@ def main():
         results.append(row)
         del buf
         torch.cuda.empty_cache()
-        barrier(args.sync_dir, rank, f"done.{tag}")
+        if rv:
+            rv.checkpoint(f"done.{tag}")
+        else:
+            barrier(args.sync_dir, rank, f"done.{tag}", timeout=args.rendezvous_timeout)
 
     if is_initiator and args.json_out:
         with open(args.json_out, "w") as fh:
             json.dump(dict(layer="nixl_putget", op=args.op,
                            placement=placement, backend=args.backend,
+                           progress_mode=args.progress_mode,
                            host=host, peer_host=peer_host, rows=results),
                       fh, indent=1)
 
     log(f"{role} complete ({placement}, op={args.op})")
+    return 1 if failed else 0
 
 
 if __name__ == "__main__":
