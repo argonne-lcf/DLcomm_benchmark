@@ -1,0 +1,5 @@
+include README.md pyproject.toml
+recursive-include dl_comm *.cpp *.hpp *.h *.sh
+recursive-include examples *.py *.sh *.md *.yaml *.yml *.json *.cpp *.hpp
+recursive-include tools *.py *.sh
+recursive-include docs *.md
